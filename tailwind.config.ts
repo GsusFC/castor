@@ -9,9 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        farcaster: {
-          purple: '#8A63D2',
-          'purple-dark': '#7C3AED',
+        castor: {
+          black: '#000000',
+          dark: '#1a1a1a',
+          gray: '#4a4a4a',
+          light: '#e5e5e5',
+          white: '#ffffff',
         },
       },
     },

@@ -123,7 +123,7 @@ export function DashboardContent({ stats, recentCasts, allCasts, accountsCount }
         <div className="bg-white rounded-xl border p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-lg">Actividad reciente</h2>
-            <Link href="/dashboard/scheduled" className="text-sm text-farcaster-purple hover:underline">
+            <Link href="/dashboard/scheduled" className="text-sm text-castor-dark hover:underline">
               Ver todos
             </Link>
           </div>

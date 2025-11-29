@@ -6,7 +6,7 @@ import { AuthProvider } from '@/components/providers/AuthProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Caster - Farcaster Scheduler',
+  title: 'Castor - Farcaster Scheduler',
   description: 'Programa y gestiona tus casts de Farcaster',
 }
 

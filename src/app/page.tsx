@@ -8,10 +8,10 @@ export default function HomePage() {
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-farcaster-purple rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-castor-black rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">C</span>
             </div>
-            <span className="font-semibold text-lg">Caster</span>
+            <span className="font-semibold text-lg">Castor</span>
           </div>
           <SignInButton />
         </div>
@@ -22,7 +22,7 @@ export default function HomePage() {
         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
           Programa tus casts
           <br />
-          <span className="text-farcaster-purple">como un pro</span>
+          <span className="text-castor-dark">como un pro</span>
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
           Gestiona múltiples cuentas de Farcaster, programa publicaciones y 
@@ -72,7 +72,7 @@ function FeatureCard({
 }) {
   return (
     <div className="bg-white rounded-2xl p-6 border shadow-sm">
-      <div className="w-12 h-12 bg-farcaster-purple/10 rounded-xl flex items-center justify-center text-farcaster-purple mb-4">
+      <div className="w-12 h-12 bg-castor-light rounded-xl flex items-center justify-center text-castor-dark mb-4">
         {icon}
       </div>
       <h3 className="font-semibold text-lg mb-2">{title}</h3>

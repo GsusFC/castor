@@ -72,7 +72,7 @@ export default async function ScheduledPage({
               <>
                 {filtered.casts.length} cast{filtered.casts.length !== 1 ? 's' : ''}
                 {filterStatus && filterStatus !== 'all' && (
-                  <Link href="/dashboard/scheduled" className="ml-2 text-farcaster-purple hover:underline">
+                  <Link href="/dashboard/scheduled" className="ml-2 text-castor-black hover:underline">
                     Ver todos
                   </Link>
                 )}
@@ -227,7 +227,7 @@ function CastCard({ cast }: { cast: Cast }) {
             href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm text-farcaster-purple hover:underline"
+            className="flex items-center gap-1 text-sm text-castor-black hover:underline"
           >
             Ver en Warpcast
             <ExternalLink className="w-3.5 h-3.5" />

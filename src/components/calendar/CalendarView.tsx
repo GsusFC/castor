@@ -239,12 +239,12 @@ function CalendarDay({
       ref={setNodeRef}
       className={`min-h-[120px] border-b border-r p-1 ${
         !isCurrentMonth ? 'bg-gray-50' : ''
-      } ${isOver ? 'bg-farcaster-purple/10' : ''}`}
+      } ${isOver ? 'bg-castor-light' : ''}`}
     >
       <div
         className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
           isToday
-            ? 'bg-farcaster-purple text-white'
+            ? 'bg-castor-black text-white'
             : !isCurrentMonth
             ? 'text-gray-400'
             : 'text-gray-700'

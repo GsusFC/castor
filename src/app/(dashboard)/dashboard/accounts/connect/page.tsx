@@ -102,7 +102,7 @@ export default function ConnectAccountPage() {
       <div className="bg-white rounded-2xl border p-8">
         {status === 'loading' && (
           <div className="text-center py-12">
-            <Loader2 className="w-12 h-12 animate-spin text-farcaster-purple mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 animate-spin text-castor-black mx-auto mb-4" />
             <p className="text-gray-600">Generando código QR...</p>
           </div>
         )}
@@ -122,19 +122,19 @@ export default function ConnectAccountPage() {
             {/* Instructions */}
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-farcaster-purple text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
                   1
                 </div>
                 <p className="text-gray-700">Abre Warpcast en tu móvil</p>
               </div>
               <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-farcaster-purple text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
                   2
                 </div>
                 <p className="text-gray-700">Ve a Configuración → Cuentas conectadas</p>
               </div>
               <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-farcaster-purple text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
                   3
                 </div>
                 <p className="text-gray-700">Escanea este código QR</p>
@@ -152,7 +152,7 @@ export default function ConnectAccountPage() {
               <p className="text-sm text-gray-500 mb-3">¿Estás en el móvil?</p>
               <a
                 href={signerData.deepLinkUrl}
-                className="inline-flex items-center gap-2 text-farcaster-purple hover:underline font-medium"
+                className="inline-flex items-center gap-2 text-castor-black hover:underline font-medium"
               >
                 <Smartphone className="w-4 h-4" />
                 Abrir en Warpcast
@@ -182,7 +182,7 @@ export default function ConnectAccountPage() {
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={createSigner}
-              className="inline-flex items-center gap-2 bg-farcaster-purple hover:bg-farcaster-purple-dark text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              className="inline-flex items-center gap-2 bg-castor-black hover:bg-castor-dark text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
               Reintentar

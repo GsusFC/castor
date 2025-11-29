@@ -30,10 +30,10 @@ export function Sidebar() {
         {/* Logo */}
         <div className={`p-4 ${collapsed ? 'px-2' : 'p-6'}`}>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-farcaster-purple rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-castor-black rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm">C</span>
             </div>
-            {!collapsed && <span className="font-semibold text-lg">Caster</span>}
+            {!collapsed && <span className="font-semibold text-lg">Castor</span>}
           </Link>
         </div>
 
@@ -41,7 +41,7 @@ export function Sidebar() {
         <div className={`mb-6 ${collapsed ? 'px-2' : 'px-4'}`}>
           <Link
             href="/dashboard/compose"
-            className={`flex items-center justify-center gap-2 w-full bg-farcaster-purple hover:bg-farcaster-purple-dark text-white py-3 rounded-xl font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 w-full bg-castor-black hover:bg-castor-dark text-white py-3 rounded-xl font-medium transition-colors ${
               collapsed ? 'px-0' : ''
             }`}
             title={collapsed ? 'Nuevo Cast' : undefined}
@@ -61,7 +61,7 @@ export function Sidebar() {
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-farcaster-purple/10 text-farcaster-purple'
+                    ? 'bg-castor-light text-castor-dark'
                     : 'text-gray-700 hover:bg-gray-100'
                 } ${collapsed ? 'justify-center px-2' : ''}`}
                 title={collapsed ? item.label : undefined}

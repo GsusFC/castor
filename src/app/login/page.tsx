@@ -44,12 +44,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-        <div className="w-16 h-16 bg-farcaster-purple rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <div className="w-16 h-16 bg-castor-black rounded-2xl flex items-center justify-center mx-auto mb-6">
           <span className="text-white text-2xl font-bold">C</span>
         </div>
         
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Bienvenido a Caster
+          Bienvenido a Castor
         </h1>
         <p className="text-gray-500 mb-8">
           Programa y gestiona tus casts de Farcaster

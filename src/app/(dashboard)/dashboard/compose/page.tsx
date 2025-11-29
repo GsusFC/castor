@@ -221,7 +221,7 @@ export default function ComposePage() {
               <p className="text-sm">No hay cuentas conectadas</p>
               <Link
                 href="/dashboard/accounts/connect"
-                className="text-sm text-farcaster-purple hover:underline mt-1 inline-block"
+                className="text-sm text-castor-black hover:underline mt-1 inline-block"
               >
                 Añadir cuenta
               </Link>
@@ -235,7 +235,7 @@ export default function ComposePage() {
                   onClick={() => setSelectedAccount(account.id)}
                   className={`p-3 rounded-lg border text-left transition-colors ${
                     selectedAccount === account.id
-                      ? 'border-farcaster-purple bg-farcaster-purple/5'
+                      ? 'border-castor-black bg-castor-black/5'
                       : 'hover:border-gray-300'
                   }`}
                 >
@@ -344,7 +344,7 @@ export default function ComposePage() {
             </div>
             <div className="flex items-center gap-2">
               {selectedAccountData?.isPremium && (
-                <span className="text-xs bg-farcaster-purple/10 text-farcaster-purple px-2 py-0.5 rounded-full font-medium">
+                <span className="text-xs bg-castor-light text-castor-black px-2 py-0.5 rounded-full font-medium">
                   Pro
                 </span>
               )}
@@ -373,7 +373,7 @@ export default function ComposePage() {
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-farcaster-purple focus:border-farcaster-purple"
+                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-castor-black focus:border-castor-black"
                 />
               </div>
             </div>
@@ -384,7 +384,7 @@ export default function ComposePage() {
                   type="time"
                   value={scheduledTime}
                   onChange={(e) => setScheduledTime(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-farcaster-purple focus:border-farcaster-purple"
+                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-castor-black focus:border-castor-black"
                 />
               </div>
             </div>
@@ -416,7 +416,7 @@ export default function ComposePage() {
               !scheduledDate ||
               !scheduledTime
             }
-            className="flex items-center gap-2 bg-farcaster-purple hover:bg-farcaster-purple-dark disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 bg-castor-black hover:bg-castor-dark disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
           >
             <Send className="w-4 h-4" />
             {isSubmitting ? 'Programando...' : 'Programar'}

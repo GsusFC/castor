@@ -34,21 +34,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Subir a Neynar
-    const neynarFormData = new FormData()
-    neynarFormData.append('file', file)
+    // Subir a Imgur (gratis, sin API key para uploads anónimos)
+    const buffer = await file.arrayBuffer()
+    const base64 = Buffer.from(buffer).toString('base64')
 
-    const response = await fetch('https://api.neynar.com/v2/farcaster/storage/upload', {
+    const response = await fetch('https://api.imgur.com/3/image', {
       method: 'POST',
       headers: {
-        'api_key': process.env.NEYNAR_API_KEY!,
+        'Authorization': 'Client-ID 546c25a59c58ad7',
+        'Content-Type': 'application/json',
       },
-      body: neynarFormData,
+      body: JSON.stringify({
+        image: base64,
+        type: 'base64',
+      }),
     })
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('[Media] Neynar upload error:', response.status, error)
+      console.error('[Media] Imgur upload error:', response.status, error)
       return NextResponse.json(
         { error: 'Error al subir archivo', details: error, status: response.status },
         { status: 500 }
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      url: data.url,
+      url: data.data.link,
       type: isVideo ? 'video' : 'image',
     })
   } catch (error) {

@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Clock, Calendar, MoreVertical, User, ExternalLink } from 'lucide-react'
 import { db } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 interface Cast {
   id: string
   content: string

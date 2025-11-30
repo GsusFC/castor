@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { AddAccountButton } from './add-account-button'
 import { AccountCard } from './AccountCard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AccountsPage() {
   const accountsList = await db.query.accounts.findMany({
     orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],

@@ -1,6 +1,8 @@
 import { db } from '@/lib/db'
 import { DashboardContent } from './DashboardContent'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   // Obtener estadísticas reales
   const allCasts = await db.query.scheduledCasts.findMany({

@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('[Media] Neynar upload error:', error)
+      console.error('[Media] Neynar upload error:', response.status, error)
       return NextResponse.json(
-        { error: 'Error al subir archivo' },
+        { error: 'Error al subir archivo', details: error, status: response.status },
         { status: 500 }
       )
     }

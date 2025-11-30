@@ -1,5 +1,5 @@
-import { db, scheduledCasts, castMedia, accounts } from '@/lib/db'
-import { eq, lte, and } from 'drizzle-orm'
+import { db, scheduledCasts, castMedia } from '@/lib/db'
+import { eq, lte, and, asc } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster'
 
 /**
@@ -10,7 +10,7 @@ export async function publishDueCasts() {
   
   console.log(`[Publisher] Checking for due casts at ${now.toISOString()}`)
 
-  // Buscar casts pendientes cuya hora ya pasó
+  // Buscar casts pendientes cuya hora ya pasó, ordenados por threadId y threadOrder
   const dueCasts = await db.query.scheduledCasts.findMany({
     where: and(
       eq(scheduledCasts.status, 'scheduled'),
@@ -19,6 +19,7 @@ export async function publishDueCasts() {
     with: {
       account: true,
     },
+    orderBy: [asc(scheduledCasts.threadId), asc(scheduledCasts.threadOrder)],
   })
 
   // Cargar media por separado para cada cast
@@ -30,6 +31,9 @@ export async function publishDueCasts() {
   }
 
   console.log(`[Publisher] Found ${dueCasts.length} due casts`)
+  
+  // Agrupar por threadId para publicar threads en orden
+  const threadHashes: Record<string, string> = {} // threadId -> último hash publicado
 
   for (const cast of dueCasts) {
     if (!cast.account) {
@@ -55,6 +59,13 @@ export async function publishDueCasts() {
       const castWithMedia = cast as typeof cast & { media?: { url: string }[] }
       const embeds = castWithMedia.media?.map(m => ({ url: m.url })) || []
 
+      // Determinar parentHash para threads
+      let parentHash = cast.parentHash || undefined
+      if (cast.threadId && cast.threadOrder && cast.threadOrder > 0) {
+        // Es parte de un thread, usar el hash del cast anterior
+        parentHash = threadHashes[cast.threadId]
+      }
+
       // Publicar
       const result = await publishCast(
         cast.account.signerUuid,
@@ -62,7 +73,7 @@ export async function publishDueCasts() {
         {
           embeds: embeds.length > 0 ? embeds : undefined,
           channelId: cast.channelId || undefined,
-          parentHash: cast.parentHash || undefined,
+          parentHash,
         }
       )
 
@@ -79,6 +90,11 @@ export async function publishDueCasts() {
           .where(eq(scheduledCasts.id, cast.id))
 
         console.log(`[Publisher] ✅ Cast ${cast.id} published: ${result.hash}`)
+        
+        // Guardar hash para el siguiente cast del thread
+        if (cast.threadId && result.hash) {
+          threadHashes[cast.threadId] = result.hash
+        }
       } else {
         // Marcar como fallido
         await db

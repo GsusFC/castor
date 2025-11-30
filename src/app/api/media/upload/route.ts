@@ -34,7 +34,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Subir a Imgur (gratis, sin API key para uploads anónimos)
+    // Videos no soportados por ahora
+    if (isVideo) {
+      return NextResponse.json(
+        { error: 'Videos no soportados todavía. Usa una URL externa.' },
+        { status: 400 }
+      )
+    }
+
+    // Subir imágenes a Imgur
     const buffer = await file.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
 
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       url: data.data.link,
-      type: isVideo ? 'video' : 'image',
+      type: 'image',
     })
   } catch (error) {
     console.error('[Media] Upload error:', error)

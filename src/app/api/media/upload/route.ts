@@ -34,33 +34,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Videos no soportados por ahora
-    if (isVideo) {
-      return NextResponse.json(
-        { error: 'Videos no soportados todavía. Usa una URL externa.' },
-        { status: 400 }
-      )
-    }
-
-    // Subir imágenes a Imgur
+    // Subir a Cloudinary
     const buffer = await file.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
+    const dataUri = `data:${file.type};base64,${base64}`
 
-    const response = await fetch('https://api.imgur.com/3/image', {
+    const cloudinaryFormData = new FormData()
+    cloudinaryFormData.append('file', dataUri)
+    cloudinaryFormData.append('upload_preset', 'castor_uploads')
+
+    const resourceType = isVideo ? 'video' : 'image'
+    const response = await fetch(`https://api.cloudinary.com/v1_1/dqzhacfga/${resourceType}/upload`, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Client-ID 546c25a59c58ad7',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image: base64,
-        type: 'base64',
-      }),
+      body: cloudinaryFormData,
     })
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('[Media] Imgur upload error:', response.status, error)
+      console.error('[Media] Cloudinary upload error:', response.status, error)
       return NextResponse.json(
         { error: 'Error al subir archivo', details: error, status: response.status },
         { status: 500 }
@@ -72,8 +63,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      url: data.data.link,
-      type: 'image',
+      url: data.secure_url,
+      type: isVideo ? 'video' : 'image',
     })
   } catch (error) {
     console.error('[Media] Upload error:', error)

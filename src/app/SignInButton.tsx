@@ -1,11 +1,9 @@
 'use client'
 
 import { useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { SignInButton as FarcasterSignIn, useProfile } from '@farcaster/auth-kit'
 
 export function SignInButton() {
-  const router = useRouter()
   const { isAuthenticated, profile } = useProfile()
 
   const handleAuth = useCallback(async () => {
@@ -19,12 +17,12 @@ export function SignInButton() {
       })
 
       if (res.ok) {
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       }
     } catch (err) {
       console.error('Auth error:', err)
     }
-  }, [profile, router])
+  }, [profile])
 
   useEffect(() => {
     if (isAuthenticated && profile?.fid) {

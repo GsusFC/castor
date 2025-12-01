@@ -19,12 +19,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q')
+    const fid = searchParams.get('fid')
 
     let channels: Channel[] = []
 
     if (query && query.length >= 2) {
       // Buscar canales por nombre
-      const response = await neynar.searchChannels({ q: query, limit: 20 })
+      const response = await neynar.searchChannels({ q: query, limit: 30 })
       channels = response.channels
         .filter((channel): channel is typeof channel & { name: string } => !!channel.name)
         .map((channel) => ({
@@ -33,20 +34,34 @@ export async function GET(request: NextRequest) {
           image_url: channel.image_url,
           description: channel.description,
         }))
-    } else {
-      // Obtener canales populares
-      const response = await neynar.fetchTrendingChannels({ limit: 30 })
-      channels = response.channels
-        .map((item) => {
-          const ch = (item as unknown as { channel: NeynarChannel }).channel
-          return ch
-        })
-        .filter((ch): ch is NeynarChannel & { name: string } => !!ch?.name)
-        .map((ch) => ({
+    } else if (fid) {
+      // Obtener canales que sigue el usuario
+      const response = await neynar.fetchUserChannels({ fid: Number(fid), limit: 50 })
+      
+      // La respuesta puede tener diferentes estructuras según la API
+      const rawChannels = response.channels || []
+      const mappedChannels: (Channel | null)[] = rawChannels.map((item: unknown) => {
+        // Puede ser directamente el canal o un objeto con .channel
+        const ch = (item as { channel?: NeynarChannel })?.channel || (item as NeynarChannel)
+        if (!ch?.id || !ch?.name) return null
+        return {
           id: ch.id,
           name: ch.name,
           image_url: ch.image_url,
           description: ch.description,
+        }
+      })
+      channels = mappedChannels.filter((ch): ch is Channel => ch !== null)
+    } else {
+      // Sin fid, buscar canales populares
+      const response = await neynar.searchChannels({ q: 'farcaster', limit: 30 })
+      channels = response.channels
+        .filter((channel): channel is typeof channel & { name: string } => !!channel.name)
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          image_url: channel.image_url,
+          description: channel.description,
         }))
     }
 

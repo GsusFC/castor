@@ -4,10 +4,12 @@ const AUTH_COOKIE = 'caster_auth'
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 días
 
 export interface AuthUser {
+  userId: string
   fid: number
   username: string
   displayName: string
   pfpUrl: string
+  role: 'admin' | 'member'
 }
 
 export async function getSession(): Promise<AuthUser | null> {

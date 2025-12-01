@@ -2,15 +2,15 @@
 
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export function AddAccountButton() {
   return (
-    <Link
-      href="/dashboard/accounts/connect"
-      className="flex items-center gap-2 bg-castor-black hover:bg-castor-dark text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
-    >
-      <Plus className="w-5 h-5" />
-      Añadir cuenta
-    </Link>
+    <Button asChild>
+      <Link href="/dashboard/accounts/connect">
+        <Plus className="w-4 h-4 mr-2" />
+        Añadir cuenta
+      </Link>
+    </Button>
   )
 }

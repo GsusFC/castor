@@ -1,8 +1,17 @@
 import Link from 'next/link'
-import { Clock, Calendar, MoreVertical, User, ExternalLink } from 'lucide-react'
+import { Clock, Calendar, User, ExternalLink, Edit, FileText } from 'lucide-react'
 import { db } from '@/lib/db'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export const dynamic = 'force-dynamic'
+
+interface CastCreator {
+  id: string
+  username: string
+  displayName: string | null
+  pfpUrl: string | null
+}
 
 interface Cast {
   id: string
@@ -15,18 +24,27 @@ interface Cast {
     displayName: string | null
     pfpUrl: string | null
   } | null
+  createdBy?: CastCreator | null
 }
 
 export default async function ScheduledPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; tab?: string }>
 }) {
-  const { status: filterStatus } = await searchParams
+  const { status: filterStatus, tab } = await searchParams
   
   const casts = await db.query.scheduledCasts.findMany({
     with: {
       account: true,
+      createdBy: {
+        columns: {
+          id: true,
+          username: true,
+          displayName: true,
+          pfpUrl: true,
+        },
+      },
     },
     orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
   })
@@ -35,6 +53,7 @@ export default async function ScheduledPage({
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
 
+  const drafts = casts.filter(c => c.status === 'draft')
   const scheduled = casts.filter(c => c.status === 'scheduled')
   const today = casts.filter(c => 
     c.status === 'scheduled' && 
@@ -46,6 +65,11 @@ export default async function ScheduledPage({
 
   // Filtrar según el parámetro de URL
   const getFilteredCasts = () => {
+    // Primero verificar tab para borradores
+    if (tab === 'draft') {
+      return { title: 'Borradores', casts: drafts, isDraft: true }
+    }
+    
     switch (filterStatus) {
       case 'scheduled':
         return { title: 'Programados', casts: scheduled }
@@ -66,14 +90,14 @@ export default async function ScheduledPage({
     <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-display text-gray-900">
             {filtered ? filtered.title : 'Casts'}
           </h1>
           <p className="text-gray-500 mt-1">
             {filtered ? (
               <>
                 {filtered.casts.length} cast{filtered.casts.length !== 1 ? 's' : ''}
-                {filterStatus && filterStatus !== 'all' && (
+                {(filterStatus || tab) && (
                   <Link href="/dashboard/scheduled" className="ml-2 text-castor-black hover:underline">
                     Ver todos
                   </Link>
@@ -81,6 +105,7 @@ export default async function ScheduledPage({
               </>
             ) : (
               <>
+                {drafts.length > 0 && <><Link href="/dashboard/scheduled?tab=draft" className="hover:underline">{drafts.length} borrador{drafts.length !== 1 ? 'es' : ''}</Link> · </>}
                 {scheduled.length} programados · {published.length} publicados
                 {failed.length > 0 && ` · ${failed.length} fallidos`}
               </>
@@ -106,6 +131,21 @@ export default async function ScheduledPage({
         <EmptyState />
       ) : (
         <div className="space-y-6">
+          {/* Borradores */}
+          {drafts.length > 0 && (
+            <section>
+              <h2 className="text-sm font-medium text-amber-600 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Borradores
+              </h2>
+              <div className="space-y-3">
+                {drafts.map((cast) => (
+                  <CastCard key={cast.id} cast={cast} isDraft />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Programados */}
           {scheduled.length > 0 && (
             <section>
@@ -156,24 +196,28 @@ export default async function ScheduledPage({
 
 function EmptyState() {
   return (
-    <div className="bg-white rounded-xl border p-12 text-center">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Clock className="w-8 h-8 text-gray-400" />
-      </div>
-      <h2 className="text-lg font-semibold mb-2">No hay casts programados</h2>
-      <p className="text-gray-500 max-w-md mx-auto">
-        Usa el botón "Nuevo Cast" del menú lateral para programar tu primer cast.
-      </p>
-    </div>
+    <Card className="text-center">
+      <CardContent className="pt-12 pb-12 flex flex-col items-center">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <Clock className="w-8 h-8 text-gray-400" />
+        </div>
+        <h2 className="text-lg font-semibold mb-2">No hay casts programados</h2>
+        <p className="text-gray-500 max-w-md mx-auto">
+          Usa el botón "Nuevo Cast" del menú lateral para programar tu primer cast.
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
-function CastCard({ cast }: { cast: Cast }) {
+function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) {
   if (!cast.account) return null
   
   const scheduledDate = new Date(cast.scheduledAt)
+  const hasSchedule = cast.status !== 'draft' || (cast.content && cast.scheduledAt)
+  
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <Card className={`p-4 ${isDraft ? 'border-amber-200 bg-amber-50/30' : ''}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           {cast.account.pfpUrl ? (
@@ -192,50 +236,87 @@ function CastCard({ cast }: { cast: Cast }) {
               {cast.account.displayName || cast.account.username}
             </span>
             <span className="text-gray-500 ml-2">@{cast.account.username}</span>
+            {isDraft && (
+              <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                Borrador
+              </span>
+            )}
           </div>
         </div>
-        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <MoreVertical className="w-5 h-5 text-gray-400" />
-        </button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-castor-black" asChild title="Editar cast">
+          <Link href={`/dashboard/edit/${cast.id}`}>
+            <Edit className="w-4 h-4" />
+          </Link>
+        </Button>
       </div>
 
-      <p className="text-gray-900 mb-4 whitespace-pre-wrap">{cast.content}</p>
+      <p className="text-gray-900 mb-4 whitespace-pre-wrap text-sm leading-relaxed">
+        {cast.content || <span className="text-gray-400 italic">Sin contenido</span>}
+      </p>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-4 h-4" />
-            <span>
-              {scheduledDate.toLocaleDateString('es-ES', {
-                day: 'numeric',
-                month: 'short',
-              })}
+          {hasSchedule && !isDraft && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  {scheduledDate.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                <span>
+                  {scheduledDate.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            </>
+          )}
+          {isDraft && (
+            <span className="text-amber-600 text-xs">
+              Sin programar
             </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4" />
-            <span>
-              {scheduledDate.toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          </div>
+          )}
+          {/* Mostrar quién programó el cast */}
+          {cast.createdBy && (
+            <div className="flex items-center gap-1.5 border-l pl-4">
+              {cast.createdBy.pfpUrl ? (
+                <img 
+                  src={cast.createdBy.pfpUrl} 
+                  alt={cast.createdBy.username}
+                  className="w-4 h-4 rounded-full"
+                />
+              ) : (
+                <User className="w-4 h-4" />
+              )}
+              <span className="text-xs">
+                por @{cast.createdBy.username}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Link a Warpcast si está publicado */}
         {cast.status === 'published' && cast.castHash && (
-          <a
-            href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm text-castor-black hover:underline"
-          >
-            Ver en Warpcast
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          <Button variant="link" size="sm" className="h-auto p-0 text-castor-black hover:no-underline hover:text-castor-dark" asChild>
+            <a
+              href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1"
+            >
+              Ver en Warpcast
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

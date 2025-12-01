@@ -2,6 +2,32 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 
 /**
+ * Usuarios de la aplicación (login con Farcaster)
+ */
+export const users = sqliteTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    fid: integer('fid').notNull().unique(),
+    username: text('username').notNull(),
+    displayName: text('display_name'),
+    pfpUrl: text('pfp_url'),
+    role: text('role', { enum: ['admin', 'member'] })
+      .notNull()
+      .default('admin'), // Por ahora todos son admin
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    fidIdx: index('users_fid_idx').on(table.fid),
+  })
+)
+
+/**
  * Cuentas de Farcaster conectadas al estudio
  */
 export const accounts = sqliteTable(
@@ -22,6 +48,11 @@ export const accounts = sqliteTable(
     isPremium: integer('is_premium', { mode: 'boolean' })
       .notNull()
       .default(false),
+    // Ownership y sharing
+    ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    isShared: integer('is_shared', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -32,6 +63,7 @@ export const accounts = sqliteTable(
   (table) => ({
     fidIdx: index('accounts_fid_idx').on(table.fid),
     signerIdx: index('accounts_signer_idx').on(table.signerUuid),
+    ownerIdx: index('accounts_owner_idx').on(table.ownerId),
   })
 )
 
@@ -59,6 +91,8 @@ export const scheduledCasts = sqliteTable(
     // Thread support
     threadId: text('thread_id'),
     threadOrder: integer('thread_order'),
+    // Quién programó el cast
+    createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -71,6 +105,7 @@ export const scheduledCasts = sqliteTable(
     statusIdx: index('casts_status_idx').on(table.status),
     scheduledIdx: index('casts_scheduled_idx').on(table.scheduledAt),
     threadIdx: index('casts_thread_idx').on(table.threadId),
+    createdByIdx: index('casts_created_by_idx').on(table.createdById),
   })
 )
 
@@ -129,7 +164,16 @@ export const threads = sqliteTable(
 )
 
 // Relaciones
-export const accountsRelations = relations(accounts, ({ many }) => ({
+export const usersRelations = relations(users, ({ many }) => ({
+  ownedAccounts: many(accounts),
+  createdCasts: many(scheduledCasts),
+}))
+
+export const accountsRelations = relations(accounts, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [accounts.ownerId],
+    references: [users.id],
+  }),
   scheduledCasts: many(scheduledCasts),
   threads: many(threads),
 }))
@@ -138,6 +182,10 @@ export const scheduledCastsRelations = relations(scheduledCasts, ({ one, many })
   account: one(accounts, {
     fields: [scheduledCasts.accountId],
     references: [accounts.id],
+  }),
+  createdBy: one(users, {
+    fields: [scheduledCasts.createdById],
+    references: [users.id],
   }),
   media: many(castMedia),
 }))
@@ -157,6 +205,8 @@ export const threadsRelations = relations(threads, ({ one }) => ({
 }))
 
 // Types inferidos
+export type User = typeof users.$inferSelect
+export type NewUser = typeof users.$inferInsert
 export type Account = typeof accounts.$inferSelect
 export type NewAccount = typeof accounts.$inferInsert
 export type ScheduledCast = typeof scheduledCasts.$inferSelect

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { scheduledCasts, threads, castMedia, accounts } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { getSession } from '@/lib/auth'
 
 function generateId() {
   return crypto.randomUUID()
@@ -44,6 +45,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
 
+    // Obtener usuario actual
+    const session = await getSession()
+    
     const threadId = generateId()
 
     // Crear el thread
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest) {
         status: 'scheduled',
         threadId,
         threadOrder: i,
+        createdById: session?.userId || null,
       })
 
       // Guardar media si hay embeds

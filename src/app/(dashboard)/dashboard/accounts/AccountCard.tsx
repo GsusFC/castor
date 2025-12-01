@@ -1,8 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Building2, Trash2 } from 'lucide-react'
+import { User, Building2, Trash2, Share2, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+
+interface AccountOwner {
+  id: string
+  username: string
+  displayName: string | null
+  pfpUrl: string | null
+}
 
 interface Account {
   id: string
@@ -11,12 +21,26 @@ interface Account {
   pfpUrl: string | null
   type: 'personal' | 'business'
   signerStatus: 'pending' | 'approved' | 'revoked'
+  ownerId: string | null
+  isShared: boolean
+  owner?: AccountOwner | null
 }
 
-export function AccountCard({ account }: { account: Account }) {
+interface AccountCardProps {
+  account: Account
+  currentUserId: string
+  isAdmin: boolean
+}
+
+export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [isShared, setIsShared] = useState(account.isShared)
   const router = useRouter()
+  
+  const isOwner = account.ownerId === currentUserId
+  const canShare = isAdmin // Solo admins pueden compartir
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -40,17 +64,43 @@ export function AccountCard({ account }: { account: Account }) {
       if (!res.ok) {
         throw new Error('Error al eliminar')
       }
-
+      
+      toast.success('Cuenta eliminada')
       router.refresh()
     } catch (error) {
       console.error('Error deleting account:', error)
+      toast.error('Error al eliminar la cuenta')
       setIsDeleting(false)
       setShowConfirm(false)
     }
   }
 
+  const handleToggleShare = async () => {
+    setIsSharing(true)
+    try {
+      const res = await fetch(`/api/accounts/${account.id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isShared: !isShared }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Error al compartir')
+      }
+
+      setIsShared(!isShared)
+      toast.success(isShared ? 'Cuenta dejada de compartir' : 'Cuenta compartida con el equipo')
+      router.refresh()
+    } catch (error) {
+      console.error('Error sharing account:', error)
+      toast.error('Error al cambiar estado compartido')
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   return (
-    <div className="bg-white rounded-xl border p-4 flex items-center justify-between">
+    <Card className="p-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
         {account.pfpUrl ? (
           <img
@@ -71,8 +121,26 @@ export function AccountCard({ account }: { account: Account }) {
             {account.type === 'business' && (
               <Building2 className="w-4 h-4 text-gray-400" />
             )}
+            {isShared && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                <Users className="w-3 h-3" />
+                Compartida
+              </span>
+            )}
+            {isOwner && (
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                Tuya
+              </span>
+            )}
           </div>
-          <span className="text-sm text-gray-500">@{account.username}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">@{account.username}</span>
+            {!isOwner && account.owner && (
+              <span className="text-xs text-gray-400">
+                · de @{account.owner.username}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -83,33 +151,50 @@ export function AccountCard({ account }: { account: Account }) {
           {statusLabels[account.signerStatus]}
         </span>
         
+        {canShare && (
+          <Button
+            variant={isShared ? "secondary" : "ghost"}
+            size="icon"
+            onClick={handleToggleShare}
+            disabled={isSharing}
+            title={isShared ? 'Dejar de compartir' : 'Compartir con el equipo'}
+            className={isShared ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-400"}
+          >
+            <Share2 className="w-4 h-4" />
+          </Button>
+        )}
+        
         {showConfirm ? (
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
             >
-              {isDeleting ? 'Eliminando...' : 'Confirmar'}
-            </button>
-            <button
+              {isDeleting ? '...' : 'Confirmar'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowConfirm(false)}
               disabled={isDeleting}
-              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowConfirm(true)}
-            className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
+            className="text-gray-400 hover:text-red-600 hover:bg-red-50"
             title="Eliminar cuenta"
           >
-            <Trash2 className="w-5 h-5 text-gray-400 group-hover:text-red-500" />
-          </button>
+            <Trash2 className="w-4 h-4" />
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

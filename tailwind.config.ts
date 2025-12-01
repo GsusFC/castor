@@ -15,7 +15,12 @@ const config: Config = {
           gray: '#4a4a4a',
           light: '#e5e5e5',
           white: '#ffffff',
+          brand: '#AE997A',
         },
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        display: ['"Special Gothic Expanded One"', 'system-ui', 'sans-serif'],
       },
     },
   },

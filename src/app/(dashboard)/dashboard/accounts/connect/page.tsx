@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { ArrowLeft, Loader2, CheckCircle, RefreshCw, Smartphone } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 type Status = 'loading' | 'pending' | 'approved' | 'error'
 
@@ -15,7 +16,6 @@ interface SignerData {
 }
 
 export default function ConnectAccountPage() {
-  const router = useRouter()
   const [status, setStatus] = useState<Status>('loading')
   const [signerData, setSignerData] = useState<SignerData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -69,11 +69,6 @@ export default function ConnectAccountPage() {
         if (data.status === 'approved') {
           setStatus('approved')
           clearInterval(interval)
-          // Redirigir después de 1.5s
-          setTimeout(() => {
-            router.push('/dashboard/accounts')
-            router.refresh()
-          }, 1500)
         }
       } catch (err) {
         console.error('Error checking signer:', err)
@@ -81,25 +76,36 @@ export default function ConnectAccountPage() {
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [status, signerData, router])
+  }, [status, signerData])
+
+  // Redirigir cuando se aprueba
+  useEffect(() => {
+    if (status !== 'approved') return
+    
+    const timer = setTimeout(() => {
+      // Usar window.location para forzar recarga completa
+      window.location.href = '/dashboard/accounts'
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [status])
 
   return (
     <div className="max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <Link
-          href="/dashboard/accounts"
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/dashboard/accounts">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </Link>
+        </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Conectar cuenta</h1>
+          <h1 className="text-2xl font-display text-gray-900">Conectar cuenta</h1>
           <p className="text-gray-500 mt-1">Escanea el QR con Warpcast</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border p-8">
+      <Card className="p-8">
         {status === 'loading' && (
           <div className="text-center py-12">
             <Loader2 className="w-12 h-12 animate-spin text-castor-black mx-auto mb-4" />
@@ -110,7 +116,7 @@ export default function ConnectAccountPage() {
         {status === 'pending' && signerData && (
           <div className="text-center">
             {/* QR Code */}
-            <div className="bg-white p-4 rounded-xl inline-block mb-6">
+            <div className="bg-white p-4 rounded-xl border inline-block mb-6 shadow-sm">
               <QRCodeSVG
                 value={signerData.deepLinkUrl}
                 size={240}
@@ -121,42 +127,41 @@ export default function ConnectAccountPage() {
 
             {/* Instructions */}
             <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   1
                 </div>
-                <p className="text-gray-700">Abre Warpcast en tu móvil</p>
+                <p className="text-gray-700 text-sm">Abre Warpcast en tu móvil</p>
               </div>
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   2
                 </div>
-                <p className="text-gray-700">Ve a Configuración → Cuentas conectadas</p>
+                <p className="text-gray-700 text-sm">Ve a Configuración → Cuentas conectadas</p>
               </div>
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-castor-black text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   3
                 </div>
-                <p className="text-gray-700">Escanea este código QR</p>
+                <p className="text-gray-700 text-sm">Escanea este código QR</p>
               </div>
             </div>
 
             {/* Status */}
-            <div className="flex items-center justify-center gap-2 text-gray-500">
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Esperando aprobación...</span>
             </div>
 
             {/* Mobile link */}
-            <div className="mt-6 pt-6 border-t">
+            <div className="mt-6 pt-6 border-t border-gray-100">
               <p className="text-sm text-gray-500 mb-3">¿Estás en el móvil?</p>
-              <a
-                href={signerData.deepLinkUrl}
-                className="inline-flex items-center gap-2 text-castor-black hover:underline font-medium"
-              >
-                <Smartphone className="w-4 h-4" />
-                Abrir en Warpcast
-              </a>
+              <Button variant="link" asChild>
+                <a href={signerData.deepLinkUrl} className="text-castor-black">
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Abrir en Warpcast
+                </a>
+              </Button>
             </div>
           </div>
         )}
@@ -180,16 +185,13 @@ export default function ConnectAccountPage() {
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
             <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={createSigner}
-              className="inline-flex items-center gap-2 bg-castor-black hover:bg-castor-dark text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
+            <Button onClick={createSigner}>
+              <RefreshCw className="w-4 h-4 mr-2" />
               Reintentar
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

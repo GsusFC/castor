@@ -3,6 +3,7 @@ import { getSignerStatus, getUserByFid } from '@/lib/farcaster'
 import { db, accounts } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
+import { getSession } from '@/lib/auth'
 
 /**
  * POST /api/accounts/check-signer
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await getSignerStatus(signerUuid)
+    
+    console.log('[check-signer] Status result:', JSON.stringify(result, null, 2))
 
     if (!result.success) {
       return NextResponse.json(
@@ -29,6 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const signer = result.signer
+    console.log('[check-signer] Signer status:', signer.status, 'FID:', signer.fid)
 
     // Si el signer está aprobado, registrar/actualizar la cuenta
     if (signer.status === 'approved' && signer.fid) {
@@ -50,24 +54,38 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingAccount) {
-        // Actualizar signer si cambió
-        if (existingAccount.signerUuid !== signerUuid) {
-          await db
-            .update(accounts)
-            .set({
-              signerUuid,
-              signerStatus: 'approved',
-              updatedAt: new Date(),
-            })
-            .where(eq(accounts.id, existingAccount.id))
+        // Obtener sesión actual
+        const session = await getSession()
+        
+        // Actualizar cuenta: signer, status, y ownerId si no tiene
+        const updates: Record<string, unknown> = {
+          signerUuid,
+          signerStatus: 'approved',
+          updatedAt: new Date(),
         }
+        
+        // Si la cuenta no tiene owner y hay sesión, asignar el owner actual
+        if (!existingAccount.ownerId && session?.userId) {
+          updates.ownerId = session.userId
+          console.log('[check-signer] Assigning ownerId to existing account:', session.userId)
+        }
+        
+        await db
+          .update(accounts)
+          .set(updates)
+          .where(eq(accounts.id, existingAccount.id))
+        
+        console.log('[check-signer] Updated existing account:', existingAccount.id, existingAccount.username)
 
         return NextResponse.json({
           status: 'approved',
-          account: existingAccount,
+          account: { ...existingAccount, ...updates },
           isNew: false,
         })
       }
+
+      // Obtener usuario actual para asignar como owner
+      const session = await getSession()
 
       // Crear nueva cuenta
       const newAccount = {
@@ -80,9 +98,12 @@ export async function POST(request: NextRequest) {
         signerStatus: 'approved' as const,
         type: 'personal' as const,
         isPremium: user.isPremium || false,
+        ownerId: session?.userId || null,
+        isShared: false,
       }
 
       await db.insert(accounts).values(newAccount)
+      console.log('[check-signer] New account created:', newAccount.id, newAccount.username)
 
       return NextResponse.json({
         status: 'approved',

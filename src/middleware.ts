@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 const AUTH_COOKIE = 'caster_auth'
 
 // Rutas públicas que no requieren autenticación
-const publicRoutes = ['/', '/login', '/api/auth', '/api/cron']
+const publicRoutes = ['/', '/login', '/api/auth', '/api/cron', '/api/channels', '/api/accounts', '/api/casts', '/api/media']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Permitir assets estáticos
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.startsWith('/brand')) {
     return NextResponse.next()
   }
 

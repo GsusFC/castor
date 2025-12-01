@@ -68,7 +68,10 @@ export function CastEditor({
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    if (cast.media.length + files.length > 2) {
+    // Limpiar media con errores antes de añadir nuevos
+    const cleanMedia = cast.media.filter(m => !m.error)
+    
+    if (cleanMedia.length + files.length > 2) {
       toast.error('Máximo 2 archivos por cast')
       return
     }
@@ -80,8 +83,11 @@ export function CastEditor({
       uploading: true
     }))
 
-    // Optimistic update
-    let currentMedia = [...cast.media, ...newMediaItems]
+    // Revocar URLs de media con errores que se van a eliminar
+    cast.media.filter(m => m.error).forEach(m => URL.revokeObjectURL(m.preview))
+
+    // Optimistic update - usar cleanMedia en lugar de cast.media
+    let currentMedia = [...cleanMedia, ...newMediaItems]
     onUpdate({ ...cast, media: currentMedia })
 
     // Reset input
@@ -113,12 +119,13 @@ export function CastEditor({
         onUpdate({ ...cast, media: currentMedia })
 
       } catch (err) {
-        console.error(err)
-        toast.error('Error al subir archivo')
-        // Update error
+        const errorMessage = err instanceof Error ? err.message : 'Error al subir'
+        console.error('[Media Upload]', errorMessage)
+        toast.error(errorMessage)
+        // Update error - guardar mensaje específico para mostrar al usuario
         currentMedia = currentMedia.map(m => 
           m.preview === mediaItem.preview 
-            ? { ...m, uploading: false, error: 'Error al subir' } 
+            ? { ...m, uploading: false, error: errorMessage } 
             : m
         )
         onUpdate({ ...cast, media: currentMedia })

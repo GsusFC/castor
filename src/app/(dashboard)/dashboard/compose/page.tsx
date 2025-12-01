@@ -16,6 +16,24 @@ import { Button } from '@/components/ui/button'
 const MAX_CHARS_FREE = 320
 const MAX_CHARS_PREMIUM = 1024
 
+// Convierte fecha y hora local (Europe/Madrid) a ISO string UTC
+function toMadridISO(date: string, time: string): string {
+  // Crear fecha con timezone explícita de Madrid
+  const dateTimeStr = `${date}T${time}:00`
+  const madridDate = new Date(dateTimeStr + '+01:00') // CET offset
+  
+  // Ajustar por horario de verano (CEST = +02:00)
+  const testDate = new Date(dateTimeStr)
+  const jan = new Date(testDate.getFullYear(), 0, 1).getTimezoneOffset()
+  const jul = new Date(testDate.getFullYear(), 6, 1).getTimezoneOffset()
+  const isDST = testDate.getTimezoneOffset() < Math.max(jan, jul)
+  
+  if (isDST) {
+    return new Date(dateTimeStr + '+02:00').toISOString()
+  }
+  return madridDate.toISOString()
+}
+
 export default function ComposePage() {
   const router = useRouter()
   
@@ -90,7 +108,7 @@ export default function ComposePage() {
     setIsSubmitting(true)
 
     try {
-      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+      const scheduledAt = toMadridISO(scheduledDate, scheduledTime)
       
       // Validar que todos los media estén subidos y sin errores
       const hasMediaErrors = casts.some(c => c.media.some(m => m.error || m.uploading))
@@ -171,7 +189,7 @@ export default function ComposePage() {
 
       // Construir scheduledAt solo si hay fecha y hora
       const scheduledAt = scheduledDate && scheduledTime 
-        ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+        ? toMadridISO(scheduledDate, scheduledTime)
         : undefined
 
       const res = await fetch('/api/casts/schedule', {

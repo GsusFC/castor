@@ -264,6 +264,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
                   {scheduledDate.toLocaleDateString('es-ES', {
                     day: 'numeric',
                     month: 'short',
+                    timeZone: 'Europe/Madrid',
                   })}
                 </span>
               </div>
@@ -273,6 +274,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
                   {scheduledDate.toLocaleTimeString('es-ES', {
                     hour: '2-digit',
                     minute: '2-digit',
+                    timeZone: 'Europe/Madrid',
                   })}
                 </span>
               </div>

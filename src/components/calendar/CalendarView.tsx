@@ -294,6 +294,7 @@ function CastCard({ cast, isDragging }: { cast: Cast; isDragging?: boolean }) {
   const time = new Date(cast.scheduledAt).toLocaleTimeString('es-ES', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Madrid',
   })
 
   return (

@@ -16,6 +16,22 @@ import { Button } from '@/components/ui/button'
 const MAX_CHARS_FREE = 320
 const MAX_CHARS_PREMIUM = 1024
 
+// Convierte fecha y hora local (Europe/Madrid) a ISO string UTC
+function toMadridISO(date: string, time: string): string {
+  const dateTimeStr = `${date}T${time}:00`
+  const madridDate = new Date(dateTimeStr + '+01:00')
+  
+  const testDate = new Date(dateTimeStr)
+  const jan = new Date(testDate.getFullYear(), 0, 1).getTimezoneOffset()
+  const jul = new Date(testDate.getFullYear(), 6, 1).getTimezoneOffset()
+  const isDST = testDate.getTimezoneOffset() < Math.max(jan, jul)
+  
+  if (isDST) {
+    return new Date(dateTimeStr + '+02:00').toISOString()
+  }
+  return madridDate.toISOString()
+}
+
 export default function EditCastPage() {
   const router = useRouter()
   const params = useParams()
@@ -67,8 +83,16 @@ export default function EditCastPage() {
         }
 
         const date = new Date(cast.scheduledAt)
-        setScheduledDate(date.toISOString().split('T')[0])
-        setScheduledTime(date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false }))
+        // Formatear fecha en timezone Europe/Madrid para inputs
+        const madridDate = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }) // en-CA da formato YYYY-MM-DD
+        const madridTime = date.toLocaleTimeString('es-ES', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: false,
+          timeZone: 'Europe/Madrid' 
+        })
+        setScheduledDate(madridDate)
+        setScheduledTime(madridTime)
 
         // Mapear medios
         const media: MediaFile[] = cast.media?.map((m: any) => ({
@@ -115,7 +139,7 @@ export default function EditCastPage() {
     setIsSubmitting(true)
 
     try {
-      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+      const scheduledAt = toMadridISO(scheduledDate, scheduledTime)
       
       const hasMediaErrors = casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {

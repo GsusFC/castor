@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { GifPicker } from './GifPicker'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -32,9 +33,11 @@ export function CastEditor({
   onRemove,
 }: CastEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showGifPicker, setShowGifPicker] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const gifPickerRef = useRef<HTMLDivElement>(null)
 
   const charCount = cast.content.length
   const isOverLimit = charCount > maxChars
@@ -129,6 +132,23 @@ export function CastEditor({
       media: cast.media.filter(m => m.preview !== preview)
     })
     URL.revokeObjectURL(preview)
+  }
+
+  const handleGifSelect = (gifUrl: string) => {
+    if (cast.media.length >= 2) {
+      toast.error('Máximo 2 archivos por cast')
+      return
+    }
+
+    const newMedia: MediaFile = {
+      preview: gifUrl,
+      url: gifUrl,
+      type: 'image',
+      uploading: false,
+    }
+
+    onUpdate({ ...cast, media: [...cast.media, newMedia] })
+    setShowGifPicker(false)
   }
 
   return (
@@ -230,7 +250,10 @@ export function CastEditor({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              onClick={() => {
+                setShowEmojiPicker(!showEmojiPicker)
+                setShowGifPicker(false)
+              }}
               className={cn(
                 "text-gray-500 hover:text-castor-black",
                 showEmojiPicker && "bg-gray-100 text-castor-black"
@@ -259,6 +282,42 @@ export function CastEditor({
                       </button>
                     ))}
                   </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* GIF Picker */}
+          <div className="relative" ref={gifPickerRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setShowGifPicker(!showGifPicker)
+                setShowEmojiPicker(false)
+              }}
+              disabled={cast.media.length >= 2}
+              className={cn(
+                "text-gray-500 hover:text-castor-black",
+                showGifPicker && "bg-gray-100 text-castor-black",
+                cast.media.length >= 2 && "opacity-50"
+              )}
+              title="Insertar GIF"
+            >
+              <span className="text-xs font-bold">GIF</span>
+            </Button>
+
+            {showGifPicker && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowGifPicker(false)}
+                />
+                <div className="absolute z-20 bottom-full mb-2 left-0 bg-white border rounded-xl shadow-xl overflow-hidden">
+                  <GifPicker 
+                    onSelect={handleGifSelect}
+                    onClose={() => setShowGifPicker(false)}
+                  />
                 </div>
               </>
             )}

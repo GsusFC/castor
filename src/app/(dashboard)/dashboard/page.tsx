@@ -1,6 +1,6 @@
 import { db, accounts as accountsTable } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq, or } from 'drizzle-orm'
+import { eq, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { UnifiedDashboard } from './UnifiedDashboard'
@@ -33,24 +33,32 @@ export default async function DashboardPage() {
     orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],
   })
 
-  // Obtener todos los casts
-  const allCasts = await db.query.scheduledCasts.findMany({
-    with: { 
-      account: true,
-      createdBy: {
-        columns: {
-          id: true,
-          username: true,
-          displayName: true,
-          pfpUrl: true,
-        },
-      },
-    },
-    orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
-  })
+  // Obtener IDs de las cuentas del usuario
+  const accountIds = accounts.map(a => a.id)
 
-  // Obtener templates
-  const allTemplates = await db.select().from(templates)
+  // Obtener solo los casts de las cuentas del usuario
+  const allCasts = accountIds.length > 0 
+    ? await db.query.scheduledCasts.findMany({
+        where: (casts, { inArray }) => inArray(casts.accountId, accountIds),
+        with: { 
+          account: true,
+          createdBy: {
+            columns: {
+              id: true,
+              username: true,
+              displayName: true,
+              pfpUrl: true,
+            },
+          },
+        },
+        orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
+      })
+    : []
+
+  // Obtener templates solo de las cuentas del usuario
+  const allTemplates = accountIds.length > 0
+    ? await db.select().from(templates).where(inArray(templates.accountId, accountIds))
+    : []
 
   // Serializar datos para el cliente
   const serializedAccounts = accounts.map(account => ({

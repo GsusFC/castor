@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { AddAccountButton } from './accounts/add-account-button'
-import { ComposeModal } from '@/components/compose/ComposeModal'
 import { toast } from 'sonner'
 
 // Types
@@ -99,7 +98,6 @@ export function UnifiedDashboard({
   )
   const [activeTab, setActiveTab] = useState<Tab>('scheduled')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [composeOpen, setComposeOpen] = useState(false)
 
   // Auto-refresh cada 30s si hay casts programados
   const scheduledCasts = casts.filter(c => c.status === 'scheduled')
@@ -364,22 +362,6 @@ export function UnifiedDashboard({
 
       {/* Content */}
       {renderContent()}
-
-      {/* Botón flotante Nuevo Cast */}
-      <Button
-        onClick={() => setComposeOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg md:h-auto md:w-auto md:px-6 md:rounded-lg"
-      >
-        <Plus className="w-6 h-6 md:w-4 md:h-4 md:mr-2" />
-        <span className="hidden md:inline">Nuevo Cast</span>
-      </Button>
-
-      {/* Modal de compose */}
-      <ComposeModal 
-        open={composeOpen} 
-        onOpenChange={setComposeOpen}
-        defaultAccountId={selectedAccountId}
-      />
     </div>
   )
 }

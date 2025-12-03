@@ -15,6 +15,13 @@
       "when": 1764533831059,
       "tag": "0001_curious_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1764740218004,
+      "tag": "0002_useful_jubilee",
+      "breakpoints": true
     }
   ]
 }

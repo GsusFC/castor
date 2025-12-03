@@ -14,7 +14,8 @@ import {
   X,
   Loader2,
   Search,
-  Calendar
+  Calendar,
+  LayoutTemplate
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,14 @@ const EMOJI_LIST = [
   '👍', '👎', '🤷', '🫡', '🫠', '😤', '😭', '🥺', '😈', '💀',
 ]
 
+interface Template {
+  id: string
+  accountId: string
+  name: string
+  content: string
+  channelId: string | null
+}
+
 interface ComposeCardProps {
   accounts: Account[]
   selectedAccountId: string | null
@@ -66,6 +75,11 @@ interface ComposeCardProps {
   hasContent: boolean
   hasOverLimit: boolean
   isEditMode?: boolean
+  // Templates
+  templates?: Template[]
+  onLoadTemplate?: (template: Template) => void
+  onSaveTemplate?: () => void
+  isSavingTemplate?: boolean
 }
 
 export function ComposeCard({
@@ -93,6 +107,10 @@ export function ComposeCard({
   hasContent,
   hasOverLimit,
   isEditMode = false,
+  templates = [],
+  onLoadTemplate,
+  onSaveTemplate,
+  isSavingTemplate = false,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
   const isThread = casts.length > 1
@@ -143,6 +161,14 @@ export function ComposeCard({
           onTimeChange={onTimeChange}
           label={scheduleLabel}
         />
+
+        {/* Template Selector - solo si hay templates y no es modo edición */}
+        {!isEditMode && templates.length > 0 && onLoadTemplate && (
+          <TemplateDropdown
+            templates={templates}
+            onSelect={onLoadTemplate}
+          />
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -226,6 +252,20 @@ export function ComposeCard({
 
       {/* Footer */}
       <div className="flex items-center justify-end p-3 border-t bg-gray-50/50 gap-2">
+        {/* Guardar Template - solo en modo crear con contenido */}
+        {!isEditMode && onSaveTemplate && hasContent && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onSaveTemplate}
+            disabled={isSavingTemplate || isSubmitting || !selectedAccountId}
+            className="text-gray-500"
+          >
+            <LayoutTemplate className="w-4 h-4 mr-2" />
+            {isSavingTemplate ? 'Guardando...' : 'Template'}
+          </Button>
+        )}
         {/* Borrador - solo en modo crear */}
         {!isEditMode && (
           <Button
@@ -514,6 +554,49 @@ function ScheduleDropdown({
               />
             </div>
           </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TemplateDropdown({
+  templates,
+  onSelect,
+}: {
+  templates: Template[]
+  onSelect: (template: Template) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-8 gap-1 text-gray-500"
+        >
+          <LayoutTemplate className="w-3 h-3" />
+          <span className="hidden sm:inline">Templates</span>
+          <ChevronDown className="w-3 h-3 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="space-y-1">
+          {templates.map(template => (
+            <button
+              key={template.id}
+              onClick={() => {
+                onSelect(template)
+                setOpen(false)
+              }}
+              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
+            >
+              <p className="text-sm font-medium truncate">{template.name}</p>
+              <p className="text-xs text-gray-500 truncate">{template.content}</p>
+            </button>
+          ))}
         </div>
       </PopoverContent>
     </Popover>

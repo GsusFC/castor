@@ -1,59 +1,105 @@
-import { db } from '@/lib/db'
-import { DashboardContent } from './DashboardContent'
+import { db, accounts as accountsTable } from '@/lib/db'
+import { templates } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
+import { getSession } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { UnifiedDashboard } from './UnifiedDashboard'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  // Obtener estadísticas reales
-  const allCasts = await db.query.scheduledCasts.findMany({
-    with: { account: true },
-    orderBy: (casts, { desc }) => [desc(casts.updatedAt)],
-  })
-
-  const accounts = await db.query.accounts.findMany()
-
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
-
-  const stats = {
-    scheduled: allCasts.filter(c => c.status === 'scheduled').length,
-    today: allCasts.filter(c => 
-      c.status === 'scheduled' && 
-      new Date(c.scheduledAt) >= todayStart && 
-      new Date(c.scheduledAt) < todayEnd
-    ).length,
-    published: allCasts.filter(c => c.status === 'published').length,
-    failed: allCasts.filter(c => c.status === 'failed').length,
+  const session = await getSession()
+  
+  if (!session) {
+    redirect('/login')
   }
 
-  const recentCasts = allCasts.slice(0, 5)
+  // Obtener cuentas del usuario
+  const accounts = await db.query.accounts.findMany({
+    where: or(
+      eq(accountsTable.ownerId, session.userId),
+      eq(accountsTable.isShared, true)
+    ),
+    with: {
+      owner: {
+        columns: {
+          id: true,
+          username: true,
+          displayName: true,
+          pfpUrl: true,
+        },
+      },
+    },
+    orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],
+  })
 
-  // Serializar las fechas para el cliente
-  const serializedCasts = allCasts.map(cast => ({
-    ...cast,
-    scheduledAt: cast.scheduledAt,
-    account: cast.account ? {
-      username: cast.account.username,
-      pfpUrl: cast.account.pfpUrl,
-    } : null,
+  // Obtener todos los casts
+  const allCasts = await db.query.scheduledCasts.findMany({
+    with: { 
+      account: true,
+      createdBy: {
+        columns: {
+          id: true,
+          username: true,
+          displayName: true,
+          pfpUrl: true,
+        },
+      },
+    },
+    orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
+  })
+
+  // Obtener templates
+  const allTemplates = await db.select().from(templates)
+
+  // Serializar datos para el cliente
+  const serializedAccounts = accounts.map(account => ({
+    id: account.id,
+    fid: account.fid,
+    username: account.username,
+    displayName: account.displayName,
+    pfpUrl: account.pfpUrl,
+    signerStatus: account.signerStatus,
+    type: account.type,
+    isPremium: account.isPremium,
+    isShared: account.isShared,
+    ownerId: account.ownerId,
+    owner: account.owner,
   }))
 
-  const serializedRecentCasts = recentCasts.map(cast => ({
-    ...cast,
-    scheduledAt: cast.scheduledAt,
+  const serializedCasts = allCasts.map(cast => ({
+    id: cast.id,
+    content: cast.content,
+    status: cast.status,
+    scheduledAt: cast.scheduledAt.toISOString(),
+    publishedAt: cast.publishedAt?.toISOString() || null,
+    castHash: cast.castHash,
+    channelId: cast.channelId,
+    accountId: cast.accountId,
     account: cast.account ? {
+      id: cast.account.id,
       username: cast.account.username,
+      displayName: cast.account.displayName,
       pfpUrl: cast.account.pfpUrl,
     } : null,
+    createdBy: cast.createdBy,
+  }))
+
+  const serializedTemplates = allTemplates.map(t => ({
+    id: t.id,
+    accountId: t.accountId,
+    name: t.name,
+    content: t.content,
+    channelId: t.channelId,
   }))
 
   return (
-    <DashboardContent
-      stats={stats}
-      recentCasts={serializedRecentCasts}
-      allCasts={serializedCasts}
-      accountsCount={accounts.length}
+    <UnifiedDashboard
+      accounts={serializedAccounts}
+      casts={serializedCasts}
+      templates={serializedTemplates}
+      currentUserId={session.userId}
+      isAdmin={session.role === 'admin'}
     />
   )
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,14 @@ import { ComposeCard } from './ComposeCard'
 import { CastItem, Account, Channel, ReplyToCast } from './types'
 import { toast } from 'sonner'
 import { calculateTextLength } from '@/lib/url-utils'
+
+interface Template {
+  id: string
+  accountId: string
+  name: string
+  content: string
+  channelId: string | null
+}
 
 const MAX_CHARS_FREE = 320
 const MAX_CHARS_PREMIUM = 1024
@@ -36,13 +43,14 @@ function toMadridISO(date: string, time: string): string {
 interface ComposeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  defaultAccountId?: string | null
 }
 
-export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
+export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeModalProps) {
   const router = useRouter()
   
   // Estado del formulario
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(defaultAccountId || null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true)
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
@@ -55,6 +63,8 @@ export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyToCast | null>(null)
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false)
 
   // Derivados
   const selectedAccountData = accounts.find(a => a.id === selectedAccount)
@@ -73,7 +83,11 @@ export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
         const data = await res.json()
         const approvedAccounts = data.accounts?.filter((a: Account) => a.signerStatus === 'approved') || []
         setAccounts(approvedAccounts)
-        if (approvedAccounts.length > 0 && !selectedAccount) {
+        
+        // Usar defaultAccountId si existe, sino la primera cuenta
+        if (defaultAccountId && approvedAccounts.some((a: Account) => a.id === defaultAccountId)) {
+          setSelectedAccount(defaultAccountId)
+        } else if (approvedAccounts.length > 0 && !selectedAccount) {
           setSelectedAccount(approvedAccounts[0].id)
         }
       } catch (err) {
@@ -83,7 +97,26 @@ export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
       }
     }
     loadAccounts()
-  }, [open])
+  }, [open, defaultAccountId])
+
+  // Cargar templates cuando cambia la cuenta seleccionada
+  useEffect(() => {
+    if (!selectedAccount) {
+      setTemplates([])
+      return
+    }
+    
+    async function loadTemplates() {
+      try {
+        const res = await fetch(`/api/templates?accountId=${selectedAccount}`)
+        const data = await res.json()
+        setTemplates(data.templates || [])
+      } catch (err) {
+        console.error('Error loading templates:', err)
+      }
+    }
+    loadTemplates()
+  }, [selectedAccount])
 
   // Reset form cuando se cierra
   const resetForm = () => {
@@ -240,6 +273,60 @@ export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
     }
   }
 
+  // Cargar template
+  const handleLoadTemplate = (template: Template) => {
+    setCasts([{
+      id: Math.random().toString(36).slice(2),
+      content: template.content,
+      media: [],
+      links: [],
+    }])
+    if (template.channelId) {
+      setSelectedChannel({ id: template.channelId, name: template.channelId })
+    }
+    toast.success(`Template "${template.name}" cargado`)
+  }
+
+  // Guardar como template
+  async function handleSaveTemplate() {
+    if (!selectedAccount || !hasContent) {
+      toast.error('Necesitas contenido para guardar un template')
+      return
+    }
+
+    const name = prompt('Nombre del template:')
+    if (!name?.trim()) return
+
+    setIsSavingTemplate(true)
+    try {
+      const cast = casts[0]
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: selectedAccount,
+          name: name.trim(),
+          content: cast.content,
+          channelId: selectedChannel?.id,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar template')
+
+      toast.success('Template guardado')
+      // Recargar templates
+      const templatesRes = await fetch(`/api/templates?accountId=${selectedAccount}`)
+      const templatesData = await templatesRes.json()
+      setTemplates(templatesData.templates || [])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error(msg)
+    } finally {
+      setIsSavingTemplate(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden fixed inset-0 translate-x-0 translate-y-0 md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
@@ -292,6 +379,10 @@ export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
           onSaveDraft={handleSaveDraft}
           hasContent={hasContent}
           hasOverLimit={hasOverLimit}
+          templates={templates}
+          onLoadTemplate={handleLoadTemplate}
+          onSaveTemplate={handleSaveTemplate}
+          isSavingTemplate={isSavingTemplate}
         />
       </DialogContent>
     </Dialog>

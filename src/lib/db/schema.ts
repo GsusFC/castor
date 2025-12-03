@@ -134,6 +134,31 @@ export const castMedia = sqliteTable(
 )
 
 /**
+ * Templates de casts reutilizables
+ */
+export const templates = sqliteTable(
+  'templates',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    content: text('content').notNull(),
+    channelId: text('channel_id'), // Canal por defecto
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    accountIdx: index('templates_account_idx').on(table.accountId),
+  })
+)
+
+/**
  * Threads (agrupación de casts)
  */
 export const threads = sqliteTable(
@@ -176,6 +201,7 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   }),
   scheduledCasts: many(scheduledCasts),
   threads: many(threads),
+  templates: many(templates),
 }))
 
 export const scheduledCastsRelations = relations(scheduledCasts, ({ one, many }) => ({
@@ -204,6 +230,13 @@ export const threadsRelations = relations(threads, ({ one }) => ({
   }),
 }))
 
+export const templatesRelations = relations(templates, ({ one }) => ({
+  account: one(accounts, {
+    fields: [templates.accountId],
+    references: [accounts.id],
+  }),
+}))
+
 // Types inferidos
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -213,3 +246,5 @@ export type ScheduledCast = typeof scheduledCasts.$inferSelect
 export type NewScheduledCast = typeof scheduledCasts.$inferInsert
 export type CastMedia = typeof castMedia.$inferSelect
 export type Thread = typeof threads.$inferSelect
+export type Template = typeof templates.$inferSelect
+export type NewTemplate = typeof templates.$inferInsert

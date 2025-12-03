@@ -1,12 +1,15 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { Image, Smile, X, Trash2, Loader2 } from 'lucide-react'
-import { CastItem, MediaFile } from './types'
+import { CastItem, MediaFile, LinkEmbed } from './types'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { GifPicker } from './GifPicker'
+import { LinkPreview } from './LinkPreview'
+import { MentionAutocomplete } from './MentionAutocomplete'
+import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -34,16 +37,152 @@ export function CastEditor({
 }: CastEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showGifPicker, setShowGifPicker] = useState(false)
+  const [mentionState, setMentionState] = useState<{
+    active: boolean
+    query: string
+    startPos: number
+    position: { top: number; left: number }
+  }>({ active: false, query: '', startPos: 0, position: { top: 0, left: 0 } })
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const gifPickerRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
-  const charCount = cast.content.length
+  const charCount = calculateTextLength(cast.content)
   const isOverLimit = charCount > maxChars
 
+  // Detectar URLs en el contenido con debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const urls = extractUrls(cast.content)
+      
+      // Filtrar URLs que ya son media (imágenes/videos directos)
+      const linkUrls = urls.filter(url => !isMediaUrl(url))
+      
+      // URLs actuales en links
+      const currentLinkUrls = cast.links.map(l => l.url)
+      
+      // Nuevas URLs a procesar
+      const newUrls = linkUrls.filter(url => !currentLinkUrls.includes(url))
+      
+      // URLs a mantener (siguen en el texto)
+      const linksToKeep = cast.links.filter(l => linkUrls.includes(l.url))
+      
+      // Si hay cambios, actualizar
+      if (newUrls.length > 0 || linksToKeep.length !== cast.links.length) {
+        // Añadir nuevas URLs con estado loading
+        const newLinks: LinkEmbed[] = newUrls.map(url => ({
+          url,
+          loading: true,
+        }))
+        
+        onUpdate({ ...cast, links: [...linksToKeep, ...newLinks] })
+        
+        // Fetch metadata para nuevas URLs
+        newUrls.forEach(fetchLinkMetadata)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [cast.content])
+
+  // Ref para acceder al cast actual en callbacks asíncronos
+  const castRef = useRef(cast)
+  useEffect(() => {
+    castRef.current = cast
+  }, [cast])
+
+  // Fetch metadata de una URL
+  const fetchLinkMetadata = useCallback(async (url: string) => {
+    try {
+      const res = await fetch('/api/og-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+
+      const metadata = await res.json()
+      const currentCast = castRef.current
+
+      // Actualizar el link con metadata
+      onUpdate({
+        ...currentCast,
+        links: currentCast.links.map((l: LinkEmbed) =>
+          l.url === url
+            ? { ...l, ...metadata, loading: false }
+            : l
+        ),
+      })
+    } catch (error) {
+      console.error('[Link Preview] Error fetching metadata:', error)
+      const currentCast = castRef.current
+      
+      // Marcar como error
+      onUpdate({
+        ...currentCast,
+        links: currentCast.links.map((l: LinkEmbed) =>
+          l.url === url
+            ? { ...l, loading: false, error: true }
+            : l
+        ),
+      })
+    }
+  }, [onUpdate])
+
+  // Eliminar un link
+  const removeLink = (url: string) => {
+    onUpdate({ ...cast, links: cast.links.filter(l => l.url !== url) })
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ ...cast, content: e.target.value })
+    const newContent = e.target.value
+    const cursorPos = e.target.selectionStart
+    
+    onUpdate({ ...cast, content: newContent })
+    
+    // Detectar si estamos escribiendo una mención
+    const textBeforeCursor = newContent.slice(0, cursorPos)
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
+    
+    if (mentionMatch) {
+      const query = mentionMatch[1]
+      const startPos = cursorPos - query.length - 1 // -1 para incluir @
+      
+      // Calcular posición del popup
+      if (cardRef.current && textareaRef.current) {
+        const cardRect = cardRef.current.getBoundingClientRect()
+        // Posicionar debajo del textarea
+        setMentionState({
+          active: true,
+          query,
+          startPos,
+          position: { top: 160, left: 16 }, // Posición relativa al card
+        })
+      }
+    } else {
+      if (mentionState.active) {
+        setMentionState(prev => ({ ...prev, active: false }))
+      }
+    }
+  }
+
+  // Manejar selección de usuario para mention
+  const handleMentionSelect = (user: { fid: number; username: string; displayName: string | null; pfpUrl: string | null }) => {
+    const beforeMention = cast.content.slice(0, mentionState.startPos)
+    const afterMention = cast.content.slice(mentionState.startPos + mentionState.query.length + 1) // +1 para @
+    const newContent = `${beforeMention}@${user.username} ${afterMention}`
+    
+    onUpdate({ ...cast, content: newContent })
+    setMentionState({ active: false, query: '', startPos: 0, position: { top: 0, left: 0 } })
+    
+    // Restaurar foco
+    setTimeout(() => {
+      const newCursorPos = beforeMention.length + user.username.length + 2 // @ + espacio
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
   }
 
   const insertEmoji = (emoji: string) => {
@@ -159,7 +298,17 @@ export function CastEditor({
   }
 
   return (
-    <Card className="p-4 relative group transition-all hover:shadow-sm">
+    <Card ref={cardRef} className="p-4 relative group transition-all hover:shadow-sm">
+      {/* Mention Autocomplete */}
+      {mentionState.active && (
+        <MentionAutocomplete
+          query={mentionState.query}
+          position={mentionState.position}
+          onSelect={handleMentionSelect}
+          onClose={() => setMentionState(prev => ({ ...prev, active: false }))}
+        />
+      )}
+
       {/* Header del Thread */}
       {isThread && (
         <div className="flex items-center justify-between mb-3">
@@ -187,9 +336,25 @@ export function CastEditor({
         className="border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-lg leading-relaxed placeholder:text-gray-400 min-h-[120px]"
       />
 
+      {/* Link Previews */}
+      {cast.links.length > 0 && (
+        <div className="space-y-2 mt-3 pt-3 border-t">
+          {cast.links.map((link) => (
+            <LinkPreview
+              key={link.url}
+              link={link}
+              onRemove={() => removeLink(link.url)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Media Previews */}
       {cast.media.length > 0 && (
-        <div className="flex gap-2 mt-3 pt-3 border-t">
+        <div className={cn(
+          "flex gap-2 mt-3 pt-3",
+          cast.links.length === 0 && "border-t"
+        )}>
           {cast.media.map((m) => (
             <div key={m.preview} className="relative group/media">
               {m.type === 'image' ? (

@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-
-import { ComposeCard } from '@/components/compose/ComposeCard'
-import { CastItem, Account, Channel, ReplyToCast } from '@/components/compose/types'
-import { toast } from 'sonner'
+import { X } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ComposeCard } from './ComposeCard'
+import { CastItem, Account, Channel, ReplyToCast } from './types'
+import { toast } from 'sonner'
 import { calculateTextLength } from '@/lib/url-utils'
 
 const MAX_CHARS_FREE = 320
@@ -16,11 +19,9 @@ const MAX_CHARS_PREMIUM = 1024
 
 // Convierte fecha y hora local (Europe/Madrid) a ISO string UTC
 function toMadridISO(date: string, time: string): string {
-  // Crear fecha con timezone explícita de Madrid
   const dateTimeStr = `${date}T${time}:00`
-  const madridDate = new Date(dateTimeStr + '+01:00') // CET offset
+  const madridDate = new Date(dateTimeStr + '+01:00')
   
-  // Ajustar por horario de verano (CEST = +02:00)
   const testDate = new Date(dateTimeStr)
   const jan = new Date(testDate.getFullYear(), 0, 1).getTimezoneOffset()
   const jul = new Date(testDate.getFullYear(), 6, 1).getTimezoneOffset()
@@ -32,20 +33,22 @@ function toMadridISO(date: string, time: string): string {
   return madridDate.toISOString()
 }
 
-export default function ComposePage() {
+interface ComposeModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function ComposeModal({ open, onOpenChange }: ComposeModalProps) {
   const router = useRouter()
   
-  // Estado global del formulario
+  // Estado del formulario
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true)
-  
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
-  
   const [casts, setCasts] = useState<CastItem[]>([
     { id: Math.random().toString(36).slice(2), content: '', media: [], links: [] }
   ])
-  
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,16 +63,17 @@ export default function ComposePage() {
   const hasOverLimit = casts.some(cast => calculateTextLength(cast.content) > maxChars)
   const hasContent = casts.some(cast => cast.content.trim().length > 0)
 
-  // Cargar cuentas
+  // Cargar cuentas cuando se abre el modal
   useEffect(() => {
+    if (!open) return
+    
     async function loadAccounts() {
       try {
         const res = await fetch('/api/accounts')
         const data = await res.json()
-        // Filtrar solo cuentas aprobadas (el backend ya debería hacerlo o filtramos aquí)
         const approvedAccounts = data.accounts?.filter((a: Account) => a.signerStatus === 'approved') || []
         setAccounts(approvedAccounts)
-        if (approvedAccounts.length > 0) {
+        if (approvedAccounts.length > 0 && !selectedAccount) {
           setSelectedAccount(approvedAccounts[0].id)
         }
       } catch (err) {
@@ -79,7 +83,17 @@ export default function ComposePage() {
       }
     }
     loadAccounts()
-  }, [])
+  }, [open])
+
+  // Reset form cuando se cierra
+  const resetForm = () => {
+    setCasts([{ id: Math.random().toString(36).slice(2), content: '', media: [], links: [] }])
+    setScheduledDate('')
+    setScheduledTime('')
+    setSelectedChannel(null)
+    setReplyTo(null)
+    setError(null)
+  }
 
   // Acciones de casts
   const updateCast = (index: number, updatedCast: CastItem) => {
@@ -95,8 +109,8 @@ export default function ComposePage() {
     setCasts(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Submit wrapper para ComposeCard (no es form event)
-  async function handleSubmitWrapper() {
+  // Submit
+  async function handleSubmit() {
     setError(null)
 
     if (!selectedAccount || !hasContent || !scheduledDate || !scheduledTime) {
@@ -108,14 +122,12 @@ export default function ComposePage() {
     try {
       const scheduledAt = toMadridISO(scheduledDate, scheduledTime)
       
-      // Validar que todos los media estén subidos y sin errores
       const hasMediaErrors = casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
         throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
       }
 
       if (isThread) {
-        // Crear thread
         const res = await fetch('/api/casts/schedule-thread', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -136,7 +148,6 @@ export default function ComposePage() {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Error al programar thread')
       } else {
-        // Crear cast individual
         const cast = casts[0]
         const embeds = [
           ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
@@ -161,7 +172,9 @@ export default function ComposePage() {
       }
 
       toast.success(isThread ? 'Thread programado correctamente' : 'Cast programado correctamente')
-      router.push('/dashboard/scheduled')
+      resetForm()
+      onOpenChange(false)
+      router.refresh() // Actualizar la lista/calendario
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
       setError(msg)
@@ -183,7 +196,6 @@ export default function ComposePage() {
     setIsSavingDraft(true)
 
     try {
-      // Validar que todos los media estén subidos y sin errores
       const hasMediaErrors = casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
         throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
@@ -195,7 +207,6 @@ export default function ComposePage() {
         ...cast.links.map(l => ({ url: l.url })),
       ]
 
-      // Construir scheduledAt solo si hay fecha y hora
       const scheduledAt = scheduledDate && scheduledTime 
         ? toMadridISO(scheduledDate, scheduledTime)
         : undefined
@@ -217,7 +228,9 @@ export default function ComposePage() {
       if (!res.ok) throw new Error(data.error || 'Error al guardar borrador')
 
       toast.success('Borrador guardado')
-      router.push('/dashboard/scheduled?tab=draft')
+      resetForm()
+      onOpenChange(false)
+      router.refresh()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
       setError(msg)
@@ -228,51 +241,59 @@ export default function ComposePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-10">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </Link>
-        </Button>
-        <h1 className="text-xl font-display text-gray-900">
-          {isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
-        </h1>
-      </div>
-
-      {/* Global Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium mb-4 animate-in fade-in slide-in-from-top-2">
-          {error}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden fixed inset-0 translate-x-0 translate-y-0 md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
+        <DialogTitle className="sr-only">Nuevo Cast</DialogTitle>
+        
+        {/* Header móvil */}
+        <div className="flex items-center justify-between p-3 border-b md:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="text-gray-500"
+          >
+            Cancelar
+          </Button>
+          <span className="font-medium text-sm">
+            {isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
+          </span>
+          <div className="w-16" /> {/* Spacer */}
         </div>
-      )}
 
-      <ComposeCard
-        accounts={accounts}
-        selectedAccountId={selectedAccount}
-        onSelectAccount={setSelectedAccount}
-        isLoadingAccounts={isLoadingAccounts}
-        selectedChannel={selectedChannel}
-        onSelectChannel={setSelectedChannel}
-        casts={casts}
-        onUpdateCast={updateCast}
-        onAddCast={addCast}
-        onRemoveCast={removeCast}
-        scheduledDate={scheduledDate}
-        scheduledTime={scheduledTime}
-        onDateChange={setScheduledDate}
-        onTimeChange={setScheduledTime}
-        replyTo={replyTo}
-        onSelectReplyTo={setReplyTo}
-        maxChars={maxChars}
-        isSubmitting={isSubmitting}
-        isSavingDraft={isSavingDraft}
-        onSubmit={handleSubmitWrapper}
-        onSaveDraft={handleSaveDraft}
-        hasContent={hasContent}
-        hasOverLimit={hasOverLimit}
-      />
-    </div>
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 border-b border-red-200 text-red-700 px-4 py-2 text-sm">
+            {error}
+          </div>
+        )}
+
+        <ComposeCard
+          accounts={accounts}
+          selectedAccountId={selectedAccount}
+          onSelectAccount={setSelectedAccount}
+          isLoadingAccounts={isLoadingAccounts}
+          selectedChannel={selectedChannel}
+          onSelectChannel={setSelectedChannel}
+          casts={casts}
+          onUpdateCast={updateCast}
+          onAddCast={addCast}
+          onRemoveCast={removeCast}
+          scheduledDate={scheduledDate}
+          scheduledTime={scheduledTime}
+          onDateChange={setScheduledDate}
+          onTimeChange={setScheduledTime}
+          replyTo={replyTo}
+          onSelectReplyTo={setReplyTo}
+          maxChars={maxChars}
+          isSubmitting={isSubmitting}
+          isSavingDraft={isSavingDraft}
+          onSubmit={handleSubmit}
+          onSaveDraft={handleSaveDraft}
+          hasContent={hasContent}
+          hasOverLimit={hasOverLimit}
+        />
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -3,6 +3,7 @@ import { Clock, Calendar, User, ExternalLink, Edit, FileText } from 'lucide-reac
 import { db } from '@/lib/db'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { AutoRefresh } from '@/components/AutoRefresh'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,8 +87,14 @@ export default async function ScheduledPage({
 
   const filtered = getFilteredCasts()
 
+  // Auto-refresh solo si hay casts programados pendientes
+  const hasScheduledCasts = scheduled.length > 0
+
   return (
     <div className="max-w-4xl">
+      {/* Auto-refresh cada 30s si hay casts programados */}
+      <AutoRefresh interval={30000} enabled={hasScheduledCasts} />
+      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-display text-gray-900">

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Calendar, Clock, CheckCircle, XCircle, ExternalLink, User, List, CalendarDays } from 'lucide-react'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { Card, CardContent } from '@/components/ui/card'
@@ -31,6 +32,18 @@ interface DashboardContentProps {
 
 export function DashboardContent({ stats, recentCasts, allCasts, accountsCount }: DashboardContentProps) {
   const [view, setView] = useState<'list' | 'calendar'>('list')
+  const router = useRouter()
+
+  // Auto-refresh cada 30s si hay casts programados
+  useEffect(() => {
+    if (stats.scheduled === 0) return
+
+    const timer = setInterval(() => {
+      router.refresh()
+    }, 30000)
+
+    return () => clearInterval(timer)
+  }, [router, stats.scheduled])
 
   const handleMoveCast = async (castId: string, newDate: Date) => {
     try {

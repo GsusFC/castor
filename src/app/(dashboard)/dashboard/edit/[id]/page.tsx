@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Send, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-import { AccountSelector } from '@/components/compose/AccountSelector'
-import { ChannelPicker } from '@/components/compose/ChannelPicker'
-import { CastEditor } from '@/components/compose/CastEditor'
-import { SchedulePicker } from '@/components/compose/SchedulePicker'
+import { ComposeCard } from '@/components/compose/ComposeCard'
 import { CastItem, Account, Channel, MediaFile } from '@/components/compose/types'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { calculateTextLength } from '@/lib/url-utils'
 
 const MAX_CHARS_FREE = 320
 const MAX_CHARS_PREMIUM = 1024
@@ -43,7 +41,7 @@ export default function EditCastPage() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
   
   const [casts, setCasts] = useState<CastItem[]>([
-    { id: crypto.randomUUID(), content: '', media: [] }
+    { id: Math.random().toString(36).slice(2), content: '', media: [], links: [] }
   ])
   
   const [scheduledDate, setScheduledDate] = useState('')
@@ -53,7 +51,7 @@ export default function EditCastPage() {
 
   const selectedAccountData = accounts.find(a => a.id === selectedAccount)
   const maxChars = selectedAccountData?.isPremium ? MAX_CHARS_PREMIUM : MAX_CHARS_FREE
-  const hasOverLimit = casts.some(cast => cast.content.length > maxChars)
+  const hasOverLimit = casts.some(cast => calculateTextLength(cast.content) > maxChars)
   const hasContent = casts.some(cast => cast.content.trim().length > 0)
 
   // Cargar datos iniciales (cuentas y cast)
@@ -102,10 +100,12 @@ export default function EditCastPage() {
           uploading: false
         })) || []
 
+        // TODO: Cargar links existentes si el API los devuelve
         setCasts([{
           id: cast.id,
           content: cast.content,
-          media
+          media,
+          links: []
         }])
 
       } catch (err) {
@@ -130,8 +130,7 @@ export default function EditCastPage() {
   // Si es thread, solo editamos el cast principal o habría que cargar todo el thread.
   // El endpoint GET actual devuelve un cast individual.
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSubmit() {
     setError(null)
 
     if (!selectedAccount || !hasContent || !scheduledDate || !scheduledTime) return
@@ -147,10 +146,10 @@ export default function EditCastPage() {
       }
 
       const cast = casts[0]
-      const embeds = cast.media.filter(m => m.url).map(m => ({ 
-        url: m.url!,
-        type: m.type 
-      }))
+      const embeds = [
+        ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
+        ...cast.links.map(l => ({ url: l.url })),
+      ]
 
       const res = await fetch(`/api/casts/${castId}`, {
         method: 'PATCH',
@@ -189,68 +188,47 @@ export default function EditCastPage() {
   return (
     <div className="max-w-2xl mx-auto pb-10">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/scheduled">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-2xl font-display text-gray-900">Editar Cast</h1>
-          <p className="text-gray-500 mt-1">Modifica el contenido de tu publicación</p>
-        </div>
+        <h1 className="text-xl font-display text-gray-900">Editar Cast</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <AccountSelector 
-          accounts={accounts}
-          selectedAccountId={selectedAccount}
-          onSelect={setSelectedAccount}
-          isLoading={false}
-        />
-
-        <ChannelPicker 
-          selectedChannel={selectedChannel}
-          onSelect={setSelectedChannel}
-          accountFid={selectedAccountData?.fid}
-        />
-
-        <CastEditor
-          cast={casts[0]}
-          index={0}
-          isThread={false}
-          maxChars={maxChars}
-          onUpdate={(updatedCast) => updateCast(0, updatedCast)}
-          onRemove={() => {}}
-        />
-
-        <SchedulePicker 
-          date={scheduledDate}
-          time={scheduledTime}
-          onDateChange={setScheduledDate}
-          onTimeChange={setScheduledTime}
-        />
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard/scheduled">Cancelar</Link>
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting || !selectedAccount || !hasContent || hasOverLimit || !scheduledDate || !scheduledTime}
-            className="px-6"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-          </Button>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium mb-4">
+          {error}
         </div>
-      </form>
+      )}
+
+      <ComposeCard
+        accounts={accounts}
+        selectedAccountId={selectedAccount}
+        onSelectAccount={setSelectedAccount}
+        isLoadingAccounts={false}
+        selectedChannel={selectedChannel}
+        onSelectChannel={setSelectedChannel}
+        casts={casts}
+        onUpdateCast={updateCast}
+        onAddCast={() => {}} // No permitido en edición
+        onRemoveCast={() => {}} // No permitido en edición
+        scheduledDate={scheduledDate}
+        scheduledTime={scheduledTime}
+        onDateChange={setScheduledDate}
+        onTimeChange={setScheduledTime}
+        replyTo={null}
+        onSelectReplyTo={() => {}}
+        maxChars={maxChars}
+        isSubmitting={isSubmitting}
+        isSavingDraft={false}
+        onSubmit={handleSubmit}
+        onSaveDraft={() => {}} // No disponible en edición
+        hasContent={hasContent}
+        hasOverLimit={hasOverLimit}
+        isEditMode
+      />
     </div>
   )
 }

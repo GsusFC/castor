@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Users, Send, Plus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { ComposeModal } from '@/components/compose/ComposeModal'
 
 const navItems = [
   { href: '/dashboard/scheduled', label: 'Casts', icon: Send },
@@ -12,6 +13,7 @@ const navItems = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -55,8 +57,8 @@ export function Sidebar() {
 
         {/* Botón nuevo cast */}
         <div className={`mb-6 ${collapsed ? 'px-2' : 'px-4'}`}>
-          <Link
-            href="/dashboard/compose"
+          <button
+            onClick={() => setComposeOpen(true)}
             className={`flex items-center justify-center gap-2 w-full bg-gray-900 hover:bg-black text-white py-2.5 rounded-lg font-medium text-sm transition-all shadow-md shadow-gray-900/10 hover:shadow-gray-900/20 ${
               collapsed ? 'px-0 aspect-square' : ''
             }`}
@@ -64,7 +66,7 @@ export function Sidebar() {
           >
             <Plus className="w-4 h-4 flex-shrink-0" />
             {!collapsed && <span>Nuevo Cast</span>}
-          </Link>
+          </button>
         </div>
 
         {/* Navegación */}
@@ -125,6 +127,9 @@ export function Sidebar() {
       <div
         className={`flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}
       />
+
+      {/* Modal de compose */}
+      <ComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
     </>
   )
 }

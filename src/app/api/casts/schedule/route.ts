@@ -11,7 +11,7 @@ import { getSession } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { accountId, content, scheduledAt, channelId, embeds, isDraft } = body
+    const { accountId, content, scheduledAt, channelId, embeds, isDraft, parentHash } = body
 
     // Validaciones
     if (!accountId) {
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
       content: (content || '').trim(),
       scheduledAt: scheduledDate || new Date(), // Para borradores, usar fecha actual como placeholder
       channelId: channelId || null,
+      parentHash: parentHash || null,
       status: isDraft ? 'draft' as const : 'scheduled' as const,
       createdById: session?.userId || null,
     }

@@ -1,46 +1,87 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
-const AUTH_COOKIE = 'caster_auth'
+const AUTH_COOKIE = 'castor_session'
 
-// Rutas públicas que no requieren autenticación
-const publicRoutes = ['/', '/login', '/api/auth', '/api/cron', '/api/channels', '/api/accounts', '/api/casts', '/api/media']
+// Rutas completamente públicas (no requieren autenticación)
+const publicPaths = [
+  '/',
+  '/login',
+]
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+// Prefijos de rutas públicas
+const publicPrefixes = [
+  '/api/auth/',      // Auth endpoints
+  '/api/cron/',      // Cron jobs (protegidos por CRON_SECRET)
+  '/_next/',         // Next.js assets
+  '/favicon',        // Favicon
+  '/brand/',         // Brand assets
+]
 
-  // Permitir rutas públicas (exactas o prefijos)
-  if (pathname === '/' || publicRoutes.some(route => route !== '/' && pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
+// APIs que solo requieren autenticación para métodos que modifican
+const readOnlyPublicApis = [
+  '/api/channels',   // Listar canales es público
+]
 
-  // Permitir assets estáticos
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.startsWith('/brand')) {
-    return NextResponse.next()
-  }
-
-  // Verificar cookie de autenticación
-  const authCookie = request.cookies.get(AUTH_COOKIE)
-
-  if (!authCookie?.value) {
-    // Redirigir a login
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // Verificar que la sesión no haya expirado
-  try {
-    const session = JSON.parse(authCookie.value)
-    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+function getSecretKey() {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'development') {
+      return new TextEncoder().encode('castor-dev-secret-key-min-32-chars!')
     }
-  } catch {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+    throw new Error('SESSION_SECRET is required')
+  }
+  return new TextEncoder().encode(secret)
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const method = request.method
+
+  // Permitir rutas completamente públicas
+  if (publicPaths.includes(pathname)) {
+    return NextResponse.next()
   }
 
-  return NextResponse.next()
+  // Permitir prefijos públicos
+  if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
+
+  // APIs de solo lectura: permitir GET sin auth
+  if (readOnlyPublicApis.some(api => pathname.startsWith(api)) && method === 'GET') {
+    return NextResponse.next()
+  }
+
+  // Verificar JWT
+  const token = request.cookies.get(AUTH_COOKIE)?.value
+
+  if (!token) {
+    // Para APIs, devolver 401
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+    // Para páginas, redirigir a login
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  try {
+    await jwtVerify(token, getSecretKey())
+    return NextResponse.next()
+  } catch {
+    // Token inválido
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Invalid session', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 }
 
 export const config = {

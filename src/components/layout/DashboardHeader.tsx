@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation'
 import { LogOut, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 export function DashboardHeader() {
   const [composeOpen, setComposeOpen] = useState(false)
   const router = useRouter()
+  const { selectedAccountId } = useSelectedAccount()
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -49,7 +51,11 @@ export function DashboardHeader() {
         </div>
       </header>
 
-      <ComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      <ComposeModal 
+        open={composeOpen} 
+        onOpenChange={setComposeOpen} 
+        defaultAccountId={selectedAccountId}
+      />
     </>
   )
 }

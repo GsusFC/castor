@@ -1,4 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth'
+import { success, ApiErrors } from '@/lib/api/response'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { apiLogger } from '@/lib/logger'
+
+// Hosts bloqueados para prevenir SSRF
+const BLOCKED_HOSTS = [
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  '169.254.169.254', // AWS metadata
+  'metadata.google.internal', // GCP metadata
+  '100.100.100.200', // Alibaba metadata
+]
+
+// Regex para IPs privadas
+const PRIVATE_IP_REGEX = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|fc00:|fd00:|fe80:)/i
+
+function isBlockedHost(hostname: string): boolean {
+  // Check exact matches
+  if (BLOCKED_HOSTS.includes(hostname.toLowerCase())) {
+    return true
+  }
+  // Check private IP ranges
+  if (PRIVATE_IP_REGEX.test(hostname)) {
+    return true
+  }
+  // Check if it ends with blocked domains
+  if (hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+    return true
+  }
+  return false
+}
 
 /**
  * POST /api/og-metadata
@@ -6,10 +39,22 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verificar autenticación
+    const session = await getSession()
+    if (!session) {
+      return ApiErrors.unauthorized()
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`og:${session.userId}`, 'api')
+    if (!rateLimit.success) {
+      return ApiErrors.rateLimited()
+    }
+
     const { url } = await request.json()
 
     if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+      return ApiErrors.validationFailed([{ field: 'url', message: 'URL is required' }])
     }
 
     // Validar que es una URL válida
@@ -17,7 +62,18 @@ export async function POST(request: NextRequest) {
     try {
       parsedUrl = new URL(url)
     } catch {
-      return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
+      return ApiErrors.validationFailed([{ field: 'url', message: 'Invalid URL format' }])
+    }
+
+    // Solo permitir HTTP/HTTPS
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return ApiErrors.validationFailed([{ field: 'url', message: 'Only HTTP/HTTPS URLs allowed' }])
+    }
+
+    // Verificar SSRF
+    if (isBlockedHost(parsedUrl.hostname)) {
+      apiLogger.warn({ url, userId: session.userId }, 'Blocked SSRF attempt')
+      return ApiErrors.validationFailed([{ field: 'url', message: 'URL not allowed' }])
     }
 
     // Fetch con timeout

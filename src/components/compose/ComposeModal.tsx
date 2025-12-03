@@ -99,6 +99,13 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
     loadAccounts()
   }, [open, defaultAccountId])
 
+  // Actualizar cuenta seleccionada cuando cambia defaultAccountId
+  useEffect(() => {
+    if (defaultAccountId && accounts.some(a => a.id === defaultAccountId)) {
+      setSelectedAccount(defaultAccountId)
+    }
+  }, [defaultAccountId, accounts])
+
   // Cargar templates cuando cambia la cuenta seleccionada
   useEffect(() => {
     if (!selectedAccount) {

@@ -1,20 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest } from 'next/server'
+import { db, accounts } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
+import { getSession, canAccess } from '@/lib/auth'
+import { success, ApiErrors } from '@/lib/api/response'
+import { validate, createTemplateSchema } from '@/lib/validations'
+import { z } from 'zod'
 
 // GET /api/templates?accountId=xxx - Obtener templates de una cuenta
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return ApiErrors.unauthorized()
+    }
+
     const { searchParams } = new URL(request.url)
     const accountId = searchParams.get('accountId')
 
     if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId es requerido' },
-        { status: 400 }
-      )
+      return ApiErrors.validationFailed([{ field: 'accountId', message: 'accountId is required' }])
+    }
+
+    // Verificar que el usuario tiene acceso a esta cuenta
+    const account = await db.query.accounts.findFirst({
+      where: eq(accounts.id, accountId),
+    })
+
+    if (!account) {
+      return ApiErrors.notFound('Account')
+    }
+
+    if (!canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })) {
+      return ApiErrors.forbidden('No access to this account')
     }
 
     const accountTemplates = await db
@@ -23,27 +42,42 @@ export async function GET(request: NextRequest) {
       .where(eq(templates.accountId, accountId))
       .orderBy(templates.createdAt)
 
-    return NextResponse.json({ templates: accountTemplates })
+    return success({ templates: accountTemplates })
   } catch (error) {
     console.error('Error fetching templates:', error)
-    return NextResponse.json(
-      { error: 'Error al obtener templates' },
-      { status: 500 }
-    )
+    return ApiErrors.operationFailed('Failed to fetch templates')
   }
 }
 
 // POST /api/templates - Crear un nuevo template
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { accountId, name, content, channelId } = body
+    const session = await getSession()
+    if (!session) {
+      return ApiErrors.unauthorized()
+    }
 
-    if (!accountId || !name || !content) {
-      return NextResponse.json(
-        { error: 'accountId, name y content son requeridos' },
-        { status: 400 }
-      )
+    const body = await request.json()
+    
+    // Validar input
+    const validation = validate(createTemplateSchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { accountId, name, content, channelId } = validation.data
+
+    // Verificar que el usuario tiene acceso a esta cuenta
+    const account = await db.query.accounts.findFirst({
+      where: eq(accounts.id, accountId),
+    })
+
+    if (!account) {
+      return ApiErrors.notFound('Account')
+    }
+
+    if (!canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })) {
+      return ApiErrors.forbidden('No access to this account')
     }
 
     const id = generateId()
@@ -64,12 +98,9 @@ export async function POST(request: NextRequest) {
       .from(templates)
       .where(eq(templates.id, id))
 
-    return NextResponse.json({ template: newTemplate }, { status: 201 })
+    return success({ template: newTemplate }, 201)
   } catch (error) {
     console.error('Error creating template:', error)
-    return NextResponse.json(
-      { error: 'Error al crear template' },
-      { status: 500 }
-    )
+    return ApiErrors.operationFailed('Failed to create template')
   }
 }

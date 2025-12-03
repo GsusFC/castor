@@ -1,8 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db, scheduledCasts, castMedia, accounts } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { NextRequest } from 'next/server'
+import { db, scheduledCasts, castMedia } from '@/lib/db'
+import { getSession, canAccess } from '@/lib/auth'
 import { eq } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
+import { success, ApiErrors } from '@/lib/api/response'
+import { validate, updateCastSchema } from '@/lib/validations'
+import { apiLogger, createTimer } from '@/lib/logger'
+
+// Helper to get cast with permission check
+async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
+  const cast = await db.query.scheduledCasts.findFirst({
+    where: eq(scheduledCasts.id, id),
+    with: {
+      account: true,
+      media: true,
+    },
+  })
+
+  if (!cast) {
+    return { error: ApiErrors.notFound('Cast') }
+  }
+
+  if (!cast.account) {
+    return { error: ApiErrors.notFound('Account') }
+  }
+
+  const hasAccess = canAccess(session, {
+    ownerId: cast.account.ownerId,
+    isShared: cast.account.isShared,
+    createdById: cast.createdById,
+  })
+
+  if (!hasAccess) {
+    return { error: ApiErrors.forbidden('No access to this cast') }
+  }
+
+  return { cast }
+}
 
 /**
  * GET /api/casts/[id]
@@ -15,37 +49,20 @@ export async function GET(
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return ApiErrors.unauthorized()
     }
 
     const { id } = await params
+    const result = await getCastWithAuth(id, session)
 
-    const cast = await db.query.scheduledCasts.findFirst({
-      where: eq(scheduledCasts.id, id),
-      with: {
-        account: true,
-        media: true,
-      },
-    })
-
-    if (!cast) {
-      return NextResponse.json({ error: 'Cast not found' }, { status: 404 })
+    if ('error' in result) {
+      return result.error
     }
 
-    // Verificar permisos
-    const isOwner = cast.account.ownerId === session.userId
-    const isShared = cast.account.isShared
-    const isCreator = cast.createdById === session.userId
-    const isAdmin = session.role === 'admin'
-
-    if (!isOwner && !isShared && !isCreator && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    return NextResponse.json({ cast })
+    return success({ cast: result.cast })
   } catch (error) {
-    console.error('[Casts] Get error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    apiLogger.error({ error: error instanceof Error ? error.message : 'Unknown' }, 'Get cast error')
+    return ApiErrors.operationFailed('Failed to get cast')
   }
 }
 
@@ -60,51 +77,37 @@ export async function DELETE(
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return ApiErrors.unauthorized()
     }
 
     const { id } = await params
+    const result = await getCastWithAuth(id, session)
 
-    const cast = await db.query.scheduledCasts.findFirst({
-      where: eq(scheduledCasts.id, id),
-      with: {
-        account: true,
-      },
+    if ('error' in result) {
+      return result.error
+    }
+
+    const { cast } = result
+
+    // Cannot delete published casts
+    if (cast.status === 'published') {
+      return ApiErrors.validationFailed([{ 
+        field: 'status', 
+        message: 'Cannot delete a published cast' 
+      }])
+    }
+
+    // Delete cast and media in transaction
+    await db.transaction(async (tx) => {
+      await tx.delete(castMedia).where(eq(castMedia.castId, id))
+      await tx.delete(scheduledCasts).where(eq(scheduledCasts.id, id))
     })
 
-    if (!cast) {
-      return NextResponse.json(
-        { error: 'Cast not found' },
-        { status: 404 }
-      )
-    }
-
-    // Verificar permisos
-    const isOwner = cast.account.ownerId === session.userId
-    const isShared = cast.account.isShared
-    const isCreator = cast.createdById === session.userId
-    const isAdmin = session.role === 'admin'
-
-    if (!isOwner && !isShared && !isCreator && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    if (cast.status === 'published') {
-      return NextResponse.json(
-        { error: 'Cannot delete a published cast' },
-        { status: 400 }
-      )
-    }
-
-    await db.delete(scheduledCasts).where(eq(scheduledCasts.id, id))
-
-    return NextResponse.json({ success: true })
+    apiLogger.info({ castId: id, userId: session.userId }, 'Cast deleted')
+    return success({ deleted: true })
   } catch (error) {
-    console.error('[API] Error deleting cast:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete cast' },
-      { status: 500 }
-    )
+    apiLogger.error({ error: error instanceof Error ? error.message : 'Unknown' }, 'Delete cast error')
+    return ApiErrors.operationFailed('Failed to delete cast')
   }
 }
 
@@ -116,46 +119,43 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const timer = createTimer()
+  
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return ApiErrors.unauthorized()
     }
 
     const { id } = await params
     const body = await req.json()
-    const { content, scheduledAt, channelId, accountId, embeds } = body
 
-    // Verificar que el cast existe y pertenece al usuario (o a una cuenta compartida)
-    const cast = await db.query.scheduledCasts.findFirst({
-      where: eq(scheduledCasts.id, id),
-      with: {
-        account: true,
-      },
-    })
-
-    if (!cast) {
-      return NextResponse.json({ error: 'Cast not found' }, { status: 404 })
+    // Validate input
+    const validation = validate(updateCastSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    // Verificar permisos
-    const isOwner = cast.account.ownerId === session.userId
-    const isShared = cast.account.isShared
-    const isCreator = cast.createdById === session.userId
-    const isAdmin = session.role === 'admin'
-
-    if (!isOwner && !isShared && !isCreator && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const result = await getCastWithAuth(id, session)
+    if ('error' in result) {
+      return result.error
     }
 
-    // Verificar estado (solo se pueden editar casts no publicados)
-    if (cast.status !== 'scheduled' && cast.status !== 'draft') {
-      return NextResponse.json({ error: 'Can only edit pending casts' }, { status: 400 })
+    const { cast } = result
+    const { content, scheduledAt, channelId, accountId, embeds } = validation.data
+
+    // Can only edit draft, scheduled, or failed casts
+    const editableStatuses = ['draft', 'scheduled', 'failed', 'retrying']
+    if (!editableStatuses.includes(cast.status)) {
+      return ApiErrors.validationFailed([{ 
+        field: 'status', 
+        message: `Cannot edit cast with status: ${cast.status}` 
+      }])
     }
 
-    // Actualizar cast
+    // Update cast in transaction
     await db.transaction(async (tx) => {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         updatedAt: new Date(),
       }
 
@@ -163,25 +163,30 @@ export async function PATCH(
       if (scheduledAt) updates.scheduledAt = new Date(scheduledAt)
       if (channelId !== undefined) updates.channelId = channelId
       if (accountId !== undefined) updates.accountId = accountId
+      
+      // If editing a failed/retrying cast, reset to scheduled
+      if (cast.status === 'failed' || cast.status === 'retrying') {
+        updates.status = 'scheduled'
+        updates.errorMessage = null
+        updates.retryCount = 0
+      }
 
       await tx
         .update(scheduledCasts)
         .set(updates)
         .where(eq(scheduledCasts.id, id))
 
-      // Actualizar medios si se proporcionan
+      // Update media if provided
       if (embeds !== undefined) {
-        // Borrar medios existentes
         await tx.delete(castMedia).where(eq(castMedia.castId, id))
 
-        // Insertar nuevos medios
         if (Array.isArray(embeds) && embeds.length > 0) {
           await tx.insert(castMedia).values(
-            embeds.map((embed: { url: string; type?: 'image' | 'video' }, index: number) => ({
+            embeds.map((embed, index) => ({
               id: generateId(),
               castId: id,
               url: embed.url,
-              type: embed.type || 'image', // Por defecto imagen si no se especifica
+              type: embed.type || 'image' as const,
               order: index,
             }))
           )
@@ -189,9 +194,18 @@ export async function PATCH(
       }
     })
 
-    return NextResponse.json({ success: true })
+    apiLogger.info({ 
+      castId: id, 
+      userId: session.userId,
+      duration: timer.elapsed(),
+    }, 'Cast updated')
+    
+    return success({ updated: true })
   } catch (error) {
-    console.error('[Casts] Edit error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    apiLogger.error({ 
+      error: error instanceof Error ? error.message : 'Unknown',
+      duration: timer.elapsed(),
+    }, 'Update cast error')
+    return ApiErrors.operationFailed('Failed to update cast')
   }
 }

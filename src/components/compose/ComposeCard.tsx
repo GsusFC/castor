@@ -251,51 +251,25 @@ export function ComposeCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end p-3 border-t bg-gray-50/50 gap-2">
-        {/* Guardar Template - solo en modo crear con contenido */}
-        {!isEditMode && onSaveTemplate && hasContent && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onSaveTemplate}
-            disabled={isSavingTemplate || isSubmitting || !selectedAccountId}
-            className="text-gray-500"
-          >
-            <LayoutTemplate className="w-4 h-4 mr-2" />
-            {isSavingTemplate ? 'Guardando...' : 'Template'}
-          </Button>
-        )}
-        {/* Borrador - solo en modo crear */}
-        {!isEditMode && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onSaveDraft}
-            disabled={isSavingDraft || isSubmitting || !selectedAccountId}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSavingDraft ? 'Guardando...' : 'Borrador'}
-          </Button>
-        )}
-        <Button
-          type="button"
-          size="sm"
-          onClick={onSubmit}
-          disabled={isSubmitting || isSavingDraft || !selectedAccountId || !hasContent || hasOverLimit || !scheduledDate || !scheduledTime}
-        >
-          <Send className="w-4 h-4 mr-2" />
-          {isSubmitting 
-            ? (isEditMode ? 'Guardando...' : 'Programando...') 
-            : isEditMode 
-              ? 'Guardar' 
-              : isThread 
-                ? 'Programar Thread' 
-                : 'Programar'
-          }
-        </Button>
-      </div>
+      <ComposeFooter
+        isEditMode={isEditMode}
+        isThread={isThread}
+        hasContent={hasContent}
+        hasOverLimit={hasOverLimit}
+        selectedAccountId={selectedAccountId}
+        scheduledDate={scheduledDate}
+        scheduledTime={scheduledTime}
+        isSubmitting={isSubmitting}
+        isSavingDraft={isSavingDraft}
+        isSavingTemplate={isSavingTemplate}
+        onSubmit={onSubmit}
+        onSaveDraft={onSaveDraft}
+        onSaveTemplate={onSaveTemplate}
+        casts={casts}
+        onUpdateCast={onUpdateCast}
+        templates={templates}
+        onLoadTemplate={onLoadTemplate}
+      />
     </Card>
   )
 }
@@ -531,28 +505,22 @@ function ScheduleDropdown({
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">Fecha</label>
-            <div className="relative">
-              <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => onDateChange(e.target.value)}
-                min={today}
-                className="w-full h-9 pl-8 pr-3 rounded-md border text-sm"
-              />
-            </div>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => onDateChange(e.target.value)}
+              min={today}
+              className="w-full h-9 px-3 rounded-md border text-sm"
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">Hora</label>
-            <div className="relative">
-              <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => onTimeChange(e.target.value)}
-                className="w-full h-9 pl-8 pr-3 rounded-md border text-sm"
-              />
-            </div>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => onTimeChange(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border text-sm"
+            />
           </div>
         </div>
       </PopoverContent>
@@ -660,8 +628,6 @@ function CastEditorInline({
   onUpdate: (cast: CastItem) => void
   onRemove: () => void
 }) {
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [showGifPicker, setShowGifPicker] = useState(false)
   const [mentionState, setMentionState] = useState<{
     active: boolean
     query: string
@@ -670,7 +636,6 @@ function CastEditorInline({
   }>({ active: false, query: '', startPos: 0, position: { top: 0, left: 0 } })
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const castRef = useRef(cast)
 
@@ -765,73 +730,6 @@ function CastEditorInline({
     }, 0)
   }
 
-  const insertEmoji = (emoji: string) => {
-    if (!textareaRef.current) return
-    const start = textareaRef.current.selectionStart
-    const end = textareaRef.current.selectionEnd
-    const newContent = cast.content.substring(0, start) + emoji + cast.content.substring(end)
-    onUpdate({ ...cast, content: newContent })
-    setShowEmojiPicker(false)
-    setTimeout(() => {
-      textareaRef.current?.focus()
-      textareaRef.current?.setSelectionRange(start + emoji.length, start + emoji.length)
-    }, 0)
-  }
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    const cleanMedia = cast.media.filter(m => !m.error)
-    if (cleanMedia.length + files.length > 2) {
-      return
-    }
-
-    const newMediaItems: MediaFile[] = Array.from(files).map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      type: file.type.startsWith('video/') ? 'video' : 'image',
-      uploading: true,
-    }))
-
-    let currentMedia = [...cleanMedia, ...newMediaItems]
-    onUpdate({ ...cast, media: currentMedia })
-
-    if (fileInputRef.current) fileInputRef.current.value = ''
-
-    for (const mediaItem of newMediaItems) {
-      if (!mediaItem.file) continue
-      try {
-        const formData = new FormData()
-        formData.append('file', mediaItem.file)
-        const res = await fetch('/api/media/upload', { method: 'POST', body: formData })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        currentMedia = currentMedia.map(m =>
-          m.preview === mediaItem.preview ? { ...m, url: data.url, uploading: false } : m
-        )
-        onUpdate({ ...cast, media: currentMedia })
-      } catch (err) {
-        currentMedia = currentMedia.map(m =>
-          m.preview === mediaItem.preview ? { ...m, uploading: false, error: 'Error' } : m
-        )
-        onUpdate({ ...cast, media: currentMedia })
-      }
-    }
-  }
-
-  const handleGifSelect = (gifUrl: string) => {
-    if (cast.media.length >= 2) return
-    const newMedia: MediaFile = {
-      preview: gifUrl,
-      url: gifUrl,
-      type: 'image',
-      uploading: false,
-    }
-    onUpdate({ ...cast, media: [...cast.media, newMedia] })
-    setShowGifPicker(false)
-  }
-
   const removeMedia = (preview: string) => {
     onUpdate({ ...cast, media: cast.media.filter(m => m.preview !== preview) })
     URL.revokeObjectURL(preview)
@@ -879,9 +777,9 @@ function CastEditorInline({
         value={cast.content}
         onChange={handleChange}
         placeholder={index === 0 ? '¿Qué quieres compartir?' : 'Continúa el thread...'}
-        rows={3}
+        rows={6}
         className={cn(
-          "border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-base leading-relaxed placeholder:text-gray-400 min-h-[80px]",
+          "border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-base leading-relaxed placeholder:text-gray-400 min-h-[150px]",
           isOverLimit && "text-red-500"
         )}
       />
@@ -924,78 +822,261 @@ function CastEditorInline({
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 mt-3 pt-3 border-t">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={cast.media.length >= 2}
-          className="h-8 w-8 text-gray-500"
-        >
-          <Image className="w-4 h-4" />
-        </Button>
-
-        {/* Emoji Picker */}
-        <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-gray-500">
-              <Smile className="w-4 h-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-2" align="start">
-            <div className="grid grid-cols-8 gap-1">
-              {EMOJI_LIST.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => insertEmoji(emoji)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-lg"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* GIF Picker */}
-        <Popover open={showGifPicker} onOpenChange={setShowGifPicker}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={cast.media.length >= 2}
-              className="h-8 px-2 text-gray-500 text-xs font-bold"
-            >
-              GIF
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="start">
-            <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifPicker(false)} />
-          </PopoverContent>
-        </Popover>
-
-        {/* Thread char count */}
-        {isThread && (
+      {/* Thread char count */}
+      {isThread && (
+        <div className="flex items-center justify-end mt-2 pt-2 border-t">
           <span className={cn(
-            "ml-auto text-xs tabular-nums",
+            "text-xs tabular-nums",
             isOverLimit ? "text-red-500" : "text-gray-400"
           )}>
             {charCount}/{maxChars}
           </span>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Footer con todos los botones en una línea
+function ComposeFooter({
+  isEditMode,
+  isThread,
+  hasContent,
+  hasOverLimit,
+  selectedAccountId,
+  scheduledDate,
+  scheduledTime,
+  isSubmitting,
+  isSavingDraft,
+  isSavingTemplate,
+  onSubmit,
+  onSaveDraft,
+  onSaveTemplate,
+  casts,
+  onUpdateCast,
+  templates,
+  onLoadTemplate,
+}: {
+  isEditMode: boolean
+  isThread: boolean
+  hasContent: boolean
+  hasOverLimit: boolean
+  selectedAccountId: string | null
+  scheduledDate: string
+  scheduledTime: string
+  isSubmitting: boolean
+  isSavingDraft: boolean
+  isSavingTemplate: boolean
+  onSubmit: () => void
+  onSaveDraft: () => void
+  onSaveTemplate?: () => void
+  casts: CastItem[]
+  onUpdateCast: (index: number, cast: CastItem) => void
+  templates?: Template[]
+  onLoadTemplate?: (template: Template) => void
+}) {
+  const [showGifPicker, setShowGifPicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  
+  // Solo trabajamos con el primer cast para media (simplificado)
+  const currentCast = casts[0]
+  const canAddMedia = currentCast && currentCast.media.length < 2
+
+  // Obtener referencia al textarea del primer cast
+  useEffect(() => {
+    textareaRef.current = document.querySelector('textarea')
+  }, [])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !currentCast) return
+
+    const cleanMedia = currentCast.media.filter(m => !m.error)
+    if (cleanMedia.length + files.length > 2) return
+
+    const newMediaItems: MediaFile[] = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+      uploading: true,
+    }))
+
+    let currentMedia = [...cleanMedia, ...newMediaItems]
+    onUpdateCast(0, { ...currentCast, media: currentMedia })
+
+    if (fileInputRef.current) fileInputRef.current.value = ''
+
+    for (const mediaItem of newMediaItems) {
+      if (!mediaItem.file) continue
+      try {
+        const formData = new FormData()
+        formData.append('file', mediaItem.file)
+        const res = await fetch('/api/media/upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error)
+        currentMedia = currentMedia.map(m =>
+          m.preview === mediaItem.preview ? { ...m, url: data.url, uploading: false } : m
+        )
+        onUpdateCast(0, { ...currentCast, media: currentMedia })
+      } catch {
+        currentMedia = currentMedia.map(m =>
+          m.preview === mediaItem.preview ? { ...m, uploading: false, error: 'Error' } : m
+        )
+        onUpdateCast(0, { ...currentCast, media: currentMedia })
+      }
+    }
+  }
+
+  const handleGifSelect = (gifUrl: string) => {
+    if (!currentCast || currentCast.media.length >= 2) return
+    const newMedia: MediaFile = {
+      preview: gifUrl,
+      url: gifUrl,
+      type: 'image',
+      uploading: false,
+    }
+    onUpdateCast(0, { ...currentCast, media: [...currentCast.media, newMedia] })
+    setShowGifPicker(false)
+  }
+
+  const insertEmoji = (emoji: string) => {
+    if (!textareaRef.current || !currentCast) return
+    const start = textareaRef.current.selectionStart
+    const end = textareaRef.current.selectionEnd
+    const newContent = currentCast.content.substring(0, start) + emoji + currentCast.content.substring(end)
+    onUpdateCast(0, { ...currentCast, content: newContent })
+    setShowEmojiPicker(false)
+    setTimeout(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(start + emoji.length, start + emoji.length)
+    }, 0)
+  }
+
+  return (
+    <div className="flex items-center p-3 border-t bg-gray-50/50 gap-2 flex-wrap">
+      {/* Media buttons - izquierda */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={!canAddMedia}
+        className="h-8 px-2 text-gray-500"
+      >
+        <Image className="w-4 h-4 mr-1" />
+        <span className="hidden sm:inline text-xs">Imagen</span>
+      </Button>
+
+      {/* GIF Picker */}
+      <Popover open={showGifPicker} onOpenChange={setShowGifPicker}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!canAddMedia}
+            className="h-8 px-2 text-gray-500 font-bold"
+          >
+            GIF
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0" align="start">
+          <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifPicker(false)} />
+        </PopoverContent>
+      </Popover>
+
+      {/* Emoji Picker */}
+      <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-gray-500">
+            <Smile className="w-4 h-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-2" align="start">
+          <div className="grid grid-cols-8 gap-1">
+            {EMOJI_LIST.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-lg"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Borrador - solo en modo crear */}
+      {!isEditMode && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSaveDraft}
+          disabled={isSavingDraft || isSubmitting || !selectedAccountId}
+          className="h-8 px-2 text-gray-500"
+        >
+          <Save className="w-4 h-4 mr-1" />
+          <span className="hidden sm:inline text-xs">{isSavingDraft ? 'Guardando...' : 'Borrador'}</span>
+        </Button>
+      )}
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Template dropdown - solo si hay templates */}
+      {!isEditMode && templates && templates.length > 0 && onLoadTemplate && (
+        <TemplateDropdown
+          templates={templates}
+          onSelect={onLoadTemplate}
+        />
+      )}
+
+      {/* Guardar Template - solo en modo crear con contenido */}
+      {!isEditMode && onSaveTemplate && hasContent && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSaveTemplate}
+          disabled={isSavingTemplate || isSubmitting || !selectedAccountId}
+          className="h-8 px-2 text-gray-500"
+        >
+          <LayoutTemplate className="w-4 h-4 mr-1" />
+          <span className="hidden sm:inline text-xs">{isSavingTemplate ? 'Guardando...' : 'Guardar'}</span>
+        </Button>
+      )}
+
+      {/* Programar */}
+      <Button
+        type="button"
+        size="sm"
+        onClick={onSubmit}
+        disabled={isSubmitting || isSavingDraft || !selectedAccountId || !hasContent || hasOverLimit || !scheduledDate || !scheduledTime}
+        className="h-8"
+      >
+        <Send className="w-4 h-4 mr-1" />
+        {isSubmitting 
+          ? (isEditMode ? 'Guardando...' : 'Programando...') 
+          : isEditMode 
+            ? 'Guardar' 
+            : isThread 
+              ? 'Programar Thread' 
+              : 'Programar'
+        }
+      </Button>
     </div>
   )
 }

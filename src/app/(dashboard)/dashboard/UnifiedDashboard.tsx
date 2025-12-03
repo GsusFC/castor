@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { AddAccountButton } from './accounts/add-account-button'
 import { toast } from 'sonner'
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 // Types
 interface AccountOwner {
@@ -82,6 +83,7 @@ export function UnifiedDashboard({
   isAdmin 
 }: UnifiedDashboardProps) {
   const router = useRouter()
+  const { selectedAccountId, setSelectedAccountId } = useSelectedAccount()
   
   // Ordenar cuentas: personales primero, luego business
   const sortedAccounts = [...accounts].sort((a, b) => {
@@ -91,11 +93,14 @@ export function UnifiedDashboard({
     return 0
   })
   
-  // Seleccionar la primera cuenta aprobada por defecto (no "Todas")
+  // Seleccionar la primera cuenta aprobada por defecto (solo si no hay ninguna seleccionada)
   const firstApprovedAccount = sortedAccounts.find(a => a.signerStatus === 'approved')
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
-    firstApprovedAccount?.id || null
-  )
+  useEffect(() => {
+    if (selectedAccountId === null && firstApprovedAccount) {
+      setSelectedAccountId(firstApprovedAccount.id)
+    }
+  }, [selectedAccountId, firstApprovedAccount, setSelectedAccountId])
+
   const [activeTab, setActiveTab] = useState<Tab>('scheduled')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createSigner } from '@/lib/farcaster'
+import { getSession } from '@/lib/auth'
+import { success, ApiErrors } from '@/lib/api/response'
 
 /**
  * POST /api/accounts/create-signer
@@ -7,30 +8,33 @@ import { createSigner } from '@/lib/farcaster'
  */
 export async function POST() {
   try {
+    // Verificar autenticación
+    const session = await getSession()
+    if (!session) {
+      return ApiErrors.unauthorized()
+    }
+
     const result = await createSigner()
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 500 }
-      )
+      return ApiErrors.externalError('Neynar', result.error)
     }
 
     const signer = result.signer
     if (!signer) {
-      return NextResponse.json(
-        { error: 'Signer creation returned no data' },
-        { status: 500 }
-      )
+      return ApiErrors.operationFailed('Signer creation returned no data')
     }
 
-    console.log('[API] Signer created:', JSON.stringify(signer, null, 2))
+    // Log sin datos sensibles en producción
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] Signer created for user:', session.userId)
+    }
     
     // La URL de aprobación viene directamente del SDK cuando usas mnemonic
     const deepLinkUrl = signer.signer_approval_url || 
       `https://client.warpcast.com/deeplinks/signed-key-request?token=${signer.signer_uuid}`
     
-    return NextResponse.json({
+    return success({
       signerUuid: signer.signer_uuid,
       publicKey: signer.public_key,
       status: signer.status,
@@ -38,9 +42,6 @@ export async function POST() {
     })
   } catch (error) {
     console.error('[API] Error creating signer:', error)
-    return NextResponse.json(
-      { error: 'Failed to create signer' },
-      { status: 500 }
-    )
+    return ApiErrors.operationFailed('Failed to create signer')
   }
 }

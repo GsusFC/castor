@@ -80,7 +80,7 @@ export const scheduledCasts = sqliteTable(
     content: text('content').notNull(),
     scheduledAt: integer('scheduled_at', { mode: 'timestamp' }).notNull(),
     publishedAt: integer('published_at', { mode: 'timestamp' }),
-    status: text('status', { enum: ['draft', 'scheduled', 'publishing', 'published', 'failed'] })
+    status: text('status', { enum: ['draft', 'scheduled', 'publishing', 'published', 'failed', 'retrying'] })
       .notNull()
       .default('draft'),
     castHash: text('cast_hash'),

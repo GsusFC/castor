@@ -32,14 +32,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    
+    console.log('[Schedule API] Received body:', JSON.stringify(body, null, 2))
 
     // Validar input con Zod
     const validation = validate(scheduleCastSchema, body)
     if (!validation.success) {
+      console.log('[Schedule API] Validation failed:', validation.error)
       return validation.error
     }
 
     const { accountId, content, scheduledAt, channelId, embeds, isDraft, parentHash } = validation.data
+    
+    console.log('[Schedule API] Parsed embeds:', embeds)
 
     // Verificar cuenta
     const account = await db.query.accounts.findFirst({

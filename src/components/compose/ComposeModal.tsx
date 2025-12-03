@@ -73,6 +73,20 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
   const hasOverLimit = casts.some(cast => calculateTextLength(cast.content) > maxChars)
   const hasContent = casts.some(cast => cast.content.trim().length > 0)
 
+  // Resetear estado cuando se cierra el modal
+  useEffect(() => {
+    if (!open) {
+      // Limpiar estado al cerrar
+      setCasts([{ id: Math.random().toString(36).slice(2), content: '', media: [], links: [] }])
+      setSelectedChannel(null)
+      setScheduledDate('')
+      setScheduledTime('')
+      setError(null)
+      setReplyTo(null)
+      setTemplates([])
+    }
+  }, [open])
+
   // Cargar cuentas cuando se abre el modal
   useEffect(() => {
     if (!open) return
@@ -193,6 +207,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
           ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
           ...cast.links.map(l => ({ url: l.url })),
         ]
+        
+        console.log('[ComposeModal] Submitting cast:', {
+          mediaCount: cast.media.length,
+          mediaWithUrl: cast.media.filter(m => m.url).length,
+          embeds,
+        })
 
         const res = await fetch('/api/casts/schedule', {
           method: 'POST',

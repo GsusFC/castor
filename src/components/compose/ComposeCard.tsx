@@ -584,8 +584,6 @@ function PreviewPopover({
   replyTo: ReplyToCast | null
   hasContent: boolean
 }) {
-  if (!hasContent) return null
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -593,21 +591,24 @@ function PreviewPopover({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 hidden md:flex"
+          className={cn("h-8 w-8", !hasContent && "opacity-40 cursor-not-allowed")}
           title="Vista previa"
+          disabled={!hasContent}
         >
           <Eye className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <CastPreview
-          casts={casts}
-          account={account}
-          channel={channel}
-          replyTo={replyTo}
-          compact
-        />
-      </PopoverContent>
+      {hasContent && (
+        <PopoverContent className="w-80 p-0" align="end">
+          <CastPreview
+            casts={casts}
+            account={account}
+            channel={channel}
+            replyTo={replyTo}
+            compact
+          />
+        </PopoverContent>
+      )}
     </Popover>
   )
 }
@@ -879,6 +880,12 @@ function ComposeFooter({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const castsRef = useRef(casts)
+  
+  // Mantener ref actualizada
+  useEffect(() => {
+    castsRef.current = casts
+  }, [casts])
   
   // Solo trabajamos con el primer cast para media (simplificado)
   const currentCast = casts[0]
@@ -914,17 +921,23 @@ function ComposeFooter({
         const formData = new FormData()
         formData.append('file', mediaItem.file)
         const res = await fetch('/api/media/upload', { method: 'POST', body: formData })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error)
+        
+        const uploadedUrl = json.data?.url || json.url
+        
         currentMedia = currentMedia.map(m =>
-          m.preview === mediaItem.preview ? { ...m, url: data.url, uploading: false } : m
+          m.preview === mediaItem.preview ? { ...m, url: uploadedUrl, uploading: false } : m
         )
-        onUpdateCast(0, { ...currentCast, media: currentMedia })
-      } catch {
+        // Usar ref para obtener el estado más reciente
+        const latestCast = castsRef.current[0]
+        onUpdateCast(0, { ...latestCast, media: currentMedia })
+      } catch (err) {
         currentMedia = currentMedia.map(m =>
           m.preview === mediaItem.preview ? { ...m, uploading: false, error: 'Error' } : m
         )
-        onUpdateCast(0, { ...currentCast, media: currentMedia })
+        const latestCast = castsRef.current[0]
+        onUpdateCast(0, { ...latestCast, media: currentMedia })
       }
     }
   }

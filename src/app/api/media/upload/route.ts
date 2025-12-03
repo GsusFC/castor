@@ -4,8 +4,8 @@ import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { apiLogger, createTimer } from '@/lib/logger'
 
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'dqzhacfga'
-const CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET || 'castor_uploads'
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
+const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
 
 export async function POST(request: NextRequest) {
   const timer = createTimer()
@@ -15,6 +15,12 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session) {
       return ApiErrors.unauthorized()
+    }
+
+    // Verificar configuración de Cloudflare
+    if (!CF_ACCOUNT_ID || !CF_IMAGES_TOKEN) {
+      apiLogger.error({}, 'Cloudflare Images not configured')
+      return ApiErrors.operationFailed('Media upload not configured')
     }
 
     // Rate limiting estricto para uploads (operación costosa)
@@ -53,50 +59,115 @@ export async function POST(request: NextRequest) {
       }])
     }
 
-    // Subir a Cloudinary
-    const buffer = await file.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    const dataUri = `data:${file.type};base64,${base64}`
+    // Subir a Cloudflare Images o Stream
+    if (isImage) {
+      // Cloudflare Images API
+      const cfFormData = new FormData()
+      cfFormData.append('file', file)
+      
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/images/v1`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
+          },
+          body: cfFormData,
+        }
+      )
 
-    const cloudinaryFormData = new FormData()
-    cloudinaryFormData.append('file', dataUri)
-    cloudinaryFormData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+      const data = await response.json()
 
-    const resourceType = isVideo ? 'video' : 'image'
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-      { method: 'POST', body: cloudinaryFormData }
-    )
+      if (!response.ok || !data.success) {
+        apiLogger.error({ 
+          status: response.status, 
+          errors: data.errors,
+          userId: session.userId,
+        }, 'Cloudflare Images upload failed')
+        return ApiErrors.externalError('Cloudflare Images')
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      apiLogger.error({ 
-        status: response.status, 
-        error: errorText,
-        userId: session.userId,
-      }, 'Cloudinary upload failed')
-      return ApiErrors.externalError('Cloudinary')
+      // Cloudflare Images devuelve variants, usamos la "public"
+      const imageUrl = data.result.variants?.find((v: string) => v.includes('/public')) 
+        || data.result.variants?.[0]
+
+      console.log('[Upload] Image uploaded:', imageUrl)
+
+      return success({
+        url: imageUrl,
+        type: 'image',
+        id: data.result.id,
+      })
+
+    } else {
+      // Cloudflare Stream para videos
+      // Por ahora usamos direct upload con tus-resumable
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream?direct_user=true`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
+            'Tus-Resumable': '1.0.0',
+            'Upload-Length': file.size.toString(),
+            'Upload-Metadata': `name ${btoa(file.name)},type ${btoa(file.type)}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        apiLogger.error({ 
+          status: response.status, 
+          errors: errorData.errors,
+          userId: session.userId,
+        }, 'Cloudflare Stream upload init failed')
+        return ApiErrors.externalError('Cloudflare Stream')
+      }
+
+      // Obtener la URL de upload del header
+      const uploadUrl = response.headers.get('location')
+      const streamMediaId = response.headers.get('stream-media-id')
+
+      if (!uploadUrl) {
+        return ApiErrors.externalError('Cloudflare Stream - no upload URL')
+      }
+
+      // Subir el video
+      const buffer = await file.arrayBuffer()
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PATCH',
+        headers: {
+          'Tus-Resumable': '1.0.0',
+          'Upload-Offset': '0',
+          'Content-Type': 'application/offset+octet-stream',
+        },
+        body: buffer,
+      })
+
+      if (!uploadResponse.ok) {
+        apiLogger.error({ 
+          status: uploadResponse.status,
+          userId: session.userId,
+        }, 'Cloudflare Stream upload failed')
+        return ApiErrors.externalError('Cloudflare Stream')
+      }
+
+      // La URL del video será algo como: https://customer-{code}.cloudflarestream.com/{video-id}/manifest/video.m3u8
+      // Para embed en Farcaster necesitamos el MP4 directo
+      const videoUrl = `https://customer-${CF_ACCOUNT_ID}.cloudflarestream.com/${streamMediaId}/downloads/default.mp4`
+
+      console.log('[Upload] Video uploaded:', videoUrl)
+
+      return success({
+        url: videoUrl,
+        type: 'video',
+        id: streamMediaId,
+      })
     }
 
-    const data = await response.json()
-
-    apiLogger.info({
-      userId: session.userId,
-      type: isVideo ? 'video' : 'image',
-      size: file.size,
-      duration: timer.elapsed(),
-    }, 'Media uploaded successfully')
-
-    return success({
-      url: data.secure_url,
-      type: isVideo ? 'video' : 'image',
-    })
-
   } catch (error) {
-    apiLogger.error({ 
-      error: error instanceof Error ? error.message : 'Unknown error',
-      duration: timer.elapsed(),
-    }, 'Media upload failed')
+    console.error('[Upload] Error:', error instanceof Error ? error.message : 'Unknown error')
     return ApiErrors.operationFailed('Failed to upload file')
   }
 }

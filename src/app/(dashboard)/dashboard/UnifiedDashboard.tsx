@@ -156,11 +156,21 @@ export function UnifiedDashboard({
   const handleDeleteCast = async (castId: string) => {
     if (!confirm('¿Eliminar este cast?')) return
     try {
+      console.log('[Delete] Deleting cast:', castId)
       const res = await fetch(`/api/casts/${castId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete')
+      
+      if (!res.ok) {
+        const text = await res.text()
+        console.error('[Delete] Error response:', res.status, text)
+        throw new Error(`Error ${res.status}`)
+      }
+      
+      const data = await res.json()
+      console.log('[Delete] Success:', data)
       toast.success('Cast eliminado')
       router.refresh()
     } catch (error) {
+      console.error('[Delete] Error:', error)
       toast.error('Error al eliminar cast')
     }
   }

@@ -97,16 +97,14 @@ export async function DELETE(
       }])
     }
 
-    // Delete cast and media in transaction
-    await db.transaction(async (tx) => {
-      await tx.delete(castMedia).where(eq(castMedia.castId, id))
-      await tx.delete(scheduledCasts).where(eq(scheduledCasts.id, id))
-    })
+    // Delete media first, then cast
+    await db.delete(castMedia).where(eq(castMedia.castId, id))
+    await db.delete(scheduledCasts).where(eq(scheduledCasts.id, id))
 
-    apiLogger.info({ castId: id, userId: session.userId }, 'Cast deleted')
+    console.log('[Delete] Cast deleted:', id)
     return success({ deleted: true })
   } catch (error) {
-    apiLogger.error({ error: error instanceof Error ? error.message : 'Unknown' }, 'Delete cast error')
+    console.error('[Delete] Error:', error instanceof Error ? error.message : 'Unknown')
     return ApiErrors.operationFailed('Failed to delete cast')
   }
 }

@@ -229,7 +229,12 @@ export function UnifiedDashboard({
 
   // Render content based on tab
   const renderContent = () => {
-    const castsToShow = activeTab === 'scheduled' ? scheduled : published
+    // Si showAllCasts, mostrar todos los casts de todas las cuentas
+    const castsToShow = showAllCasts 
+      ? casts 
+      : activeTab === 'scheduled' 
+        ? scheduled 
+        : published
 
     if (viewMode === 'calendar') {
       const calendarCasts = castsToShow.map(c => ({
@@ -247,17 +252,9 @@ export function UnifiedDashboard({
       return (
         <Card className="p-12 text-center">
           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {activeTab === 'scheduled' ? (
-              <Clock className="w-6 h-6 text-gray-400" />
-            ) : (
-              <CheckCircle className="w-6 h-6 text-gray-400" />
-            )}
+            <List className="w-6 h-6 text-gray-400" />
           </div>
-          <p className="text-gray-500">
-            {activeTab === 'scheduled' 
-              ? 'No hay casts programados' 
-              : 'No hay casts publicados'}
-          </p>
+          <p className="text-gray-500">No hay casts</p>
         </Card>
       )
     }

@@ -41,13 +41,29 @@ function toMadridISO(date: string, time: string): string {
   return madridDate.toISOString()
 }
 
+interface EditCastData {
+  id: string
+  content: string
+  accountId: string
+  channelId?: string | null
+  scheduledAt: string
+  media?: {
+    url: string
+    type: 'image' | 'video'
+    thumbnailUrl?: string | null
+    cloudflareId?: string | null
+    videoStatus?: string | null
+  }[]
+}
+
 interface ComposeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultAccountId?: string | null
+  editCast?: EditCastData | null
 }
 
-export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeModalProps) {
+export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }: ComposeModalProps) {
   const router = useRouter()
   
   // Estado del formulario
@@ -67,6 +83,10 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
   const [templates, setTemplates] = useState<Template[]>([])
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
 
+  // Modo edición
+  const isEditMode = !!editCast
+  const [editCastId, setEditCastId] = useState<string | null>(null)
+
   // Derivados
   const selectedAccountData = accounts.find(a => a.id === selectedAccount)
   const maxChars = selectedAccountData?.isPremium ? MAX_CHARS_PREMIUM : MAX_CHARS_FREE
@@ -85,8 +105,60 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
       setError(null)
       setReplyTo(null)
       setTemplates([])
+      setEditCastId(null)
     }
   }, [open])
+
+  // Cargar datos del cast en modo edición
+  useEffect(() => {
+    if (!open || !editCast) return
+    
+    // Precargar datos del cast
+    setEditCastId(editCast.id)
+    setSelectedAccount(editCast.accountId)
+    
+    if (editCast.channelId) {
+      setSelectedChannel({ id: editCast.channelId, name: editCast.channelId })
+    }
+    
+    // Parsear fecha y hora
+    const date = new Date(editCast.scheduledAt)
+    const madridDate = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' })
+    const madridTime = date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false,
+      timeZone: 'Europe/Madrid' 
+    })
+    setScheduledDate(madridDate)
+    setScheduledTime(madridTime)
+    
+    // Mapear media - filtrar solo media real
+    const media = (editCast.media || [])
+      .filter(m => {
+        const url = m.url || ''
+        const isCloudflare = m.cloudflareId || 
+          url.includes('cloudflare') || 
+          url.includes('imagedelivery.net')
+        const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i.test(url)
+        return isCloudflare || hasMediaExtension
+      })
+      .map(m => ({
+        preview: m.thumbnailUrl || m.url,
+        url: m.url,
+        type: m.type,
+        uploading: false,
+        cloudflareId: m.cloudflareId || undefined,
+        videoStatus: (m.videoStatus as 'pending' | 'processing' | 'ready' | 'error') || undefined,
+      }))
+    
+    setCasts([{
+      id: editCast.id,
+      content: editCast.content,
+      media,
+      links: []
+    }])
+  }, [open, editCast])
 
   // Cargar cuentas cuando se abre el modal
   useEffect(() => {
@@ -220,13 +292,21 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
         ]
         
         console.log('[ComposeModal] Submitting cast:', {
+          isEditMode,
+          editCastId,
           mediaCount: cast.media.length,
           mediaWithUrl: cast.media.filter(m => m.url).length,
           embeds,
         })
 
-        const res = await fetch('/api/casts/schedule', {
-          method: 'POST',
+        // En modo edición usar PATCH, sino POST
+        const url = isEditMode && editCastId 
+          ? `/api/casts/${editCastId}` 
+          : '/api/casts/schedule'
+        const method = isEditMode && editCastId ? 'PATCH' : 'POST'
+
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accountId: selectedAccount,
@@ -242,7 +322,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
         if (!res.ok) throw new Error(data.error || 'Error al programar')
       }
 
-      toast.success(isThread ? 'Thread programado correctamente' : 'Cast programado correctamente')
+      const successMsg = isEditMode 
+        ? 'Cast actualizado correctamente'
+        : isThread 
+          ? 'Thread programado correctamente' 
+          : 'Cast programado correctamente'
+      toast.success(successMsg)
       resetForm()
       onOpenChange(false)
       router.refresh() // Actualizar la lista/calendario
@@ -373,8 +458,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden fixed inset-0 translate-x-0 translate-y-0 md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
-        <DialogTitle className="sr-only">Nuevo Cast</DialogTitle>
-        <DialogDescription className="sr-only">Crea y programa un nuevo cast para Farcaster</DialogDescription>
+        <DialogTitle className="sr-only">
+          {isEditMode ? 'Editar Cast' : 'Nuevo Cast'}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {isEditMode ? 'Edita tu cast programado' : 'Crea y programa un nuevo cast para Farcaster'}
+        </DialogDescription>
         
         {/* Header móvil */}
         <div className="flex items-center justify-between p-3 border-b md:hidden">
@@ -387,7 +476,7 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
             Cancelar
           </Button>
           <span className="font-medium text-sm">
-            {isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
+            {isEditMode ? 'Editar Cast' : isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
           </span>
           <div className="w-16" /> {/* Spacer */}
         </div>

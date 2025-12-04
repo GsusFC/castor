@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
   User, Clock, Calendar, ExternalLink, Edit, Trash2, 
@@ -15,6 +15,7 @@ import { CalendarView } from '@/components/calendar/CalendarView'
 import { AddAccountButton } from './accounts/add-account-button'
 import { toast } from 'sonner'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
+import { ComposeModal } from '@/components/compose/ComposeModal'
 
 // Types
 interface AccountOwner {
@@ -41,8 +42,19 @@ interface Account {
 interface CastMedia {
   id: string
   url: string
-  type: string
+  type: 'image' | 'video'
   thumbnailUrl: string | null
+  cloudflareId?: string | null
+  videoStatus?: string | null
+}
+
+interface EditCastData {
+  id: string
+  content: string
+  accountId: string
+  channelId?: string | null
+  scheduledAt: string
+  media?: CastMedia[]
 }
 
 interface Cast {
@@ -91,6 +103,7 @@ export function UnifiedDashboard({
   isAdmin 
 }: UnifiedDashboardProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { selectedAccountId, setSelectedAccountId } = useSelectedAccount()
   
   // Ordenar cuentas: personales primero, luego business
@@ -111,6 +124,35 @@ export function UnifiedDashboard({
 
   const [activeTab, setActiveTab] = useState<Tab>('scheduled')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  
+  // Estado para modal de edición
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editCast, setEditCast] = useState<EditCastData | null>(null)
+
+  const handleEditCast = useCallback((cast: Cast) => {
+    setEditCast({
+      id: cast.id,
+      content: cast.content,
+      accountId: cast.accountId,
+      channelId: cast.channelId,
+      scheduledAt: cast.scheduledAt,
+      media: cast.media,
+    })
+    setEditModalOpen(true)
+  }, [])
+
+  // Abrir modal si hay parámetro edit en la URL
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (editId) {
+      const castToEdit = casts.find(c => c.id === editId)
+      if (castToEdit) {
+        handleEditCast(castToEdit)
+        // Limpiar el parámetro de la URL
+        router.replace('/dashboard', { scroll: false })
+      }
+    }
+  }, [searchParams, casts, handleEditCast, router])
 
   // Auto-refresh cada 30s si hay casts programados
   const scheduledCasts = casts.filter(c => c.status === 'scheduled')
@@ -224,6 +266,7 @@ export function UnifiedDashboard({
           <CastCard 
             key={cast.id} 
             cast={cast} 
+            onEdit={() => handleEditCast(cast)}
             onDelete={() => handleDeleteCast(cast.id)}
           />
         ))}
@@ -455,6 +498,17 @@ export function UnifiedDashboard({
           </Card>
         </div>
       </section>
+
+      {/* Modal de edición */}
+      <ComposeModal 
+        open={editModalOpen} 
+        onOpenChange={(open) => {
+          setEditModalOpen(open)
+          if (!open) setEditCast(null)
+        }}
+        editCast={editCast}
+        defaultAccountId={editCast?.accountId}
+      />
     </div>
   )
 }
@@ -495,10 +549,12 @@ function TabButton({
 function CastCard({ 
   cast, 
   isDraft = false,
+  onEdit,
   onDelete 
 }: { 
   cast: Cast
   isDraft?: boolean
+  onEdit?: () => void
   onDelete: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -622,7 +678,7 @@ function CastCard({
               className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation()
-                window.location.href = `/dashboard/edit/${cast.id}`
+                onEdit?.()
               }}
               title="Editar"
             >

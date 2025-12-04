@@ -367,7 +367,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
           </a>
         )}
 
-        {/* Acciones en hover */}
+        {/* Acciones en hover - redirige al dashboard para editar */}
         {cast.status !== 'published' && (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button 
@@ -375,9 +375,9 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
               size="icon" 
               className="h-7 w-7"
               asChild
-              title="Editar"
+              title="Editar (ir al dashboard)"
             >
-              <Link href={`/dashboard/edit/${cast.id}`}>
+              <Link href={`/dashboard?edit=${cast.id}`}>
                 <Edit className="w-3.5 h-3.5" />
               </Link>
             </Button>

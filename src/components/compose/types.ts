@@ -6,6 +6,8 @@ export interface MediaFile {
   uploading?: boolean
   error?: string
   cloudflareId?: string
+  livepeerAssetId?: string
+  livepeerPlaybackId?: string
   videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
 }
 

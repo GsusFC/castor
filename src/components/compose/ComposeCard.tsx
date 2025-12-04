@@ -809,7 +809,7 @@ function CastEditorInline({
                     <VideoValidation 
                       url={m.url} 
                       videoStatus={m.videoStatus}
-                      livepeerAssetId={m.livepeerAssetId}
+                      cloudflareId={m.cloudflareId}
                     />
                   )}
                 </div>
@@ -932,42 +932,56 @@ function ComposeFooter({
         const isVideo = file.type.startsWith('video/')
         
         if (isVideo) {
-          // === LIVEPEER para videos ===
-          // 1. Obtener URL de upload de Livepeer
-          const urlRes = await fetch('/api/media/livepeer/upload', {
+          // === CLOUDFLARE STREAM para videos ===
+          // 1. Obtener URL de upload
+          const urlRes = await fetch('/api/media/upload-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               fileName: file.name,
               fileSize: file.size,
+              fileType: file.type,
             }),
           })
           const urlJson = await urlRes.json()
           if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
           
-          const { uploadUrl, assetId, playbackId, playbackUrl } = urlJson.data || urlJson
+          const { uploadUrl, cloudflareId } = urlJson.data || urlJson
           
-          // 2. Subir usando Direct Upload (PUT request)
+          // 2. Subir video usando TUS protocol
           const uploadRes = await fetch(uploadUrl, {
-            method: 'PUT',
+            method: 'POST',
             headers: {
-              'Content-Type': file.type || 'video/mp4',
+              'Tus-Resumable': '1.0.0',
+              'Upload-Length': file.size.toString(),
+              'Content-Type': 'application/offset+octet-stream',
             },
             body: file,
           })
           if (!uploadRes.ok) throw new Error('Video upload failed')
           
-          console.log('[Upload] Video uploaded to Livepeer:', { assetId, playbackId })
+          // 3. Confirmar upload y obtener URL
+          const confirmRes = await fetch('/api/media/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cloudflareId,
+              type: 'video',
+            }),
+          })
+          const confirmJson = await confirmRes.json()
+          if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
           
-          // 3. Actualizar estado con URL de playback
+          const data = confirmJson.data || confirmJson
+          console.log('[Upload] Video uploaded to Cloudflare:', { cloudflareId, url: data.url })
+          
           currentMedia = currentMedia.map(m =>
             m.preview === mediaItem.preview ? { 
               ...m, 
-              url: playbackUrl,
+              url: data.url,
               uploading: false,
-              livepeerAssetId: assetId,
-              livepeerPlaybackId: playbackId,
-              videoStatus: 'pending', // Se procesará en background
+              cloudflareId: data.cloudflareId || cloudflareId,
+              videoStatus: 'pending',
             } : m
           )
         } else {

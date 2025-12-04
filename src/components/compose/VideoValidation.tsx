@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 interface VideoValidationProps {
   url?: string
   videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
-  livepeerAssetId?: string
+  cloudflareId?: string
   className?: string
 }
 
@@ -25,7 +25,7 @@ interface ValidationResult {
 export function VideoValidation({ 
   url, 
   videoStatus, 
-  livepeerAssetId,
+  cloudflareId,
   className 
 }: VideoValidationProps) {
   const [validation, setValidation] = useState<ValidationResult>({
@@ -44,30 +44,28 @@ export function VideoValidation({
       return
     }
 
-    // Si el video está procesándose en Livepeer, hacer polling
-    if ((videoStatus === 'pending' || videoStatus === 'processing') && livepeerAssetId) {
+    // Si el video está procesándose en Cloudflare, hacer polling
+    if ((videoStatus === 'pending' || videoStatus === 'processing') && cloudflareId) {
       setValidation({
         isValid: false,
         status: 'processing',
         message: 'Procesando video...'
       })
       
-      // Polling cada 3 segundos para verificar si el video está listo
+      // Polling cada 5 segundos para verificar si el video está listo
       const pollInterval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/media/livepeer/status?assetId=${livepeerAssetId}`)
+          const res = await fetch(`/api/media/status?cloudflareId=${cloudflareId}`)
           const data = await res.json()
           
           if (data.data?.isReady || data.isReady) {
             clearInterval(pollInterval)
-            // Video listo, validar la URL
-            const mp4Url = data.data?.mp4Url || data.mp4Url || data.data?.url || data.url
-            if (mp4Url) {
-              validateVideoUrl(mp4Url)
-            } else {
-              validateVideoUrl(url)
-            }
-          } else if (data.data?.status === 'failed' || data.status === 'failed') {
+            setValidation({
+              isValid: true,
+              status: 'valid',
+              message: 'Video Cloudflare listo',
+            })
+          } else if (data.data?.status === 'error' || data.status === 'error') {
             clearInterval(pollInterval)
             setValidation({
               isValid: false,
@@ -78,7 +76,7 @@ export function VideoValidation({
         } catch (err) {
           console.error('[VideoValidation] Polling error:', err)
         }
-      }, 3000)
+      }, 5000)
       
       return () => clearInterval(pollInterval)
     }
@@ -94,7 +92,7 @@ export function VideoValidation({
 
     // Verificar si es una URL válida para Warpcast
     validateVideoUrl(url)
-  }, [url, videoStatus, livepeerAssetId])
+  }, [url, videoStatus, cloudflareId])
 
   async function validateVideoUrl(videoUrl: string) {
     setValidation({
@@ -103,15 +101,15 @@ export function VideoValidation({
       message: 'Verificando compatibilidad...'
     })
 
-    // URLs de Livepeer son válidas por defecto (el publisher obtendrá el MP4)
-    const isLivepeerUrl = videoUrl.includes('lp-playback') || 
-      videoUrl.includes('livepeer')
+    // URLs de Cloudflare Stream son válidas
+    const isCloudflareUrl = videoUrl.includes('cloudflarestream.com') || 
+      videoUrl.includes('cloudflare')
     
-    if (isLivepeerUrl) {
+    if (isCloudflareUrl) {
       setValidation({
         isValid: true,
         status: 'valid',
-        message: 'Video Livepeer listo',
+        message: 'Video Cloudflare listo',
       })
       return
     }

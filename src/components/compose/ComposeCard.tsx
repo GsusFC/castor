@@ -918,19 +918,66 @@ function ComposeFooter({
     for (const mediaItem of newMediaItems) {
       if (!mediaItem.file) continue
       try {
-        const formData = new FormData()
-        formData.append('file', mediaItem.file)
-        const res = await fetch('/api/media/upload', { method: 'POST', body: formData })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error)
+        const file = mediaItem.file
+        const isVideo = file.type.startsWith('video/')
         
-        const data = json.data || json
-        const uploadedUrl = data.url
+        // 1. Obtener URL de upload directo
+        const urlRes = await fetch('/api/media/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+          }),
+        })
+        const urlJson = await urlRes.json()
+        if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
+        
+        const { uploadUrl, id, cloudflareId } = urlJson.data || urlJson
+        
+        // 2. Subir directamente a Cloudflare
+        if (isVideo) {
+          // TUS protocol para videos
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PATCH',
+            headers: {
+              'Tus-Resumable': '1.0.0',
+              'Upload-Offset': '0',
+              'Content-Type': 'application/offset+octet-stream',
+            },
+            body: await file.arrayBuffer(),
+          })
+          if (!uploadRes.ok) throw new Error('Video upload failed')
+        } else {
+          // FormData para imágenes
+          const formData = new FormData()
+          formData.append('file', file)
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadRes.ok) throw new Error('Image upload failed')
+        }
+        
+        // 3. Confirmar upload y obtener URL final
+        const confirmRes = await fetch('/api/media/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cloudflareId: cloudflareId || id,
+            type: isVideo ? 'video' : 'image',
+          }),
+        })
+        const confirmJson = await confirmRes.json()
+        if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
+        
+        const data = confirmJson.data || confirmJson
         
         currentMedia = currentMedia.map(m =>
           m.preview === mediaItem.preview ? { 
             ...m, 
-            url: uploadedUrl, 
+            url: data.url, 
             uploading: false,
             cloudflareId: data.cloudflareId,
             videoStatus: data.videoStatus,
@@ -940,6 +987,7 @@ function ComposeFooter({
         const latestCast = castsRef.current[0]
         onUpdateCast(0, { ...latestCast, media: currentMedia })
       } catch (err) {
+        console.error('[Upload] Error:', err)
         currentMedia = currentMedia.map(m =>
           m.preview === mediaItem.preview ? { ...m, uploading: false, error: 'Error' } : m
         )

@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     // Validar input con Zod
     const validation = validate(scheduleCastSchema, body)
     if (!validation.success) {
-      console.log('[Schedule API] Validation failed:', validation.error)
+      // Log detallado del error de validación
+      const errorResponse = validation.error as Response
+      const errorClone = errorResponse.clone()
+      const errorBody = await errorClone.json().catch(() => null)
+      console.log('[Schedule API] Validation failed - details:', JSON.stringify(errorBody, null, 2))
       return validation.error
     }
 

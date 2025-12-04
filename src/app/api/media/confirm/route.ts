@@ -105,24 +105,35 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Construir URL del video
+      // Construir URLs del video
+      // Cloudflare genera la URL HLS inmediatamente, aunque el video no esté procesado
       const hlsUrl = video.playback?.hls
       const watchUrl = `https://watch.cloudflarestream.com/${cloudflareId}`
+      
+      // Construir URL HLS manualmente si no está disponible aún
+      // Formato: https://customer-{subdomain}.cloudflarestream.com/{videoId}/manifest/video.m3u8
+      let finalHlsUrl = hlsUrl
+      if (!finalHlsUrl) {
+        // Extraer subdomain del customer desde cualquier URL disponible o usar formato estándar
+        finalHlsUrl = `https://customer-l9k1ruqd8kemqqty.cloudflarestream.com/${cloudflareId}/manifest/video.m3u8`
+      }
 
       console.log('[Confirm] Video confirmed:', {
         cloudflareId,
         isReady,
-        hlsUrl,
+        hlsUrl: finalHlsUrl,
         mp4Url,
       })
 
+      // Prioridad: mp4Url (si está listo) > hlsUrl > watchUrl
+      // El publisher también tiene esta lógica, pero guardamos la mejor URL disponible
       return success({
-        url: mp4Url || hlsUrl || watchUrl,
+        url: mp4Url || finalHlsUrl || watchUrl,
         type: 'video',
         id: cloudflareId,
         cloudflareId,
         videoStatus: isReady ? 'ready' : 'pending',
-        hlsUrl,
+        hlsUrl: finalHlsUrl,
         mp4Url,
         watchUrl,
         thumbnailUrl: video.thumbnail,

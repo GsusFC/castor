@@ -157,19 +157,42 @@ export async function publishDueCasts(): Promise<PublishResult> {
             if (cfData.result?.readyToStream) {
               // Actualizar DB con las URLs correctas
               const hlsUrl = cfData.result.playback?.hls
-              const mp4Downloads = cfData.result.meta?.downloads || cfData.result.preview
+              
+              // Habilitar y obtener MP4 download
+              let mp4Url: string | null = null
+              try {
+                const downloadRes = await fetch(
+                  `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}/downloads`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                  }
+                )
+                if (downloadRes.ok) {
+                  const downloadData = await downloadRes.json()
+                  mp4Url = downloadData.result?.default?.url
+                  publisherLogger.info({ cloudflareId: video.cloudflareId, mp4Url }, 'MP4 download enabled')
+                }
+              } catch (err) {
+                publisherLogger.warn({ cloudflareId: video.cloudflareId }, 'Could not enable MP4 downloads')
+              }
               
               await db.update(castMedia).set({
                 videoStatus: 'ready',
                 hlsUrl: hlsUrl || undefined,
-                mp4Url: mp4Downloads || undefined,
+                mp4Url: mp4Url || undefined,
               }).where(eq(castMedia.cloudflareId, video.cloudflareId!))
               
               // Actualizar en memoria para este ciclo
               video.videoStatus = 'ready'
               video.hlsUrl = hlsUrl
+              video.mp4Url = mp4Url
               
-              publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl }, 'Video ready, updated from Cloudflare')
+              publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl, mp4Url }, 'Video ready, updated from Cloudflare')
             }
           }
         } catch (error) {

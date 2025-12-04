@@ -124,12 +124,19 @@ export const castMedia = sqliteTable(
       .notNull()
       .default('image'),
     order: integer('order').notNull().default(0),
+    // Campos para videos de Cloudflare Stream
+    cloudflareId: text('cloudflare_id'), // ID del video en Cloudflare Stream
+    videoStatus: text('video_status', { enum: ['pending', 'processing', 'ready', 'error'] }),
+    mp4Url: text('mp4_url'), // URL del MP4 cuando esté listo
+    hlsUrl: text('hls_url'), // URL HLS para streaming
+    thumbnailUrl: text('thumbnail_url'), // URL del thumbnail
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
   },
   (table) => ({
     castIdx: index('media_cast_idx').on(table.castId),
+    cloudflareIdx: index('media_cloudflare_idx').on(table.cloudflareId),
   })
 )
 

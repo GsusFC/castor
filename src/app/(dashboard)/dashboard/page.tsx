@@ -42,6 +42,7 @@ export default async function DashboardPage() {
         where: (casts, { inArray }) => inArray(casts.accountId, accountIds),
         with: { 
           account: true,
+          media: true,
           createdBy: {
             columns: {
               id: true,
@@ -91,6 +92,12 @@ export default async function DashboardPage() {
       pfpUrl: cast.account.pfpUrl,
     } : null,
     createdBy: cast.createdBy,
+    media: cast.media?.map(m => ({
+      id: m.id,
+      url: m.url,
+      type: m.type,
+      thumbnailUrl: m.thumbnailUrl,
+    })) || [],
   }))
 
   const serializedTemplates = allTemplates.map(t => ({

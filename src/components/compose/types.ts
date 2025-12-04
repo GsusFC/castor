@@ -5,6 +5,8 @@ export interface MediaFile {
   url?: string
   uploading?: boolean
   error?: string
+  cloudflareId?: string
+  videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
 }
 
 export interface LinkEmbed {

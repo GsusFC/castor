@@ -24,6 +24,9 @@ export const scheduleCastSchema = z.object({
   parentHash: z.string().nullable().optional(),
   embeds: z.array(z.object({
     url: z.string().url('Invalid embed URL'),
+    type: z.enum(['image', 'video']).optional(),
+    cloudflareId: z.string().optional(), // ID del video en Cloudflare Stream
+    videoStatus: z.enum(['pending', 'processing', 'ready', 'error']).optional(),
   })).max(2, 'Maximum 2 embeds allowed').optional(),
   isDraft: z.boolean().optional(),
 }).refine(

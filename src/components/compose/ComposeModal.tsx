@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ComposeCard } from './ComposeCard'
@@ -192,7 +193,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
             casts: casts.map(cast => ({
               content: cast.content,
               embeds: [
-                ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
+                ...cast.media.filter(m => m.url).map(m => ({ 
+                  url: m.url!, 
+                  type: m.type,
+                  cloudflareId: m.cloudflareId,
+                  videoStatus: m.videoStatus,
+                })),
                 ...cast.links.map(l => ({ url: l.url })),
               ],
             })),
@@ -204,7 +210,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
       } else {
         const cast = casts[0]
         const embeds = [
-          ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
+          ...cast.media.filter(m => m.url).map(m => ({ 
+            url: m.url!, 
+            type: m.type,
+            cloudflareId: m.cloudflareId,
+            videoStatus: m.videoStatus,
+          })),
           ...cast.links.map(l => ({ url: l.url })),
         ]
         
@@ -263,7 +274,12 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
 
       const cast = casts[0]
       const embeds = [
-        ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
+        ...cast.media.filter(m => m.url).map(m => ({ 
+          url: m.url!, 
+          type: m.type,
+          cloudflareId: m.cloudflareId,
+          videoStatus: m.videoStatus,
+        })),
         ...cast.links.map(l => ({ url: l.url })),
       ]
 
@@ -358,6 +374,7 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId }: ComposeMo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden fixed inset-0 translate-x-0 translate-y-0 md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
         <DialogTitle className="sr-only">Nuevo Cast</DialogTitle>
+        <DialogDescription className="sr-only">Crea y programa un nuevo cast para Farcaster</DialogDescription>
         
         {/* Header móvil */}
         <div className="flex items-center justify-between p-3 border-b md:hidden">

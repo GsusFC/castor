@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   User, Clock, Calendar, ExternalLink, Edit, Trash2, 
   Plus, CheckCircle, AlertCircle, List, CalendarDays,
-  FileText, LayoutTemplate, ChevronDown
+  FileText, LayoutTemplate, ChevronDown, Image, Video
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,13 @@ interface Account {
   owner: AccountOwner | null
 }
 
+interface CastMedia {
+  id: string
+  url: string
+  type: string
+  thumbnailUrl: string | null
+}
+
 interface Cast {
   id: string
   content: string
@@ -54,6 +61,7 @@ interface Cast {
     pfpUrl: string | null
   } | null
   createdBy: AccountOwner | null
+  media: CastMedia[]
 }
 
 interface Template {
@@ -72,7 +80,7 @@ interface UnifiedDashboardProps {
   isAdmin: boolean
 }
 
-type Tab = 'scheduled' | 'drafts' | 'published' | 'templates'
+type Tab = 'scheduled' | 'published'
 type ViewMode = 'list' | 'calendar'
 
 export function UnifiedDashboard({ 
@@ -177,23 +185,9 @@ export function UnifiedDashboard({
 
   // Render content based on tab
   const renderContent = () => {
-    if (activeTab === 'templates') {
-      return (
-        <TemplatesGrid 
-          templates={filteredTemplates} 
-          onDelete={handleDeleteTemplate}
-          selectedAccountId={selectedAccountId}
-        />
-      )
-    }
+    const castsToShow = activeTab === 'scheduled' ? scheduled : published
 
-    const castsToShow = activeTab === 'scheduled' 
-      ? scheduled 
-      : activeTab === 'published' 
-        ? published 
-        : drafts
-
-    if (viewMode === 'calendar' && (activeTab === 'scheduled' || activeTab === 'published')) {
+    if (viewMode === 'calendar') {
       const calendarCasts = castsToShow.map(c => ({
         ...c,
         scheduledAt: new Date(c.scheduledAt),
@@ -211,18 +205,14 @@ export function UnifiedDashboard({
           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {activeTab === 'scheduled' ? (
               <Clock className="w-6 h-6 text-gray-400" />
-            ) : activeTab === 'published' ? (
-              <CheckCircle className="w-6 h-6 text-gray-400" />
             ) : (
-              <FileText className="w-6 h-6 text-gray-400" />
+              <CheckCircle className="w-6 h-6 text-gray-400" />
             )}
           </div>
           <p className="text-gray-500">
             {activeTab === 'scheduled' 
               ? 'No hay casts programados' 
-              : activeTab === 'published'
-                ? 'No hay casts publicados'
-                : 'No hay borradores'}
+              : 'No hay casts publicados'}
           </p>
         </Card>
       )
@@ -234,7 +224,6 @@ export function UnifiedDashboard({
           <CastCard 
             key={cast.id} 
             cast={cast} 
-            isDraft={activeTab === 'drafts'}
             onDelete={() => handleDeleteCast(cast.id)}
           />
         ))}
@@ -307,7 +296,7 @@ export function UnifiedDashboard({
         </div>
       </section>
 
-      {/* Tabs + View Toggle */}
+      {/* Tabs principales + View Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
           <TabButton 
@@ -326,57 +315,133 @@ export function UnifiedDashboard({
             <CheckCircle className="w-3.5 h-3.5" />
             Publicados
           </TabButton>
-          <TabButton 
-            active={activeTab === 'drafts'} 
-            onClick={() => setActiveTab('drafts')}
-            count={drafts.length}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Borradores
-          </TabButton>
-          <TabButton 
-            active={activeTab === 'templates'} 
-            onClick={() => setActiveTab('templates')}
-            count={filteredTemplates.length}
-          >
-            <LayoutTemplate className="w-3.5 h-3.5" />
-            Templates
-          </TabButton>
         </div>
 
-        {/* View toggle - para scheduled y published */}
-        {(activeTab === 'scheduled' || activeTab === 'published') && (
-          <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "h-7 text-xs",
-                viewMode === 'list' && "bg-white shadow-sm"
-              )}
-            >
-              <List className="w-3.5 h-3.5 mr-1.5" />
-              Lista
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('calendar')}
-              className={cn(
-                "h-7 text-xs",
-                viewMode === 'calendar' && "bg-white shadow-sm"
-              )}
-            >
-              <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-              Calendario
-            </Button>
-          </div>
-        )}
+        {/* View toggle */}
+        <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "h-7 text-xs",
+              viewMode === 'list' && "bg-white shadow-sm"
+            )}
+          >
+            <List className="w-3.5 h-3.5 mr-1.5" />
+            Lista
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+            className={cn(
+              "h-7 text-xs",
+              viewMode === 'calendar' && "bg-white shadow-sm"
+            )}
+          >
+            <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+            Calendario
+          </Button>
+        </div>
       </div>
 
-      {/* Content */}
+      {/* Content principal */}
       {renderContent()}
+
+      {/* Sección de Recursos */}
+      <section className="pt-6 border-t">
+        <h2 className="text-sm font-medium text-gray-500 mb-4">Recursos</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Borradores */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Borradores</h3>
+                  <p className="text-xs text-gray-500">{drafts.length} guardados</p>
+                </div>
+              </div>
+            </div>
+            {drafts.length > 0 ? (
+              <div className="space-y-2">
+                {drafts.slice(0, 3).map(draft => (
+                  <div 
+                    key={draft.id} 
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => window.location.href = `/dashboard/edit/${draft.id}`}
+                  >
+                    <p className="text-sm text-gray-600 truncate flex-1">
+                      {draft.content || <span className="italic text-gray-400">Sin contenido</span>}
+                    </p>
+                    <Edit className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                ))}
+                {drafts.length > 3 && (
+                  <p className="text-xs text-gray-400 text-center pt-1">
+                    +{drafts.length - 3} más
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No hay borradores</p>
+            )}
+          </Card>
+
+          {/* Templates */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <LayoutTemplate className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Templates</h3>
+                  <p className="text-xs text-gray-500">{filteredTemplates.length} disponibles</p>
+                </div>
+              </div>
+            </div>
+            {filteredTemplates.length > 0 ? (
+              <div className="space-y-2">
+                {filteredTemplates.slice(0, 3).map(template => (
+                  <div 
+                    key={template.id} 
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{template.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{template.content}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteTemplate(template.id)
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                {filteredTemplates.length > 3 && (
+                  <p className="text-xs text-gray-400 text-center pt-1">
+                    +{filteredTemplates.length - 3} más
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">
+                {selectedAccountId ? 'No hay templates' : 'Selecciona una cuenta'}
+              </p>
+            )}
+          </Card>
+        </div>
+      </section>
     </div>
   )
 }
@@ -416,11 +481,11 @@ function TabButton({
 
 function CastCard({ 
   cast, 
-  isDraft,
+  isDraft = false,
   onDelete 
 }: { 
   cast: Cast
-  isDraft: boolean
+  isDraft?: boolean
   onDelete: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -449,13 +514,12 @@ function CastCard({
 
   return (
     <Card className={cn(
-      "overflow-hidden transition-all",
+      "overflow-hidden transition-all group",
       isDraft && "border-amber-200 bg-amber-50/30"
     )}>
       {/* Vista colapsada - siempre visible */}
-      <button
+      <div className="w-full p-3 flex items-center gap-3 text-left hover:bg-gray-50/50 transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
-        className="w-full p-3 flex items-center gap-3 text-left hover:bg-gray-50/50 transition-colors"
       >
         {cast.account?.pfpUrl ? (
           <img
@@ -484,6 +548,12 @@ function CastCard({
                     month: 'short',
                     timeZone: 'Europe/Madrid',
                   })}
+                  {' '}
+                  {scheduledDate.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Europe/Madrid',
+                  })}
                 </span>
               </>
             )}
@@ -491,6 +561,19 @@ function CastCard({
               <>
                 <span>·</span>
                 <span className="text-purple-600">#{cast.channelId}</span>
+              </>
+            )}
+            {cast.media.length > 0 && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-0.5">
+                  {cast.media.some(m => m.type === 'video') ? (
+                    <Video className="w-3 h-3" />
+                  ) : (
+                    <Image className="w-3 h-3" />
+                  )}
+                  {cast.media.length}
+                </span>
               </>
             )}
           </div>
@@ -517,11 +600,41 @@ function CastCard({
           </a>
         )}
 
+        {/* Acciones en hover (solo si no está publicado) */}
+        {cast.status !== 'published' && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation()
+                window.location.href = `/dashboard/edit/${cast.id}`
+              }}
+              title="Editar"
+            >
+              <Edit className="w-3.5 h-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              title="Eliminar"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
+
         <ChevronDown className={cn(
           "w-4 h-4 text-gray-400 transition-transform flex-shrink-0",
           expanded && "rotate-180"
         )} />
-      </button>
+      </div>
 
       {/* Vista expandida */}
       {expanded && (
@@ -530,110 +643,52 @@ function CastCard({
             {cast.content}
           </p>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              {!isDraft && (
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {scheduledDate.toLocaleTimeString('es-ES', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'Europe/Madrid',
-                  })}
+          {/* Media preview */}
+          {cast.media.length > 0 && (
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
+              {cast.media.map((m) => (
+                <div key={m.id} className="flex-shrink-0 relative">
+                  {m.type === 'video' ? (
+                    <div className="w-24 h-24 bg-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden">
+                      {m.thumbnailUrl ? (
+                        <img 
+                          src={m.thumbnailUrl} 
+                          alt="Video thumbnail"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Video className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <img 
+                      src={m.url} 
+                      alt="Media"
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
+                  )}
                 </div>
-              )}
-              {cast.status === 'published' && cast.castHash && (
-                <a
-                  href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-gray-500 hover:text-gray-900"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Ver en Warpcast
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
+              ))}
             </div>
+          )}
 
-            {/* Solo mostrar acciones si NO está publicado */}
-            {cast.status !== 'published' && (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-                  <Link href={`/dashboard/edit/${cast.id}`} onClick={(e) => e.stopPropagation()}>
-                    <Edit className="w-3 h-3 mr-1" />
-                    Editar
-                  </Link>
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete()
-                  }}
-                >
-                  <Trash2 className="w-3 h-3 mr-1" />
-                  Eliminar
-                </Button>
-              </div>
-            )}
-          </div>
+          {/* Link a Warpcast en vista expandida */}
+          {cast.status === 'published' && cast.castHash && (
+            <a
+              href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Ver en Warpcast
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
       )}
     </Card>
   )
 }
 
-function TemplatesGrid({ 
-  templates, 
-  onDelete,
-  selectedAccountId 
-}: { 
-  templates: Template[]
-  onDelete: (id: string) => void
-  selectedAccountId: string | null
-}) {
-  if (templates.length === 0) {
-    return (
-      <Card className="p-12 text-center">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <LayoutTemplate className="w-6 h-6 text-gray-400" />
-        </div>
-        <p className="text-gray-500 mb-2">No hay templates</p>
-        <p className="text-xs text-gray-400">
-          {selectedAccountId 
-            ? 'Crea un template desde el modal de nuevo cast'
-            : 'Selecciona una cuenta para ver sus templates'}
-        </p>
-      </Card>
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {templates.map(template => (
-        <Card key={template.id} className="p-4">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="font-medium text-sm">{template.name}</h3>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 text-gray-400 hover:text-red-500"
-              onClick={() => onDelete(template.id)}
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500 line-clamp-3 mb-3">
-            {template.content}
-          </p>
-          {template.channelId && (
-            <span className="text-xs text-purple-600">#{template.channelId}</span>
-          )}
-        </Card>
-      ))}
-    </div>
-  )
-}

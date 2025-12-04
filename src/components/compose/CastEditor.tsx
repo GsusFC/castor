@@ -249,10 +249,17 @@ export function CastEditor({
 
         if (!res.ok) throw new Error(data.error || 'Error al subir')
 
-        // Update success
+        // Update success - incluir cloudflareId y videoStatus para videos
+        const responseData = data.data || data
         currentMedia = currentMedia.map(m => 
           m.preview === mediaItem.preview 
-            ? { ...m, url: data.url, uploading: false } 
+            ? { 
+                ...m, 
+                url: responseData.url, 
+                uploading: false,
+                cloudflareId: responseData.cloudflareId,
+                videoStatus: responseData.videoStatus,
+              } 
             : m
         )
         onUpdate({ ...cast, media: currentMedia })

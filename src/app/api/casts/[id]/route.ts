@@ -5,7 +5,6 @@ import { eq } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, updateCastSchema } from '@/lib/validations'
-import { apiLogger, createTimer } from '@/lib/logger'
 
 // Helper to get cast with permission check
 async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
@@ -61,7 +60,7 @@ export async function GET(
 
     return success({ cast: result.cast })
   } catch (error) {
-    apiLogger.error({ error: error instanceof Error ? error.message : 'Unknown' }, 'Get cast error')
+    console.error('[GET Cast] Error:', error instanceof Error ? error.message : 'Unknown')
     return ApiErrors.operationFailed('Failed to get cast')
   }
 }
@@ -117,7 +116,6 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const timer = createTimer()
   
   try {
     const session = await getSession()
@@ -192,18 +190,10 @@ export async function PATCH(
       }
     })
 
-    apiLogger.info({ 
-      castId: id, 
-      userId: session.userId,
-      duration: timer.elapsed(),
-    }, 'Cast updated')
-    
+    console.log('[PATCH Cast] Updated:', id)
     return success({ updated: true })
   } catch (error) {
-    apiLogger.error({ 
-      error: error instanceof Error ? error.message : 'Unknown',
-      duration: timer.elapsed(),
-    }, 'Update cast error')
+    console.error('[PATCH Cast] Error:', error instanceof Error ? error.message : 'Unknown')
     return ApiErrors.operationFailed('Failed to update cast')
   }
 }

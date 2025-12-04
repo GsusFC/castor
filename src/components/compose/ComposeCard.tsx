@@ -924,10 +924,17 @@ function ComposeFooter({
         const json = await res.json()
         if (!res.ok) throw new Error(json.error)
         
-        const uploadedUrl = json.data?.url || json.url
+        const data = json.data || json
+        const uploadedUrl = data.url
         
         currentMedia = currentMedia.map(m =>
-          m.preview === mediaItem.preview ? { ...m, url: uploadedUrl, uploading: false } : m
+          m.preview === mediaItem.preview ? { 
+            ...m, 
+            url: uploadedUrl, 
+            uploading: false,
+            cloudflareId: data.cloudflareId,
+            videoStatus: data.videoStatus,
+          } : m
         )
         // Usar ref para obtener el estado más reciente
         const latestCast = castsRef.current[0]

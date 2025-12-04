@@ -6,7 +6,6 @@ import { getSession, canAccess } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, scheduleCastSchema } from '@/lib/validations'
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
-import { apiLogger, createTimer } from '@/lib/logger'
 import { calculateTextLength } from '@/lib/url-utils'
 
 /**
@@ -14,7 +13,6 @@ import { calculateTextLength } from '@/lib/url-utils'
  * Programa un nuevo cast
  */
 export async function POST(request: NextRequest) {
-  const timer = createTimer()
   const ip = getClientIP(request)
 
   try {
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting
     const rateLimit = await checkRateLimit(`schedule:${session.userId}`, 'api')
     if (!rateLimit.success) {
-      apiLogger.warn({ userId: session.userId, ip }, 'Rate limit exceeded for schedule')
+      console.warn('[Schedule] Rate limit exceeded:', session.userId)
       return ApiErrors.rateLimited()
     }
 
@@ -107,24 +105,43 @@ export async function POST(request: NextRequest) {
 
       // Insertar media si hay embeds
       if (embeds && embeds.length > 0) {
-        const mediaValues = embeds.map((embed, index) => ({
-          id: generateId(),
-          castId,
-          url: embed.url,
-          type: embed.url.match(/\.(mp4|mov|webm)$/i) ? 'video' as const : 'image' as const,
-          order: index,
-        }))
+        const mediaValues = embeds.map((embed, index) => {
+          // Determinar tipo: usar el proporcionado o inferir de la URL
+          const isVideo = embed.type === 'video' || 
+            embed.url.match(/\.(mp4|mov|webm)$/i) ||
+            embed.url.includes('cloudflarestream.com')
+          
+          const mediaRecord: {
+            id: string
+            castId: string
+            url: string
+            type: 'image' | 'video'
+            order: number
+            cloudflareId?: string
+            videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
+          } = {
+            id: generateId(),
+            castId,
+            url: embed.url,
+            type: isVideo ? 'video' : 'image',
+            order: index,
+          }
+          
+          // Solo añadir campos de video si tienen valor
+          if (embed.cloudflareId) {
+            mediaRecord.cloudflareId = embed.cloudflareId
+          }
+          if (embed.videoStatus) {
+            mediaRecord.videoStatus = embed.videoStatus
+          }
+          
+          return mediaRecord
+        })
         await tx.insert(castMedia).values(mediaValues)
       }
     })
 
-    apiLogger.info({
-      userId: session.userId,
-      castId,
-      accountId,
-      isDraft,
-      duration: timer.elapsed(),
-    }, 'Cast scheduled successfully')
+    console.log('[Schedule] Cast created:', castId)
 
     return success({ 
       castId,
@@ -133,11 +150,7 @@ export async function POST(request: NextRequest) {
     }, 201)
 
   } catch (error) {
-    apiLogger.error({ 
-      error: error instanceof Error ? error.message : 'Unknown error',
-      duration: timer.elapsed(),
-    }, 'Failed to schedule cast')
-    
+    console.error('[Schedule] Error:', error instanceof Error ? error.message : 'Unknown')
     return ApiErrors.operationFailed('Failed to schedule cast')
   }
 }

@@ -68,7 +68,12 @@ export default function EditCastPage() {
         const castRes = await fetch(`/api/casts/${castId}`)
         if (!castRes.ok) throw new Error('Cast no encontrado')
         
-        const { cast } = await castRes.json()
+        const castData = await castRes.json()
+        const cast = castData.data?.cast || castData.cast
+        
+        if (!cast) {
+          throw new Error('Cast no encontrado en la respuesta')
+        }
         
         // Rellenar estado
         setSelectedAccount(cast.accountId)

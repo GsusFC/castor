@@ -124,6 +124,73 @@ export async function publishDueCasts(): Promise<PublishResult> {
     }
 
     try {
+      // Verificar que todos los videos estén listos antes de publicar
+      const castWithMedia = cast as typeof cast & { 
+        media?: { 
+          url: string
+          type: string
+          videoStatus?: string | null
+          mp4Url?: string | null
+          hlsUrl?: string | null
+          cloudflareId?: string | null
+        }[] 
+      }
+      
+      // Verificar videos pendientes y actualizar su estado desde Cloudflare
+      const videosToCheck = castWithMedia.media?.filter(
+        m => m.type === 'video' && m.cloudflareId && m.videoStatus !== 'ready'
+      ) || []
+      
+      for (const video of videosToCheck) {
+        try {
+          const cfResponse = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
+              },
+            }
+          )
+          
+          if (cfResponse.ok) {
+            const cfData = await cfResponse.json()
+            if (cfData.result?.readyToStream) {
+              // Actualizar DB con las URLs correctas
+              const hlsUrl = cfData.result.playback?.hls
+              const mp4Downloads = cfData.result.meta?.downloads || cfData.result.preview
+              
+              await db.update(castMedia).set({
+                videoStatus: 'ready',
+                hlsUrl: hlsUrl || undefined,
+                mp4Url: mp4Downloads || undefined,
+              }).where(eq(castMedia.cloudflareId, video.cloudflareId!))
+              
+              // Actualizar en memoria para este ciclo
+              video.videoStatus = 'ready'
+              video.hlsUrl = hlsUrl
+              
+              publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl }, 'Video ready, updated from Cloudflare')
+            }
+          }
+        } catch (error) {
+          publisherLogger.warn({ cloudflareId: video.cloudflareId, error }, 'Failed to check video status')
+        }
+      }
+      
+      // Re-verificar si hay videos pendientes después de la actualización
+      const pendingVideos = castWithMedia.media?.filter(
+        m => m.type === 'video' && m.videoStatus && m.videoStatus !== 'ready'
+      ) || []
+      
+      if (pendingVideos.length > 0) {
+        publisherLogger.warn({ 
+          castId: cast.id, 
+          pendingVideos: pendingVideos.map(v => ({ id: v.cloudflareId, status: v.videoStatus }))
+        }, 'Cast has pending videos, skipping for now')
+        result.skipped++
+        continue
+      }
+
       // Marcar como publishing
       await db
         .update(scheduledCasts)
@@ -132,9 +199,22 @@ export async function publishDueCasts(): Promise<PublishResult> {
 
       publisherLogger.debug({ castId: cast.id, attempt: cast.retryCount + 1 }, 'Publishing cast')
 
-      // Preparar embeds de media
-      const castWithMedia = cast as typeof cast & { media?: { url: string }[] }
-      const embeds = castWithMedia.media?.map(m => ({ url: m.url })) || []
+      // Preparar embeds de media - para videos usar HLS (m3u8) que Warpcast reproduce inline
+      // Prioridad: hlsUrl > mp4Url > url
+      const embeds = castWithMedia.media?.map(m => {
+        if (m.type === 'video') {
+          // Warpcast prefiere HLS para reproducción inline
+          const videoUrl = m.hlsUrl || m.mp4Url || m.url
+          publisherLogger.debug({ 
+            mediaUrl: m.url, 
+            hlsUrl: m.hlsUrl, 
+            mp4Url: m.mp4Url,
+            selectedUrl: videoUrl 
+          }, 'Video URL selection')
+          return { url: videoUrl }
+        }
+        return { url: m.url }
+      }) || []
 
       // Determinar parentHash para threads
       let parentHash = cast.parentHash || undefined

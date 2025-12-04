@@ -113,24 +113,29 @@ export async function POST(request: NextRequest) {
         const mediaEmbeds = embeds.filter(embed => {
           // Es media real si:
           // 1. Tiene cloudflareId (subido a Cloudflare)
-          // 2. Es una URL de Cloudflare
-          // 3. Tiene extensión de imagen/video
-          // 4. Tiene type explícito de video
+          // 2. Tiene livepeerAssetId (subido a Livepeer)
+          // 3. Es una URL de Cloudflare o Livepeer
+          // 4. Tiene extensión de imagen/video
+          // 5. Tiene type explícito de video
           const url = embed.url || ''
           const isCloudflare = embed.cloudflareId || 
             url.includes('cloudflare') || 
             url.includes('imagedelivery.net')
-          const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i.test(url)
+          const isLivepeer = embed.livepeerAssetId ||
+            url.includes('livepeer') ||
+            url.includes('lp-playback')
+          const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
           const isExplicitVideo = embed.type === 'video'
-          return isCloudflare || hasMediaExtension || isExplicitVideo
+          return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo
         })
         
         if (mediaEmbeds.length > 0) {
           const mediaValues = mediaEmbeds.map((embed, index) => {
             // Determinar tipo: usar el proporcionado o inferir de la URL
             const isVideo = embed.type === 'video' || 
-              embed.url.match(/\.(mp4|mov|webm)$/i) ||
-              embed.url.includes('cloudflarestream.com')
+              embed.url.match(/\.(mp4|mov|webm|m3u8)$/i) ||
+              embed.url.includes('cloudflarestream.com') ||
+              embed.url.includes('lp-playback')
             
             const mediaRecord: {
               id: string
@@ -139,6 +144,8 @@ export async function POST(request: NextRequest) {
               type: 'image' | 'video'
               order: number
               cloudflareId?: string
+              livepeerAssetId?: string
+              livepeerPlaybackId?: string
               videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
             } = {
               id: generateId(),
@@ -151,6 +158,12 @@ export async function POST(request: NextRequest) {
             // Solo añadir campos de video si tienen valor
             if (embed.cloudflareId) {
               mediaRecord.cloudflareId = embed.cloudflareId
+            }
+            if (embed.livepeerAssetId) {
+              mediaRecord.livepeerAssetId = embed.livepeerAssetId
+            }
+            if (embed.livepeerPlaybackId) {
+              mediaRecord.livepeerPlaybackId = embed.livepeerPlaybackId
             }
             if (embed.videoStatus) {
               mediaRecord.videoStatus = embed.videoStatus

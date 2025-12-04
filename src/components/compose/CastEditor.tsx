@@ -232,7 +232,7 @@ export function CastEditor({
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = ''
 
-    // Upload files usando upload directo a Cloudflare
+    // Upload files
     for (const mediaItem of newMediaItems) {
       if (!mediaItem.file) continue
 
@@ -240,24 +240,22 @@ export function CastEditor({
         const file = mediaItem.file
         const isVideo = file.type.startsWith('video/')
         
-        // 1. Obtener URL de upload directo
-        const urlRes = await fetch('/api/media/upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileSize: file.size,
-            fileType: file.type,
-          }),
-        })
-        const urlJson = await urlRes.json()
-        if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
-        
-        const { uploadUrl, id, cloudflareId } = urlJson.data || urlJson
-        
-        // 2. Subir directamente a Cloudflare
         if (isVideo) {
-          // TUS protocol para videos
+          // === LIVEPEER para videos ===
+          const urlRes = await fetch('/api/media/livepeer/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size,
+            }),
+          })
+          const urlJson = await urlRes.json()
+          if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
+          
+          const { uploadUrl, assetId, playbackId, playbackUrl } = urlJson.data || urlJson
+          
+          // Subir usando TUS protocol
           const uploadRes = await fetch(uploadUrl, {
             method: 'PATCH',
             headers: {
@@ -268,8 +266,37 @@ export function CastEditor({
             body: await file.arrayBuffer(),
           })
           if (!uploadRes.ok) throw new Error('Video upload failed')
+          
+          console.log('[Upload] Video uploaded to Livepeer:', { assetId, playbackId })
+          
+          currentMedia = currentMedia.map(m => 
+            m.preview === mediaItem.preview 
+              ? { 
+                  ...m, 
+                  url: playbackUrl, 
+                  uploading: false,
+                  livepeerAssetId: assetId,
+                  livepeerPlaybackId: playbackId,
+                  videoStatus: 'pending',
+                } 
+              : m
+          )
         } else {
-          // FormData para imágenes
+          // === CLOUDFLARE para imágenes ===
+          const urlRes = await fetch('/api/media/upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+            }),
+          })
+          const urlJson = await urlRes.json()
+          if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
+          
+          const { uploadUrl, id, cloudflareId } = urlJson.data || urlJson
+          
           const formData = new FormData()
           formData.append('file', file)
           const uploadRes = await fetch(uploadUrl, {
@@ -277,33 +304,32 @@ export function CastEditor({
             body: formData,
           })
           if (!uploadRes.ok) throw new Error('Image upload failed')
+          
+          const confirmRes = await fetch('/api/media/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cloudflareId: cloudflareId || id,
+              type: 'image',
+            }),
+          })
+          const confirmJson = await confirmRes.json()
+          if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
+          
+          const responseData = confirmJson.data || confirmJson
+
+          currentMedia = currentMedia.map(m => 
+            m.preview === mediaItem.preview 
+              ? { 
+                  ...m, 
+                  url: responseData.url, 
+                  uploading: false,
+                  cloudflareId: responseData.cloudflareId,
+                } 
+              : m
+          )
         }
         
-        // 3. Confirmar upload y obtener URL final
-        const confirmRes = await fetch('/api/media/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cloudflareId: cloudflareId || id,
-            type: isVideo ? 'video' : 'image',
-          }),
-        })
-        const confirmJson = await confirmRes.json()
-        if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
-        
-        const responseData = confirmJson.data || confirmJson
-
-        currentMedia = currentMedia.map(m => 
-          m.preview === mediaItem.preview 
-            ? { 
-                ...m, 
-                url: responseData.url, 
-                uploading: false,
-                cloudflareId: responseData.cloudflareId,
-                videoStatus: responseData.videoStatus,
-              } 
-            : m
-        )
         onUpdate({ ...cast, media: currentMedia })
 
       } catch (err) {

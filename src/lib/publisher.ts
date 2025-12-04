@@ -133,15 +133,59 @@ export async function publishDueCasts(): Promise<PublishResult> {
           mp4Url?: string | null
           hlsUrl?: string | null
           cloudflareId?: string | null
+          livepeerAssetId?: string | null
+          livepeerPlaybackId?: string | null
         }[] 
       }
       
-      // Verificar videos pendientes y actualizar su estado desde Cloudflare
-      const videosToCheck = castWithMedia.media?.filter(
-        m => m.type === 'video' && m.cloudflareId && m.videoStatus !== 'ready'
+      // Verificar videos de Livepeer pendientes
+      const livepeerVideos = castWithMedia.media?.filter(
+        m => m.type === 'video' && m.livepeerAssetId && m.videoStatus !== 'ready'
       ) || []
       
-      for (const video of videosToCheck) {
+      for (const video of livepeerVideos) {
+        try {
+          const lpResponse = await fetch(
+            `https://livepeer.studio/api/asset/${video.livepeerAssetId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
+              },
+            }
+          )
+          
+          if (lpResponse.ok) {
+            const asset = await lpResponse.json()
+            const status = asset.status?.phase
+            
+            if (status === 'ready') {
+              const playbackId = asset.playbackId || video.livepeerPlaybackId
+              const hlsUrl = playbackId ? `https://lp-playback.studio/hls/${playbackId}/index.m3u8` : null
+              
+              await db.update(castMedia).set({
+                videoStatus: 'ready',
+                hlsUrl: hlsUrl || undefined,
+                url: hlsUrl || video.url,
+              }).where(eq(castMedia.livepeerAssetId, video.livepeerAssetId!))
+              
+              video.videoStatus = 'ready'
+              video.hlsUrl = hlsUrl
+              video.url = hlsUrl || video.url
+              
+              publisherLogger.info({ livepeerAssetId: video.livepeerAssetId, hlsUrl }, 'Livepeer video ready')
+            }
+          }
+        } catch (error) {
+          publisherLogger.warn({ livepeerAssetId: video.livepeerAssetId, error }, 'Failed to check Livepeer video status')
+        }
+      }
+      
+      // Verificar videos de Cloudflare pendientes
+      const cloudflareVideos = castWithMedia.media?.filter(
+        m => m.type === 'video' && m.cloudflareId && !m.livepeerAssetId && m.videoStatus !== 'ready'
+      ) || []
+      
+      for (const video of cloudflareVideos) {
         try {
           const cfResponse = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}`,
@@ -155,10 +199,8 @@ export async function publishDueCasts(): Promise<PublishResult> {
           if (cfResponse.ok) {
             const cfData = await cfResponse.json()
             if (cfData.result?.readyToStream) {
-              // Actualizar DB con las URLs correctas
               const hlsUrl = cfData.result.playback?.hls
               
-              // Habilitar y obtener MP4 download
               let mp4Url: string | null = null
               try {
                 const downloadRes = await fetch(
@@ -175,7 +217,6 @@ export async function publishDueCasts(): Promise<PublishResult> {
                 if (downloadRes.ok) {
                   const downloadData = await downloadRes.json()
                   mp4Url = downloadData.result?.default?.url
-                  publisherLogger.info({ cloudflareId: video.cloudflareId, mp4Url }, 'MP4 download enabled')
                 }
               } catch (err) {
                 publisherLogger.warn({ cloudflareId: video.cloudflareId }, 'Could not enable MP4 downloads')
@@ -187,16 +228,15 @@ export async function publishDueCasts(): Promise<PublishResult> {
                 mp4Url: mp4Url || undefined,
               }).where(eq(castMedia.cloudflareId, video.cloudflareId!))
               
-              // Actualizar en memoria para este ciclo
               video.videoStatus = 'ready'
               video.hlsUrl = hlsUrl
               video.mp4Url = mp4Url
               
-              publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl, mp4Url }, 'Video ready, updated from Cloudflare')
+              publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl, mp4Url }, 'Cloudflare video ready')
             }
           }
         } catch (error) {
-          publisherLogger.warn({ cloudflareId: video.cloudflareId, error }, 'Failed to check video status')
+          publisherLogger.warn({ cloudflareId: video.cloudflareId, error }, 'Failed to check Cloudflare video status')
         }
       }
       
@@ -208,7 +248,11 @@ export async function publishDueCasts(): Promise<PublishResult> {
       if (pendingVideos.length > 0) {
         publisherLogger.warn({ 
           castId: cast.id, 
-          pendingVideos: pendingVideos.map(v => ({ id: v.cloudflareId, status: v.videoStatus }))
+          pendingVideos: pendingVideos.map(v => ({ 
+            cloudflareId: v.cloudflareId, 
+            livepeerAssetId: v.livepeerAssetId,
+            status: v.videoStatus 
+          }))
         }, 'Cast has pending videos, skipping for now')
         result.skipped++
         continue
@@ -222,19 +266,31 @@ export async function publishDueCasts(): Promise<PublishResult> {
 
       publisherLogger.debug({ castId: cast.id, attempt: cast.retryCount + 1 }, 'Publishing cast')
 
-      // Preparar embeds de media - para videos usar MP4 que Warpcast renderiza mejor
-      // Prioridad: mp4Url > hlsUrl > url
-      // Nota: HLS (.m3u8) requiere thumbnail en ruta específica que Cloudflare no provee
+      // Preparar embeds de media
+      // Para videos de Livepeer: usar HLS URL directamente (Warpcast lo soporta bien)
+      // Para videos de Cloudflare: usar MP4 > HLS > url
       const embeds = castWithMedia.media?.map(m => {
         if (m.type === 'video') {
-          // Warpcast maneja mejor MP4 que HLS de Cloudflare Stream
+          // Livepeer videos: usar HLS directamente
+          if (m.livepeerAssetId || m.livepeerPlaybackId) {
+            const videoUrl = m.hlsUrl || m.url
+            publisherLogger.debug({ 
+              livepeerAssetId: m.livepeerAssetId,
+              hlsUrl: m.hlsUrl,
+              selectedUrl: videoUrl 
+            }, 'Livepeer video URL selection')
+            return { url: videoUrl }
+          }
+          
+          // Cloudflare videos: preferir MP4
           const videoUrl = m.mp4Url || m.hlsUrl || m.url
           publisherLogger.debug({ 
+            cloudflareId: m.cloudflareId,
             mediaUrl: m.url, 
             hlsUrl: m.hlsUrl, 
             mp4Url: m.mp4Url,
             selectedUrl: videoUrl 
-          }, 'Video URL selection')
+          }, 'Cloudflare video URL selection')
           return { url: videoUrl }
         }
         return { url: m.url }

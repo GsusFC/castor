@@ -126,6 +126,9 @@ export const castMedia = sqliteTable(
     order: integer('order').notNull().default(0),
     // Campos para videos de Cloudflare Stream
     cloudflareId: text('cloudflare_id'), // ID del video en Cloudflare Stream
+    // Campos para videos de Livepeer
+    livepeerAssetId: text('livepeer_asset_id'), // ID del asset en Livepeer
+    livepeerPlaybackId: text('livepeer_playback_id'), // Playback ID de Livepeer
     videoStatus: text('video_status', { enum: ['pending', 'processing', 'ready', 'error'] }),
     mp4Url: text('mp4_url'), // URL del MP4 cuando esté listo
     hlsUrl: text('hls_url'), // URL HLS para streaming

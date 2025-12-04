@@ -1,9 +1,12 @@
 import Link from 'next/link'
-import { Clock, Calendar, User, ExternalLink, Edit, FileText } from 'lucide-react'
+import { Clock, Calendar, User, ExternalLink, Edit, FileText, Trash2, Video, Image, ChevronLeft } from 'lucide-react'
 import { db } from '@/lib/db'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AutoRefresh } from '@/components/AutoRefresh'
+import { cn } from '@/lib/utils'
+import { getSession } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,18 +17,27 @@ interface CastCreator {
   pfpUrl: string | null
 }
 
+interface CastMedia {
+  id: string
+  url: string
+  type: string
+  thumbnailUrl: string | null
+}
+
 interface Cast {
   id: string
   content: string
   scheduledAt: Date
   status: string
   castHash?: string | null
+  channelId?: string | null
   account: {
     username: string
     displayName: string | null
     pfpUrl: string | null
   } | null
   createdBy?: CastCreator | null
+  media?: CastMedia[]
 }
 
 export default async function ScheduledPage({
@@ -33,11 +45,18 @@ export default async function ScheduledPage({
 }: {
   searchParams: Promise<{ status?: string; tab?: string }>
 }) {
+  // Solo admins pueden ver esta página
+  const session = await getSession()
+  if (!session || session.role !== 'admin') {
+    redirect('/dashboard')
+  }
+
   const { status: filterStatus, tab } = await searchParams
   
   const casts = await db.query.scheduledCasts.findMany({
     with: {
       account: true,
+      media: true,
       createdBy: {
         columns: {
           id: true,
@@ -95,17 +114,26 @@ export default async function ScheduledPage({
       {/* Auto-refresh cada 30s si hay casts programados */}
       <AutoRefresh interval={30000} enabled={hasScheduledCasts} />
       
-      <div className="flex items-center justify-between mb-8">
+      {/* Botón volver */}
+      <Link 
+        href="/dashboard" 
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        Volver al dashboard
+      </Link>
+      
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-display text-gray-900">
-            {filtered ? filtered.title : 'Casts'}
+            {filtered ? filtered.title : 'Todos los casts'}
           </h1>
           <p className="text-gray-500 mt-1">
             {filtered ? (
               <>
                 {filtered.casts.length} cast{filtered.casts.length !== 1 ? 's' : ''}
                 {(filterStatus || tab) && (
-                  <Link href="/dashboard/scheduled" className="ml-2 text-castor-black hover:underline">
+                  <Link href="/dashboard/scheduled" className="ml-2 text-gray-900 hover:underline">
                     Ver todos
                   </Link>
                 )}
@@ -221,109 +249,139 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
   if (!cast.account) return null
   
   const scheduledDate = new Date(cast.scheduledAt)
-  const hasSchedule = cast.status !== 'draft' || (cast.content && cast.scheduledAt)
+  const media = cast.media || []
+  
+  const statusStyles: Record<string, string> = {
+    scheduled: 'bg-blue-50 text-blue-700 border-blue-100',
+    publishing: 'bg-yellow-50 text-yellow-700 border-yellow-100',
+    published: 'bg-green-50 text-green-700 border-green-100',
+    failed: 'bg-red-50 text-red-700 border-red-100',
+    draft: 'bg-amber-50 text-amber-700 border-amber-100',
+  }
+
+  const statusLabels: Record<string, string> = {
+    scheduled: 'Programado',
+    publishing: 'Publicando',
+    published: 'Publicado',
+    failed: 'Fallido',
+    draft: 'Borrador',
+  }
   
   return (
-    <Card className={`p-4 ${isDraft ? 'border-amber-200 bg-amber-50/30' : ''}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          {cast.account.pfpUrl ? (
-            <img
-              src={cast.account.pfpUrl}
-              alt={cast.account.username}
-              className="w-10 h-10 rounded-full"
-            />
-          ) : (
-            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-gray-400" />
-            </div>
-          )}
-          <div>
-            <span className="font-medium">
-              {cast.account.displayName || cast.account.username}
-            </span>
-            <span className="text-gray-500 ml-2">@{cast.account.username}</span>
-            {isDraft && (
-              <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                Borrador
-              </span>
-            )}
+    <Card className={cn(
+      "overflow-hidden transition-all group",
+      isDraft && "border-amber-200 bg-amber-50/30"
+    )}>
+      {/* Vista colapsada */}
+      <div className="w-full p-3 flex items-center gap-3">
+        {cast.account.pfpUrl ? (
+          <img
+            src={cast.account.pfpUrl}
+            alt={cast.account.username}
+            className="w-8 h-8 rounded-full flex-shrink-0"
+          />
+        ) : (
+          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-gray-400" />
           </div>
-        </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-castor-black" asChild title="Editar cast">
-          <Link href={`/dashboard/edit/${cast.id}`}>
-            <Edit className="w-4 h-4" />
-          </Link>
-        </Button>
-      </div>
-
-      <p className="text-gray-900 mb-4 whitespace-pre-wrap text-sm leading-relaxed">
-        {cast.content || <span className="text-gray-400 italic">Sin contenido</span>}
-      </p>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          {hasSchedule && !isDraft && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
+        )}
+        
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-900 truncate">
+            {cast.content || <span className="text-gray-400 italic">Sin contenido</span>}
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+            <span>@{cast.account.username}</span>
+            {!isDraft && (
+              <>
+                <span>·</span>
                 <span>
                   {scheduledDate.toLocaleDateString('es-ES', {
                     day: 'numeric',
                     month: 'short',
                     timeZone: 'Europe/Madrid',
                   })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
-                <span>
+                  {' '}
                   {scheduledDate.toLocaleTimeString('es-ES', {
                     hour: '2-digit',
                     minute: '2-digit',
                     timeZone: 'Europe/Madrid',
                   })}
                 </span>
-              </div>
-            </>
-          )}
-          {isDraft && (
-            <span className="text-amber-600 text-xs">
-              Sin programar
-            </span>
-          )}
-          {/* Mostrar quién programó el cast */}
-          {cast.createdBy && (
-            <div className="flex items-center gap-1.5 border-l pl-4">
-              {cast.createdBy.pfpUrl ? (
-                <img 
-                  src={cast.createdBy.pfpUrl} 
-                  alt={cast.createdBy.username}
-                  className="w-4 h-4 rounded-full"
-                />
-              ) : (
-                <User className="w-4 h-4" />
-              )}
-              <span className="text-xs">
-                por @{cast.createdBy.username}
-              </span>
-            </div>
-          )}
+              </>
+            )}
+            {cast.channelId && (
+              <>
+                <span>·</span>
+                <span className="text-purple-600">#{cast.channelId}</span>
+              </>
+            )}
+            {media.length > 0 && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-0.5">
+                  {media.some(m => m.type === 'video') ? (
+                    <Video className="w-3 h-3" />
+                  ) : (
+                    <Image className="w-3 h-3" />
+                  )}
+                  {media.length}
+                </span>
+              </>
+            )}
+            {cast.createdBy && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  {cast.createdBy.pfpUrl ? (
+                    <img 
+                      src={cast.createdBy.pfpUrl} 
+                      alt=""
+                      className="w-3 h-3 rounded-full"
+                    />
+                  ) : null}
+                  por @{cast.createdBy.username}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Link a Warpcast si está publicado */}
+        <span className={cn(
+          "text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0",
+          statusStyles[cast.status] || 'bg-gray-50 text-gray-600 border-gray-100'
+        )}>
+          {statusLabels[cast.status] || cast.status}
+        </span>
+
+        {/* Link a Warpcast */}
         {cast.status === 'published' && cast.castHash && (
-          <Button variant="link" size="sm" className="h-auto p-0 text-castor-black hover:no-underline hover:text-castor-dark" asChild>
-            <a
-              href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1"
+          <a
+            href={`https://warpcast.com/${cast.account.username}/${cast.castHash.slice(0, 10)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 text-gray-400 hover:text-gray-900 p-1"
+            title="Ver en Warpcast"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        )}
+
+        {/* Acciones en hover */}
+        {cast.status !== 'published' && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7"
+              asChild
+              title="Editar"
             >
-              Ver en Warpcast
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </Button>
+              <Link href={`/dashboard/edit/${cast.id}`}>
+                <Edit className="w-3.5 h-3.5" />
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
     </Card>

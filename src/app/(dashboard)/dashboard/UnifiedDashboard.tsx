@@ -233,6 +233,19 @@ export function UnifiedDashboard({
 
   return (
     <div className="space-y-6">
+      {/* Header con enlace admin */}
+      {isAdmin && (
+        <div className="flex justify-end">
+          <Link 
+            href="/dashboard/scheduled" 
+            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+          >
+            Ver todos los casts
+            <ExternalLink className="w-3 h-3" />
+          </Link>
+        </div>
+      )}
+
       {/* Módulo de Cuentas */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 mb-3">Cuentas</h2>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { 
   User, Clock, Calendar, ExternalLink, Edit, Trash2, 
   Plus, CheckCircle, AlertCircle, List, CalendarDays,
@@ -124,6 +123,7 @@ export function UnifiedDashboard({
 
   const [activeTab, setActiveTab] = useState<Tab>('scheduled')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [showAllCasts, setShowAllCasts] = useState(false)
   
   // Estado para modal de edición
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -162,10 +162,12 @@ export function UnifiedDashboard({
     return () => clearInterval(timer)
   }, [router, scheduledCasts.length])
 
-  // Filtrar datos según cuenta seleccionada
-  const filteredCasts = selectedAccountId 
-    ? casts.filter(c => c.accountId === selectedAccountId)
-    : casts
+  // Filtrar datos según cuenta seleccionada (o mostrar todos si showAllCasts)
+  const filteredCasts = showAllCasts 
+    ? casts 
+    : selectedAccountId 
+      ? casts.filter(c => c.accountId === selectedAccountId)
+      : casts
 
   const filteredTemplates = selectedAccountId
     ? templates.filter(t => t.accountId === selectedAccountId)
@@ -276,19 +278,6 @@ export function UnifiedDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Header con enlace admin */}
-      {isAdmin && (
-        <div className="flex justify-end">
-          <Link 
-            href="/dashboard/scheduled" 
-            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-          >
-            Ver todos los casts
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-        </div>
-      )}
-
       {/* Módulo de Cuentas */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 mb-3">Cuentas</h2>
@@ -374,31 +363,45 @@ export function UnifiedDashboard({
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setViewMode('list')}
-            className={cn(
-              "h-7 text-xs",
-              viewMode === 'list' && "bg-white shadow-sm"
-            )}
-          >
-            <List className="w-3.5 h-3.5 mr-1.5" />
-            Lista
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setViewMode('calendar')}
-            className={cn(
-              "h-7 text-xs",
-              viewMode === 'calendar' && "bg-white shadow-sm"
-            )}
-          >
-            <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-            Calendario
-          </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "h-7 text-xs",
+                viewMode === 'list' && !showAllCasts && "bg-white shadow-sm"
+              )}
+            >
+              <List className="w-3.5 h-3.5 mr-1.5" />
+              Lista
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('calendar')}
+              className={cn(
+                "h-7 text-xs",
+                viewMode === 'calendar' && !showAllCasts && "bg-white shadow-sm"
+              )}
+            >
+              <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+              Calendario
+            </Button>
+          </div>
+          
+          {/* Toggle ver todos (solo admin) */}
+          {isAdmin && (
+            <Button
+              variant={showAllCasts ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowAllCasts(!showAllCasts)}
+              className="h-7 text-xs"
+            >
+              {showAllCasts ? 'Filtrar' : 'Ver todos'}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -345,63 +345,65 @@ export function UnifiedDashboard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
           <TabButton 
-            active={activeTab === 'scheduled'} 
-            onClick={() => setActiveTab('scheduled')}
+            active={activeTab === 'scheduled' && !showAllCasts} 
+            onClick={() => {
+              setActiveTab('scheduled')
+              setShowAllCasts(false)
+            }}
             count={scheduled.length}
           >
             <Clock className="w-3.5 h-3.5" />
             Programados
           </TabButton>
           <TabButton 
-            active={activeTab === 'published'} 
-            onClick={() => setActiveTab('published')}
+            active={activeTab === 'published' && !showAllCasts} 
+            onClick={() => {
+              setActiveTab('published')
+              setShowAllCasts(false)
+            }}
             count={published.length}
           >
             <CheckCircle className="w-3.5 h-3.5" />
             Publicados
           </TabButton>
+          {isAdmin && (
+            <TabButton 
+              active={showAllCasts} 
+              onClick={() => setShowAllCasts(true)}
+              count={casts.length}
+            >
+              <List className="w-3.5 h-3.5" />
+              Todos
+            </TabButton>
+          )}
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "h-7 text-xs",
-                viewMode === 'list' && !showAllCasts && "bg-white shadow-sm"
-              )}
-            >
-              <List className="w-3.5 h-3.5 mr-1.5" />
-              Lista
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('calendar')}
-              className={cn(
-                "h-7 text-xs",
-                viewMode === 'calendar' && !showAllCasts && "bg-white shadow-sm"
-              )}
-            >
-              <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-              Calendario
-            </Button>
-          </div>
-          
-          {/* Toggle ver todos (solo admin) */}
-          {isAdmin && (
-            <Button
-              variant={showAllCasts ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowAllCasts(!showAllCasts)}
-              className="h-7 text-xs"
-            >
-              {showAllCasts ? 'Filtrar' : 'Ver todos'}
-            </Button>
-          )}
+        <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "h-7 text-xs",
+              viewMode === 'list' && "bg-white shadow-sm"
+            )}
+          >
+            <List className="w-3.5 h-3.5 mr-1.5" />
+            Lista
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+            className={cn(
+              "h-7 text-xs",
+              viewMode === 'calendar' && "bg-white shadow-sm"
+            )}
+          >
+            <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+            Calendario
+          </Button>
         </div>
       </div>
 

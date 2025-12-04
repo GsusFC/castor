@@ -161,18 +161,22 @@ export async function publishDueCasts(): Promise<PublishResult> {
             if (status === 'ready') {
               const playbackId = asset.playbackId || video.livepeerPlaybackId
               const hlsUrl = playbackId ? `https://lp-playback.studio/hls/${playbackId}/index.m3u8` : null
+              // Warpcast prefiere MP4 sobre HLS
+              const mp4Url = asset.downloadUrl || null
               
               await db.update(castMedia).set({
                 videoStatus: 'ready',
                 hlsUrl: hlsUrl || undefined,
-                url: hlsUrl || video.url,
+                mp4Url: mp4Url || undefined,
+                url: mp4Url || hlsUrl || video.url,
               }).where(eq(castMedia.livepeerAssetId, video.livepeerAssetId!))
               
               video.videoStatus = 'ready'
               video.hlsUrl = hlsUrl
-              video.url = hlsUrl || video.url
+              video.mp4Url = mp4Url
+              video.url = mp4Url || hlsUrl || video.url
               
-              publisherLogger.info({ livepeerAssetId: video.livepeerAssetId, hlsUrl }, 'Livepeer video ready')
+              publisherLogger.info({ livepeerAssetId: video.livepeerAssetId, hlsUrl, mp4Url }, 'Livepeer video ready')
             }
           }
         } catch (error) {
@@ -271,11 +275,12 @@ export async function publishDueCasts(): Promise<PublishResult> {
       // Para videos de Cloudflare: usar MP4 > HLS > url
       const embeds = castWithMedia.media?.map(m => {
         if (m.type === 'video') {
-          // Livepeer videos: usar HLS directamente
+          // Livepeer videos: preferir MP4 para Warpcast
           if (m.livepeerAssetId || m.livepeerPlaybackId) {
-            const videoUrl = m.hlsUrl || m.url
+            const videoUrl = m.mp4Url || m.hlsUrl || m.url
             publisherLogger.debug({ 
               livepeerAssetId: m.livepeerAssetId,
+              mp4Url: m.mp4Url,
               hlsUrl: m.hlsUrl,
               selectedUrl: videoUrl 
             }, 'Livepeer video URL selection')

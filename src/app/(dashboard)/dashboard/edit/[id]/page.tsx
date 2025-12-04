@@ -97,13 +97,29 @@ export default function EditCastPage() {
         setScheduledDate(madridDate)
         setScheduledTime(madridTime)
 
-        // Mapear medios
-        const media: MediaFile[] = cast.media?.map((m: any) => ({
-          preview: m.url,
-          url: m.url,
-          type: m.type,
-          uploading: false
-        })) || []
+        // Mapear medios - filtrar solo URLs que sean realmente imágenes o videos
+        // Excluir URLs de links embebidos (que no tienen extensión de media o no son de cloudflare)
+        const media: MediaFile[] = (cast.media || [])
+          .filter((m: any) => {
+            const url = m.url || ''
+            // Es media real si:
+            // 1. Tiene cloudflareId (subido a Cloudflare)
+            // 2. Es una URL de Cloudflare Images/Stream
+            // 3. Tiene extensión de imagen/video
+            const isCloudflare = m.cloudflareId || 
+              url.includes('cloudflare') || 
+              url.includes('imagedelivery.net')
+            const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i.test(url)
+            return isCloudflare || hasMediaExtension
+          })
+          .map((m: any) => ({
+            preview: m.thumbnailUrl || m.url,
+            url: m.url,
+            type: m.type,
+            uploading: false,
+            cloudflareId: m.cloudflareId,
+            videoStatus: m.videoStatus,
+          }))
 
         // TODO: Cargar links existentes si el API los devuelve
         setCasts([{

@@ -104,40 +104,58 @@ export async function POST(request: NextRequest) {
       })
 
       // Insertar media si hay embeds
+      // Solo guardar embeds que sean media real (imágenes/videos subidos), no links
       if (embeds && embeds.length > 0) {
-        const mediaValues = embeds.map((embed, index) => {
-          // Determinar tipo: usar el proporcionado o inferir de la URL
-          const isVideo = embed.type === 'video' || 
-            embed.url.match(/\.(mp4|mov|webm)$/i) ||
-            embed.url.includes('cloudflarestream.com')
-          
-          const mediaRecord: {
-            id: string
-            castId: string
-            url: string
-            type: 'image' | 'video'
-            order: number
-            cloudflareId?: string
-            videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
-          } = {
-            id: generateId(),
-            castId,
-            url: embed.url,
-            type: isVideo ? 'video' : 'image',
-            order: index,
-          }
-          
-          // Solo añadir campos de video si tienen valor
-          if (embed.cloudflareId) {
-            mediaRecord.cloudflareId = embed.cloudflareId
-          }
-          if (embed.videoStatus) {
-            mediaRecord.videoStatus = embed.videoStatus
-          }
-          
-          return mediaRecord
+        const mediaEmbeds = embeds.filter(embed => {
+          // Es media real si:
+          // 1. Tiene cloudflareId (subido a Cloudflare)
+          // 2. Es una URL de Cloudflare
+          // 3. Tiene extensión de imagen/video
+          // 4. Tiene type explícito de video
+          const url = embed.url || ''
+          const isCloudflare = embed.cloudflareId || 
+            url.includes('cloudflare') || 
+            url.includes('imagedelivery.net')
+          const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i.test(url)
+          const isExplicitVideo = embed.type === 'video'
+          return isCloudflare || hasMediaExtension || isExplicitVideo
         })
-        await tx.insert(castMedia).values(mediaValues)
+        
+        if (mediaEmbeds.length > 0) {
+          const mediaValues = mediaEmbeds.map((embed, index) => {
+            // Determinar tipo: usar el proporcionado o inferir de la URL
+            const isVideo = embed.type === 'video' || 
+              embed.url.match(/\.(mp4|mov|webm)$/i) ||
+              embed.url.includes('cloudflarestream.com')
+            
+            const mediaRecord: {
+              id: string
+              castId: string
+              url: string
+              type: 'image' | 'video'
+              order: number
+              cloudflareId?: string
+              videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
+            } = {
+              id: generateId(),
+              castId,
+              url: embed.url,
+              type: isVideo ? 'video' : 'image',
+              order: index,
+            }
+            
+            // Solo añadir campos de video si tienen valor
+            if (embed.cloudflareId) {
+              mediaRecord.cloudflareId = embed.cloudflareId
+            }
+            if (embed.videoStatus) {
+              mediaRecord.videoStatus = embed.videoStatus
+            }
+            
+            return mediaRecord
+          })
+          await tx.insert(castMedia).values(mediaValues)
+        }
       }
     })
 

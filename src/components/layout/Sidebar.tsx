@@ -7,7 +7,7 @@ import { Users, Send, Plus, ChevronLeft, ChevronRight, LogOut } from 'lucide-rea
 import { ComposeModal } from '@/components/compose/ComposeModal'
 
 const navItems = [
-  { href: '/dashboard/scheduled', label: 'Casts', icon: Send },
+  { href: '/dashboard', label: 'Casts', icon: Send },
   { href: '/dashboard/accounts', label: 'Cuentas', icon: Users },
 ]
 
@@ -72,7 +72,10 @@ export function Sidebar() {
         {/* Navegación */}
         <nav className={`space-y-1 flex-1 ${collapsed ? 'px-2' : 'px-4'}`}>
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            // Para /dashboard, solo activo si es exactamente /dashboard
+            const isActive = item.href === '/dashboard' 
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.href}

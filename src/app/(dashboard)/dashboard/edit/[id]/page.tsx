@@ -195,7 +195,7 @@ export default function EditCastPage() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/scheduled">
+          <Link href="/dashboard">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </Link>
         </Button>

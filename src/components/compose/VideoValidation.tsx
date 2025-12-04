@@ -44,14 +44,43 @@ export function VideoValidation({
       return
     }
 
-    // Si el video está procesándose en Livepeer
-    if (videoStatus === 'pending' || videoStatus === 'processing') {
+    // Si el video está procesándose en Livepeer, hacer polling
+    if ((videoStatus === 'pending' || videoStatus === 'processing') && livepeerAssetId) {
       setValidation({
         isValid: false,
         status: 'processing',
         message: 'Procesando video...'
       })
-      return
+      
+      // Polling cada 3 segundos para verificar si el video está listo
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/media/livepeer/status?assetId=${livepeerAssetId}`)
+          const data = await res.json()
+          
+          if (data.data?.isReady || data.isReady) {
+            clearInterval(pollInterval)
+            // Video listo, validar la URL
+            const mp4Url = data.data?.mp4Url || data.mp4Url || data.data?.url || data.url
+            if (mp4Url) {
+              validateVideoUrl(mp4Url)
+            } else {
+              validateVideoUrl(url)
+            }
+          } else if (data.data?.status === 'failed' || data.status === 'failed') {
+            clearInterval(pollInterval)
+            setValidation({
+              isValid: false,
+              status: 'invalid',
+              message: 'Error en procesamiento'
+            })
+          }
+        } catch (err) {
+          console.error('[VideoValidation] Polling error:', err)
+        }
+      }, 3000)
+      
+      return () => clearInterval(pollInterval)
     }
 
     if (videoStatus === 'error') {
@@ -65,7 +94,7 @@ export function VideoValidation({
 
     // Verificar si es una URL válida para Warpcast
     validateVideoUrl(url)
-  }, [url, videoStatus])
+  }, [url, videoStatus, livepeerAssetId])
 
   async function validateVideoUrl(videoUrl: string) {
     setValidation({
@@ -73,6 +102,19 @@ export function VideoValidation({
       status: 'checking',
       message: 'Verificando compatibilidad...'
     })
+
+    // URLs de Livepeer son válidas por defecto (el publisher obtendrá el MP4)
+    const isLivepeerUrl = videoUrl.includes('lp-playback') || 
+      videoUrl.includes('livepeer')
+    
+    if (isLivepeerUrl) {
+      setValidation({
+        isValid: true,
+        status: 'valid',
+        message: 'Video Livepeer listo',
+      })
+      return
+    }
 
     try {
       // Verificar que la URL sea accesible y tenga el content-type correcto

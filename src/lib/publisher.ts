@@ -159,22 +159,21 @@ export async function publishDueCasts(): Promise<PublishResult> {
             const status = asset.status?.phase
             
             if (status === 'ready') {
-              const playbackId = asset.playbackId || video.livepeerPlaybackId
-              const hlsUrl = playbackId ? `https://lp-playback.studio/hls/${playbackId}/index.m3u8` : null
-              // Warpcast prefiere MP4 sobre HLS
+              // Usar playbackUrl de Livepeer (HLS completo) - Warpcast lo prefiere
+              const hlsUrl = asset.playbackUrl || null
               const mp4Url = asset.downloadUrl || null
               
               await db.update(castMedia).set({
                 videoStatus: 'ready',
                 hlsUrl: hlsUrl || undefined,
                 mp4Url: mp4Url || undefined,
-                url: mp4Url || hlsUrl || video.url,
+                url: hlsUrl || mp4Url || video.url,
               }).where(eq(castMedia.livepeerAssetId, video.livepeerAssetId!))
               
               video.videoStatus = 'ready'
               video.hlsUrl = hlsUrl
               video.mp4Url = mp4Url
-              video.url = mp4Url || hlsUrl || video.url
+              video.url = hlsUrl || mp4Url || video.url
               
               publisherLogger.info({ livepeerAssetId: video.livepeerAssetId, hlsUrl, mp4Url }, 'Livepeer video ready')
             }
@@ -272,23 +271,24 @@ export async function publishDueCasts(): Promise<PublishResult> {
 
       // Preparar embeds de media
       // Para videos de Livepeer: usar HLS URL directamente (Warpcast lo soporta bien)
-      // Para videos de Cloudflare: usar MP4 > HLS > url
+      // Para videos: Warpcast prefiere HLS (.m3u8) sobre MP4
       const embeds = castWithMedia.media?.map(m => {
         if (m.type === 'video') {
-          // Livepeer videos: preferir MP4 para Warpcast
+          // Livepeer videos: usar HLS (playbackUrl) para Warpcast
           if (m.livepeerAssetId || m.livepeerPlaybackId) {
-            const videoUrl = m.mp4Url || m.hlsUrl || m.url
+            // Prioridad: HLS > MP4 > url original
+            const videoUrl = m.hlsUrl || m.mp4Url || m.url
             publisherLogger.debug({ 
               livepeerAssetId: m.livepeerAssetId,
-              mp4Url: m.mp4Url,
               hlsUrl: m.hlsUrl,
+              mp4Url: m.mp4Url,
               selectedUrl: videoUrl 
             }, 'Livepeer video URL selection')
             return { url: videoUrl }
           }
           
-          // Cloudflare videos: preferir MP4
-          const videoUrl = m.mp4Url || m.hlsUrl || m.url
+          // Cloudflare videos: preferir HLS
+          const videoUrl = m.hlsUrl || m.mp4Url || m.url
           publisherLogger.debug({ 
             cloudflareId: m.cloudflareId,
             mediaUrl: m.url, 

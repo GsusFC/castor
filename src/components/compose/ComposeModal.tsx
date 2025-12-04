@@ -52,6 +52,8 @@ interface EditCastData {
     type: 'image' | 'video'
     thumbnailUrl?: string | null
     cloudflareId?: string | null
+    livepeerAssetId?: string | null
+    livepeerPlaybackId?: string | null
     videoStatus?: string | null
   }[]
 }
@@ -140,8 +142,11 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
         const isCloudflare = m.cloudflareId || 
           url.includes('cloudflare') || 
           url.includes('imagedelivery.net')
-        const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i.test(url)
-        return isCloudflare || hasMediaExtension
+        const isLivepeer = m.livepeerAssetId ||
+          url.includes('livepeer') ||
+          url.includes('lp-playback')
+        const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
+        return isCloudflare || isLivepeer || hasMediaExtension
       })
       .map(m => ({
         preview: m.thumbnailUrl || m.url,
@@ -149,6 +154,8 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
         type: m.type,
         uploading: false,
         cloudflareId: m.cloudflareId || undefined,
+        livepeerAssetId: m.livepeerAssetId || undefined,
+        livepeerPlaybackId: m.livepeerPlaybackId || undefined,
         videoStatus: (m.videoStatus as 'pending' | 'processing' | 'ready' | 'error') || undefined,
       }))
     

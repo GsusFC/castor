@@ -199,12 +199,13 @@ export async function publishDueCasts(): Promise<PublishResult> {
 
       publisherLogger.debug({ castId: cast.id, attempt: cast.retryCount + 1 }, 'Publishing cast')
 
-      // Preparar embeds de media - para videos usar HLS (m3u8) que Warpcast reproduce inline
-      // Prioridad: hlsUrl > mp4Url > url
+      // Preparar embeds de media - para videos usar MP4 que Warpcast renderiza mejor
+      // Prioridad: mp4Url > hlsUrl > url
+      // Nota: HLS (.m3u8) requiere thumbnail en ruta específica que Cloudflare no provee
       const embeds = castWithMedia.media?.map(m => {
         if (m.type === 'video') {
-          // Warpcast prefiere HLS para reproducción inline
-          const videoUrl = m.hlsUrl || m.mp4Url || m.url
+          // Warpcast maneja mejor MP4 que HLS de Cloudflare Stream
+          const videoUrl = m.mp4Url || m.hlsUrl || m.url
           publisherLogger.debug({ 
             mediaUrl: m.url, 
             hlsUrl: m.hlsUrl, 

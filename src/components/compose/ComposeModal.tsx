@@ -286,6 +286,8 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
             url: m.url!, 
             type: m.type,
             cloudflareId: m.cloudflareId,
+            livepeerAssetId: m.livepeerAssetId,
+            livepeerPlaybackId: m.livepeerPlaybackId,
             videoStatus: m.videoStatus,
           })),
           ...cast.links.map(l => ({ url: l.url })),

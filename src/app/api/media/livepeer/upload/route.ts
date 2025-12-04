@@ -55,10 +55,14 @@ export async function POST(request: NextRequest) {
       assetId: data.asset?.id,
       playbackId: data.asset?.playbackId,
       tusEndpoint: data.tusEndpoint,
+      directUploadUrl: data.url,
     })
 
     return success({
-      uploadUrl: data.tusEndpoint,
+      // URL para direct upload (PUT request)
+      uploadUrl: data.url,
+      // URL para TUS resumable upload (alternativa)
+      tusEndpoint: data.tusEndpoint,
       assetId: data.asset?.id,
       playbackId: data.asset?.playbackId,
       // URL de playback que Warpcast puede renderizar

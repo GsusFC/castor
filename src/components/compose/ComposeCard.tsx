@@ -937,15 +937,13 @@ function ComposeFooter({
           
           const { uploadUrl, assetId, playbackId, playbackUrl } = urlJson.data || urlJson
           
-          // 2. Subir usando TUS protocol
+          // 2. Subir usando Direct Upload (PUT request)
           const uploadRes = await fetch(uploadUrl, {
-            method: 'PATCH',
+            method: 'PUT',
             headers: {
-              'Tus-Resumable': '1.0.0',
-              'Upload-Offset': '0',
-              'Content-Type': 'application/offset+octet-stream',
+              'Content-Type': file.type || 'video/mp4',
             },
-            body: await file.arrayBuffer(),
+            body: file,
           })
           if (!uploadRes.ok) throw new Error('Video upload failed')
           

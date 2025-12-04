@@ -10,6 +10,7 @@ import { GifPicker } from './GifPicker'
 import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
+import { VideoValidation } from './VideoValidation'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -432,7 +433,16 @@ export function CastEditor({
               {m.type === 'image' ? (
                 <img src={m.preview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
               ) : (
-                <video src={m.preview} className="w-20 h-20 object-cover rounded-lg border" />
+                <div className="flex flex-col gap-1">
+                  <video src={m.preview} className="w-20 h-20 object-cover rounded-lg border" />
+                  {!m.uploading && m.url && (
+                    <VideoValidation 
+                      url={m.url} 
+                      videoStatus={m.videoStatus}
+                      livepeerAssetId={m.livepeerAssetId}
+                    />
+                  )}
+                </div>
               )}
               
               {m.uploading && (

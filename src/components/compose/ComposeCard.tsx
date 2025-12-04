@@ -34,6 +34,7 @@ import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
 import { MediaFile, LinkEmbed } from './types'
+import { VideoValidation } from './VideoValidation'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -802,7 +803,16 @@ function CastEditorInline({
               {m.type === 'image' ? (
                 <img src={m.preview} alt="" className="w-16 h-16 object-cover rounded-lg border" />
               ) : (
-                <video src={m.preview} className="w-16 h-16 object-cover rounded-lg border" />
+                <div className="flex flex-col gap-1">
+                  <video src={m.preview} className="w-16 h-16 object-cover rounded-lg border" />
+                  {!m.uploading && m.url && (
+                    <VideoValidation 
+                      url={m.url} 
+                      videoStatus={m.videoStatus}
+                      livepeerAssetId={m.livepeerAssetId}
+                    />
+                  )}
+                </div>
               )}
               {m.uploading && (
                 <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">

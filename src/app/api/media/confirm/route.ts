@@ -4,6 +4,7 @@ import { success, ApiErrors } from '@/lib/api/response'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
 
 /**
  * POST /api/media/confirm
@@ -110,13 +111,15 @@ export async function POST(request: NextRequest) {
       const hlsUrl = video.playback?.hls
       const watchUrl = `https://watch.cloudflarestream.com/${cloudflareId}`
       
-      // Construir URL HLS manualmente si no está disponible aún
-      // Formato: https://customer-{subdomain}.cloudflarestream.com/{videoId}/manifest/video.m3u8
+      // Construir URL HLS con custom domain si está configurado
+      // Formato: https://{domain}/{videoId}/manifest/video.m3u8
       let finalHlsUrl = hlsUrl
-      if (!finalHlsUrl) {
-        // Extraer subdomain del customer desde cualquier URL disponible o usar formato estándar
-        finalHlsUrl = `https://customer-l9k1ruqd8kemqqty.cloudflarestream.com/${cloudflareId}/manifest/video.m3u8`
+      if (!finalHlsUrl || CF_STREAM_DOMAIN !== 'customer-l9k1ruqd8kemqqty.cloudflarestream.com') {
+        finalHlsUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}/manifest/video.m3u8`
       }
+      
+      // Thumbnail URL en formato compatible con Farcaster
+      const thumbnailUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}/thumbnails/thumbnail.jpg`
 
       console.log('[Confirm] Video confirmed:', {
         cloudflareId,
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
         hlsUrl: finalHlsUrl,
         mp4Url,
         watchUrl,
-        thumbnailUrl: video.thumbnail,
+        thumbnailUrl,
       })
     }
 

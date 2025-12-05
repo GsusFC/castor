@@ -109,7 +109,7 @@ export function ComposeCard({
   return (
     <Card className="overflow-hidden">
       {/* Header compacto */}
-      <div className="flex items-center gap-2 p-3 border-b border-border bg-muted/50 flex-wrap">
+      <div className="flex items-center gap-2 p-2 sm:p-3 border-b border-border bg-muted/50 flex-wrap">
         {/* Account Selector */}
         <AccountDropdown
           accounts={accounts}

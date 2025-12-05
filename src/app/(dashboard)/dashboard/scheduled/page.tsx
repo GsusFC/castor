@@ -117,7 +117,7 @@ export default async function ScheduledPage({
       {/* Botón volver */}
       <Link 
         href="/dashboard" 
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
       >
         <ChevronLeft className="w-4 h-4" />
         Volver al dashboard
@@ -125,15 +125,15 @@ export default async function ScheduledPage({
       
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-display text-gray-900">
+          <h1 className="text-2xl font-display text-foreground">
             {filtered ? filtered.title : 'Todos los casts'}
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-muted-foreground mt-1">
             {filtered ? (
               <>
                 {filtered.casts.length} cast{filtered.casts.length !== 1 ? 's' : ''}
                 {(filterStatus || tab) && (
-                  <Link href="/dashboard/scheduled" className="ml-2 text-gray-900 hover:underline">
+                  <Link href="/dashboard/scheduled" className="ml-2 text-foreground hover:underline">
                     Ver todos
                   </Link>
                 )}
@@ -152,8 +152,8 @@ export default async function ScheduledPage({
       {/* Vista filtrada */}
       {filtered ? (
         filtered.casts.length === 0 ? (
-          <div className="bg-white rounded-xl border p-12 text-center">
-            <p className="text-gray-500">No hay casts en esta categoría</p>
+          <div className="bg-card rounded-xl border border-border p-12 text-center">
+            <p className="text-muted-foreground">No hay casts en esta categoría</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -184,7 +184,7 @@ export default async function ScheduledPage({
           {/* Programados */}
           {scheduled.length > 0 && (
             <section>
-              <h2 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 Programados
               </h2>
@@ -233,11 +233,11 @@ function EmptyState() {
   return (
     <Card className="text-center">
       <CardContent className="pt-12 pb-12 flex flex-col items-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-          <Clock className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+          <Clock className="w-8 h-8 text-muted-foreground" />
         </div>
         <h2 className="text-lg font-semibold mb-2">No hay casts programados</h2>
-        <p className="text-gray-500 max-w-md mx-auto">
+        <p className="text-muted-foreground max-w-md mx-auto">
           Usa el botón "Nuevo Cast" del menú lateral para programar tu primer cast.
         </p>
       </CardContent>
@@ -252,11 +252,11 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
   const media = cast.media || []
   
   const statusStyles: Record<string, string> = {
-    scheduled: 'bg-blue-50 text-blue-700 border-blue-100',
-    publishing: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-    published: 'bg-green-50 text-green-700 border-green-100',
-    failed: 'bg-red-50 text-red-700 border-red-100',
-    draft: 'bg-amber-50 text-amber-700 border-amber-100',
+    scheduled: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
+    publishing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-yellow-500/30',
+    published: 'bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
+    failed: 'bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
+    draft: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',
   }
 
   const statusLabels: Record<string, string> = {
@@ -270,7 +270,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
   return (
     <Card className={cn(
       "overflow-hidden transition-all group",
-      isDraft && "border-amber-200 bg-amber-50/30"
+      isDraft && "border-amber-500/30 bg-amber-500/10 dark:border-amber-500/40 dark:bg-amber-500/20"
     )}>
       {/* Vista colapsada */}
       <div className="w-full p-3 flex items-center gap-3">
@@ -281,16 +281,16 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
             className="w-8 h-8 rounded-full flex-shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-gray-400" />
+          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-muted-foreground" />
           </div>
         )}
         
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-900 truncate">
-            {cast.content || <span className="text-gray-400 italic">Sin contenido</span>}
+          <p className="text-sm text-foreground truncate">
+            {cast.content || <span className="text-muted-foreground italic">Sin contenido</span>}
           </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <span>@{cast.account.username}</span>
             {!isDraft && (
               <>
@@ -313,7 +313,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
             {cast.channelId && (
               <>
                 <span>·</span>
-                <span className="text-purple-600">#{cast.channelId}</span>
+                <span className="text-primary">#{cast.channelId}</span>
               </>
             )}
             {media.length > 0 && (
@@ -349,7 +349,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
 
         <span className={cn(
           "text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0",
-          statusStyles[cast.status] || 'bg-gray-50 text-gray-600 border-gray-100'
+          statusStyles[cast.status] || 'bg-muted text-muted-foreground border-border'
         )}>
           {statusLabels[cast.status] || cast.status}
         </span>
@@ -360,7 +360,7 @@ function CastCard({ cast, isDraft = false }: { cast: Cast; isDraft?: boolean }) 
             href={`https://warpcast.com/${cast.account.username}/${cast.castHash.slice(0, 10)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 text-gray-400 hover:text-gray-900 p-1"
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1"
             title="Ver en Warpcast"
           >
             <ExternalLink className="w-4 h-4" />

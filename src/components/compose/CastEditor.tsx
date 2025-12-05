@@ -400,14 +400,14 @@ export function CastEditor({
       {/* Header del Thread */}
       {isThread && (
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+          <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
             Cast {index + 1}
           </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={onRemove}
-            className="h-6 w-6 text-gray-400 hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
             title="Eliminar cast"
           >
             <Trash2 className="w-4 h-4" />
@@ -421,7 +421,7 @@ export function CastEditor({
         onChange={handleChange}
         placeholder={index === 0 ? '¿Qué quieres compartir?' : 'Continúa el thread...'}
         rows={4}
-        className="border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-lg leading-relaxed placeholder:text-gray-400 min-h-[120px]"
+        className="border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-lg leading-relaxed placeholder:text-muted-foreground min-h-[120px]"
       />
 
       {/* Link Previews */}
@@ -467,7 +467,7 @@ export function CastEditor({
               )}
               
               {m.error && (
-                <div className="absolute inset-0 bg-red-500/80 rounded-lg flex items-center justify-center p-1">
+                <div className="absolute inset-0 bg-destructive/80 rounded-lg flex items-center justify-center p-1">
                   <span className="text-white text-[10px] text-center leading-tight font-medium">
                     Error
                   </span>
@@ -506,7 +506,7 @@ export function CastEditor({
             onClick={() => fileInputRef.current?.click()}
             disabled={cast.media.length >= 2}
             className={cn(
-              "text-gray-500 hover:text-castor-black",
+              "text-muted-foreground hover:text-castor-black",
               cast.media.length >= 2 && "opacity-50"
             )}
             title="Añadir imagen o video"
@@ -524,8 +524,8 @@ export function CastEditor({
                 setShowGifPicker(false)
               }}
               className={cn(
-                "text-gray-500 hover:text-castor-black",
-                showEmojiPicker && "bg-gray-100 text-castor-black"
+                "text-muted-foreground hover:text-castor-black",
+                showEmojiPicker && "bg-muted text-castor-black"
               )}
               title="Insertar emoji"
             >
@@ -538,14 +538,14 @@ export function CastEditor({
                   className="fixed inset-0 z-10" 
                   onClick={() => setShowEmojiPicker(false)}
                 />
-                <div className="absolute z-20 bottom-full mb-2 left-0 bg-white border rounded-xl shadow-xl p-2 w-72">
+                <div className="absolute z-20 bottom-full mb-2 left-0 bg-card border rounded-xl shadow-xl p-2 w-72">
                   <div className="grid grid-cols-8 gap-1 max-h-60 overflow-y-auto p-1 custom-scrollbar">
                     {EMOJI_LIST.map((emoji) => (
                       <button
                         key={emoji}
                         type="button"
                         onClick={() => insertEmoji(emoji)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-xl transition-colors"
+                        className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-xl transition-colors"
                       >
                         {emoji}
                       </button>
@@ -567,8 +567,8 @@ export function CastEditor({
               }}
               disabled={cast.media.length >= 2}
               className={cn(
-                "text-gray-500 hover:text-castor-black",
-                showGifPicker && "bg-gray-100 text-castor-black",
+                "text-muted-foreground hover:text-castor-black",
+                showGifPicker && "bg-muted text-castor-black",
                 cast.media.length >= 2 && "opacity-50"
               )}
               title="Insertar GIF"
@@ -582,7 +582,7 @@ export function CastEditor({
                   className="fixed inset-0 z-10" 
                   onClick={() => setShowGifPicker(false)}
                 />
-                <div className="absolute z-20 bottom-full mb-2 left-0 bg-white border rounded-xl shadow-xl overflow-hidden">
+                <div className="absolute z-20 bottom-full mb-2 left-0 bg-card border rounded-xl shadow-xl overflow-hidden">
                   <GifPicker 
                     onSelect={handleGifSelect}
                     onClose={() => setShowGifPicker(false)}
@@ -596,12 +596,12 @@ export function CastEditor({
         <div className="flex items-center gap-3">
           <span className={cn(
             "text-xs font-medium transition-colors",
-            isOverLimit ? "text-destructive" : "text-gray-400"
+            isOverLimit ? "text-destructive" : "text-muted-foreground"
           )}>
             {charCount} / {maxChars}
           </span>
           {isOverLimit && (
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
           )}
         </div>
       </div>

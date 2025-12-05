@@ -47,12 +47,12 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
 
   return (
     <div className={cn(
-      "bg-white overflow-hidden",
+      "bg-card overflow-hidden",
       !compact && "border rounded-xl"
     )}>
       {!compact && (
-        <div className="px-4 py-3 bg-gray-50 border-b">
-          <h3 className="text-sm font-medium text-gray-700">Vista previa</h3>
+        <div className="px-4 py-3 bg-muted border-b">
+          <h3 className="text-sm font-medium text-foreground">Vista previa</h3>
         </div>
       )}
 
@@ -70,11 +70,11 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
                     className="w-5 h-5 rounded-full"
                   />
                 )}
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   Respondiendo a @{replyTo.author.username}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 line-clamp-1 mt-1">
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
                 {replyTo.text}
               </p>
             </div>
@@ -110,10 +110,10 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
               <div className="flex-1 min-w-0">
                 {/* Header */}
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-gray-900 truncate">
+                  <span className="font-semibold text-foreground truncate">
                     {account.displayName || account.username}
                   </span>
-                  <span className="text-gray-500 text-sm truncate">
+                  <span className="text-muted-foreground text-sm truncate">
                     @{account.username}
                   </span>
                   {channel && (
@@ -124,9 +124,9 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
                 </div>
 
                 {/* Content */}
-                <div className="text-gray-900 whitespace-pre-wrap break-words">
+                <div className="text-foreground whitespace-pre-wrap break-words">
                   {cast.content ? renderText(cast.content) : (
-                    <span className="text-gray-400 italic">Sin contenido...</span>
+                    <span className="text-muted-foreground italic">Sin contenido...</span>
                   )}
                 </div>
 
@@ -136,10 +136,10 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
                     {cast.links.filter(l => !l.loading && !l.error && l.title).map((link) => (
                       <div
                         key={link.url}
-                        className="border rounded-lg overflow-hidden bg-gray-50"
+                        className="border rounded-lg overflow-hidden bg-muted"
                       >
                         {link.image && (
-                          <div className="aspect-[2/1] bg-gray-100 overflow-hidden max-h-32">
+                          <div className="aspect-[2/1] bg-muted overflow-hidden max-h-32">
                             <img
                               src={link.image}
                               alt=""
@@ -148,8 +148,8 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
                           </div>
                         )}
                         <div className="p-2">
-                          <p className="text-xs text-gray-500">{link.siteName}</p>
-                          <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                          <p className="text-xs text-muted-foreground">{link.siteName}</p>
+                          <p className="text-sm font-medium text-foreground line-clamp-1">
                             {link.title}
                           </p>
                         </div>
@@ -167,7 +167,7 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
                     {cast.media.map((m) => (
                       <div
                         key={m.preview}
-                        className="rounded-lg overflow-hidden bg-gray-100"
+                        className="rounded-lg overflow-hidden bg-muted"
                       >
                         {m.type === 'image' ? (
                           <img

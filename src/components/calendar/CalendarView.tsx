@@ -149,7 +149,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="bg-white rounded-xl border">
+      <div className="bg-card rounded-xl border">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold text-lg">
@@ -158,19 +158,19 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1.5 text-sm font-medium hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
             >
               Hoy
             </button>
             <button
               onClick={nextMonth}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -182,7 +182,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
           {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
             <div
               key={day}
-              className="py-2 text-center text-sm font-medium text-gray-500"
+              className="py-2 text-center text-sm font-medium text-muted-foreground"
             >
               {day}
             </div>
@@ -238,7 +238,7 @@ function CalendarDay({
     <div
       ref={setNodeRef}
       className={`min-h-[120px] border-b border-r p-1 ${
-        !isCurrentMonth ? 'bg-gray-50' : ''
+        !isCurrentMonth ? 'bg-muted' : ''
       } ${isOver ? 'bg-castor-light' : ''}`}
     >
       <div
@@ -246,8 +246,8 @@ function CalendarDay({
           isToday
             ? 'bg-castor-black text-white'
             : !isCurrentMonth
-            ? 'text-gray-400'
-            : 'text-gray-700'
+            ? 'text-muted-foreground'
+            : 'text-foreground'
         }`}
       >
         {date.getDate()}
@@ -257,7 +257,7 @@ function CalendarDay({
           <DraggableCast key={cast.id} cast={cast} />
         ))}
         {casts.length > 3 && (
-          <div className="text-xs text-gray-500 pl-1">
+          <div className="text-xs text-muted-foreground pl-1">
             +{casts.length - 3} más
           </div>
         )}
@@ -286,9 +286,9 @@ function DraggableCast({ cast }: { cast: Cast }) {
 
 function CastCard({ cast, isDragging }: { cast: Cast; isDragging?: boolean }) {
   const statusColors = {
-    scheduled: 'bg-blue-100 border-blue-200',
-    published: 'bg-green-100 border-green-200',
-    failed: 'bg-red-100 border-red-200',
+    scheduled: 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/20 dark:border-blue-500/30',
+    published: 'bg-green-500/10 border-green-500/20 dark:bg-green-500/20 dark:border-green-500/30',
+    failed: 'bg-red-500/10 border-red-500/20 dark:bg-red-500/20 dark:border-red-500/30',
   }
 
   const time = new Date(cast.scheduledAt).toLocaleTimeString('es-ES', {
@@ -300,16 +300,16 @@ function CastCard({ cast, isDragging }: { cast: Cast; isDragging?: boolean }) {
   return (
     <div
       className={`p-1.5 rounded border text-xs cursor-grab active:cursor-grabbing ${
-        statusColors[cast.status as keyof typeof statusColors] || 'bg-gray-100 border-gray-200'
+        statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
       } ${isDragging ? 'shadow-lg rotate-2' : ''} ${
         cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
       }`}
     >
       <div className="flex items-center gap-1 mb-0.5">
-        <Clock className="w-3 h-3 text-gray-500" />
-        <span className="text-gray-600">{time}</span>
+        <Clock className="w-3 h-3 text-muted-foreground" />
+        <span className="text-muted-foreground">{time}</span>
       </div>
-      <p className="line-clamp-2 text-gray-800">{cast.content}</p>
+      <p className="line-clamp-2 text-foreground">{cast.content}</p>
     </div>
   )
 }

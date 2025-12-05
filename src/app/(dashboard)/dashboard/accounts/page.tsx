@@ -39,8 +39,8 @@ export default async function AccountsPage() {
     <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-display text-gray-900">Cuentas</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-display text-foreground">Cuentas</h1>
+          <p className="text-muted-foreground mt-1">
             Gestiona las cuentas de Farcaster conectadas
           </p>
         </div>
@@ -69,11 +69,11 @@ function EmptyState() {
   return (
     <Card className="text-center">
       <CardContent className="pt-12 pb-12 flex flex-col items-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-          <User className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+          <User className="w-8 h-8 text-muted-foreground" />
         </div>
         <h2 className="text-lg font-semibold mb-2">No hay cuentas conectadas</h2>
-        <p className="text-gray-500 mb-6 max-w-md mx-auto">
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
           Conecta tus cuentas de Farcaster para empezar a programar casts.
           Puedes añadir cuentas personales y de empresa.
         </p>

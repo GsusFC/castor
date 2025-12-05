@@ -82,7 +82,7 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
 
   return (
     <Card className="p-4">
-      <label className="block text-sm font-medium text-gray-700 mb-3">Canal (opcional)</label>
+      <label className="block text-sm font-medium text-foreground mb-3">Canal (opcional)</label>
       <div className="relative" ref={pickerRef}>
         <Button
           type="button"
@@ -90,25 +90,25 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
             "w-full justify-between h-auto py-3 px-3 font-normal",
-            !selectedChannel && "text-gray-500"
+            !selectedChannel && "text-muted-foreground"
           )}
         >
           <div className="flex items-center gap-2 overflow-hidden">
-            <Hash className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Hash className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             {selectedChannel ? (
-              <span className="font-medium truncate text-gray-900">{selectedChannel.name}</span>
+              <span className="font-medium truncate text-foreground">{selectedChannel.name}</span>
             ) : (
               <span>Seleccionar canal</span>
             )}
           </div>
-          <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform flex-shrink-0", isOpen && "rotate-180")} />
+          <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform flex-shrink-0", isOpen && "rotate-180")} />
         </Button>
 
         {isOpen && (
-          <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow-xl max-h-80 overflow-hidden flex flex-col">
-            <div className="p-2 border-b bg-gray-50">
+          <div className="absolute z-20 mt-1 w-full bg-card border rounded-lg shadow-xl max-h-80 overflow-hidden flex flex-col">
+            <div className="p-2 border-b bg-muted">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   ref={inputRef}
                   type="text"
@@ -129,7 +129,7 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
                     setIsOpen(false)
                     setSearch('')
                   }}
-                  className="w-full px-4 py-3 text-left text-sm text-destructive hover:bg-red-50 border-b flex items-center gap-2 transition-colors"
+                  className="w-full px-4 py-3 text-left text-sm text-destructive hover:bg-destructive/10 border-b flex items-center gap-2 transition-colors"
                 >
                   <Hash className="w-4 h-4" />
                   Quitar canal
@@ -137,16 +137,16 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
               )}
               
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                   <Loader2 className="w-6 h-6 animate-spin mb-2" />
                   <span className="text-xs">Cargando canales...</span>
                 </div>
               ) : channels.length === 0 ? (
-                <div className="p-8 text-center text-sm text-gray-500">
+                <div className="p-8 text-center text-sm text-muted-foreground">
                   No se encontraron canales
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-border">
                   {channels.map((channel) => (
                     <button
                       key={channel.id}
@@ -157,23 +157,23 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
                         setSearch('')
                       }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left transition-colors",
-                        selectedChannel?.id === channel.id && "bg-blue-50"
+                        "w-full flex items-center gap-3 px-4 py-3 hover:bg-muted text-left transition-colors",
+                        selectedChannel?.id === channel.id && "bg-primary/10"
                       )}
                     >
                       {channel.imageUrl ? (
                         <img src={channel.imageUrl} alt="" className="w-8 h-8 rounded object-cover border" />
                       ) : (
-                        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center border">
-                          <Hash className="w-4 h-4 text-gray-400" />
+                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center border">
+                          <Hash className="w-4 h-4 text-muted-foreground" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{channel.name}</p>
-                        <p className="text-xs text-gray-500 truncate">/{channel.id}</p>
+                        <p className="text-sm font-medium text-foreground truncate">{channel.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">/{channel.id}</p>
                       </div>
                       {selectedChannel?.id === channel.id && (
-                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        <div className="w-2 h-2 rounded-full bg-primary" />
                       )}
                     </button>
                   ))}

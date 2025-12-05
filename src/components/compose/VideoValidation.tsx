@@ -156,26 +156,26 @@ export function VideoValidation({
   const statusConfig = {
     checking: {
       icon: Loader2,
-      color: 'text-gray-400',
-      bgColor: 'bg-gray-100',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
       animate: true
     },
     processing: {
       icon: Loader2,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50',
+      color: 'text-blue-500 dark:text-blue-400',
+      bgColor: 'bg-blue-500/10 dark:bg-blue-500/20',
       animate: true
     },
     valid: {
       icon: CheckCircle,
-      color: 'text-green-500',
-      bgColor: 'bg-green-50',
+      color: 'text-green-500 dark:text-green-400',
+      bgColor: 'bg-green-500/10 dark:bg-green-500/20',
       animate: false
     },
     invalid: {
       icon: XCircle,
       color: 'text-destructive',
-      bgColor: 'bg-red-50',
+      bgColor: 'bg-destructive/10',
       animate: false
     }
   }

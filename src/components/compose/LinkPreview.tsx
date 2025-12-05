@@ -48,7 +48,7 @@ export function LinkPreview({ link, onRemove }: LinkPreviewProps) {
 
   // Preview completo
   return (
-    <div className="relative group border rounded-lg overflow-hidden bg-white hover:shadow-sm transition-shadow">
+    <div className="relative group border rounded-lg overflow-hidden bg-card hover:shadow-sm transition-shadow">
       {/* Botón eliminar */}
       <Button
         type="button"

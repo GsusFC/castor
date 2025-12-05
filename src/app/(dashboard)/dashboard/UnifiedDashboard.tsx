@@ -113,12 +113,15 @@ export function UnifiedDashboard({
     return 0
   })
   
-  // Seleccionar la primera cuenta aprobada por defecto (solo si no hay ninguna seleccionada)
+  // Seleccionar la primera cuenta aprobada por defecto (solo al montar, no cuando el usuario elige "All")
   const firstApprovedAccount = sortedAccounts.find(a => a.signerStatus === 'approved')
+  const hasInitialized = React.useRef(false)
   useEffect(() => {
-    if (selectedAccountId === null && firstApprovedAccount) {
+    // Solo auto-seleccionar una vez al montar si no hay cuenta en localStorage
+    if (!hasInitialized.current && selectedAccountId === null && firstApprovedAccount) {
       setSelectedAccountId(firstApprovedAccount.id)
     }
+    hasInitialized.current = true
   }, [selectedAccountId, firstApprovedAccount, setSelectedAccountId])
 
   const [activeTab, setActiveTab] = useState<Tab>('scheduled')
@@ -298,7 +301,7 @@ export function UnifiedDashboard({
                   isSelected
                     ? "border-primary bg-primary text-primary-foreground"
                     : isPending
-                      ? "border-amber-200 bg-amber-50 text-amber-700 cursor-not-allowed dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-600 cursor-not-allowed dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400"
                       : "border-border bg-card hover:border-primary/50"
                 )}
               >
@@ -419,7 +422,7 @@ export function UnifiedDashboard({
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-950 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg flex items-center justify-center">
                   <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
@@ -434,7 +437,7 @@ export function UnifiedDashboard({
                   <div 
                     key={draft.id} 
                     className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => window.location.href = `/dashboard/edit/${draft.id}`}
+                    onClick={() => router.push(`/dashboard?edit=${draft.id}`)}
                   >
                     <p className="text-sm text-foreground truncate flex-1">
                       {draft.content || <span className="italic text-muted-foreground">No content</span>}
@@ -583,11 +586,11 @@ function CastCard({
   const scheduledDate = new Date(cast.scheduledAt)
   
   const statusStyles: Record<string, string> = {
-    scheduled: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900',
-    publishing: 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-900',
-    published: 'bg-green-50 text-green-700 border-green-100 dark:bg-green-950 dark:text-green-400 dark:border-green-900',
-    failed: 'bg-red-50 text-red-700 border-red-100 dark:bg-red-950 dark:text-red-400 dark:border-red-900',
-    draft: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900',
+    scheduled: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
+    publishing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-yellow-500/30',
+    published: 'bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
+    failed: 'bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
+    draft: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',
   }
 
   const statusLabels: Record<string, string> = {
@@ -606,7 +609,7 @@ function CastCard({
   return (
     <Card className={cn(
       "overflow-hidden transition-all group",
-      isDraft && "border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/30"
+      isDraft && "border-amber-500/30 bg-amber-500/10 dark:border-amber-500/40 dark:bg-amber-500/20"
     )}>
       {/* Vista colapsada - siempre visible */}
       <div className="w-full p-3 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors cursor-pointer"
@@ -709,7 +712,7 @@ function CastCard({
             <Button 
               variant="ghost" 
               size="icon"
-              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()

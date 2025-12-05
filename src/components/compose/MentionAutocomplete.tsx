@@ -87,7 +87,7 @@ export function MentionAutocomplete({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
         ref={containerRef}
-        className="absolute z-50 bg-white border rounded-lg shadow-xl overflow-hidden min-w-[250px] max-h-[300px] overflow-y-auto"
+        className="absolute z-50 bg-card border rounded-lg shadow-xl overflow-hidden min-w-[250px] max-h-[300px] overflow-y-auto"
         style={{ top: position.top, left: position.left }}
       >
         {isLoading ? (

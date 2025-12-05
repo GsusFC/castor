@@ -275,7 +275,7 @@ function MediaPreviewItem({
         <button
           type="button"
           onClick={onRemove}
-          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center focus-visible:opacity-100"
+          className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center focus-visible:opacity-100"
           aria-label="Eliminar media"
         >
           <X className="w-3 h-3" />

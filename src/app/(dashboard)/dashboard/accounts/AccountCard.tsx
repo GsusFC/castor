@@ -43,9 +43,9 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
   const canShare = isAdmin // Solo admins pueden compartir
 
   const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    revoked: 'bg-red-100 text-red-800',
+    pending: 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400',
+    approved: 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400',
+    revoked: 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400',
   }
 
   const statusLabels = {
@@ -109,8 +109,8 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             className="w-12 h-12 rounded-full"
           />
         ) : (
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-            <User className="w-6 h-6 text-gray-400" />
+          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+            <User className="w-6 h-6 text-muted-foreground" />
           </div>
         )}
         <div>
@@ -119,24 +119,24 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
               {account.displayName || account.username}
             </span>
             {account.type === 'business' && (
-              <Building2 className="w-4 h-4 text-gray-400" />
+              <Building2 className="w-4 h-4 text-muted-foreground" />
             )}
             {isShared && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 text-xs rounded-full">
                 <Users className="w-3 h-3" />
                 Compartida
               </span>
             )}
             {isOwner && (
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
                 Tuya
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">@{account.username}</span>
+            <span className="text-sm text-muted-foreground">@{account.username}</span>
             {!isOwner && account.owner && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 · de @{account.owner.username}
               </span>
             )}
@@ -158,7 +158,7 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             onClick={handleToggleShare}
             disabled={isSharing}
             title={isShared ? 'Dejar de compartir' : 'Compartir con el equipo'}
-            className={isShared ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-400"}
+            className={isShared ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400" : "text-muted-foreground"}
           >
             <Share2 className="w-4 h-4" />
           </Button>
@@ -188,7 +188,7 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             variant="ghost"
             size="icon"
             onClick={() => setShowConfirm(true)}
-            className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Eliminar cuenta"
           >
             <Trash2 className="w-4 h-4" />

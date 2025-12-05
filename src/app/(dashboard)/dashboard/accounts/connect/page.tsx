@@ -96,12 +96,12 @@ export default function ConnectAccountPage() {
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/accounts">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-display text-gray-900">Conectar cuenta</h1>
-          <p className="text-gray-500 mt-1">Escanea el QR con Warpcast</p>
+          <h1 className="text-2xl font-display text-foreground">Conectar cuenta</h1>
+          <p className="text-muted-foreground mt-1">Escanea el QR con Warpcast</p>
         </div>
       </div>
 
@@ -109,14 +109,14 @@ export default function ConnectAccountPage() {
         {status === 'loading' && (
           <div className="text-center py-12">
             <Loader2 className="w-12 h-12 animate-spin text-castor-black mx-auto mb-4" />
-            <p className="text-gray-600">Generando código QR...</p>
+            <p className="text-muted-foreground">Generando código QR...</p>
           </div>
         )}
 
         {status === 'pending' && signerData && (
           <div className="text-center">
             {/* QR Code */}
-            <div className="bg-white p-4 rounded-xl border inline-block mb-6 shadow-sm">
+            <div className="bg-card p-4 rounded-xl border inline-block mb-6 shadow-sm">
               <QRCodeSVG
                 value={signerData.deepLinkUrl}
                 size={240}
@@ -127,35 +127,35 @@ export default function ConnectAccountPage() {
 
             {/* Instructions */}
             <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="flex items-center gap-3 text-left p-3 bg-muted rounded-lg border border-border">
                 <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   1
                 </div>
-                <p className="text-gray-700 text-sm">Abre Warpcast en tu móvil</p>
+                <p className="text-foreground text-sm">Abre Warpcast en tu móvil</p>
               </div>
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="flex items-center gap-3 text-left p-3 bg-muted rounded-lg border border-border">
                 <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   2
                 </div>
-                <p className="text-gray-700 text-sm">Ve a Configuración → Cuentas conectadas</p>
+                <p className="text-foreground text-sm">Ve a Configuración → Cuentas conectadas</p>
               </div>
-              <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="flex items-center gap-3 text-left p-3 bg-muted rounded-lg border border-border">
                 <div className="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
                   3
                 </div>
-                <p className="text-gray-700 text-sm">Escanea este código QR</p>
+                <p className="text-foreground text-sm">Escanea este código QR</p>
               </div>
             </div>
 
             {/* Status */}
-            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+            <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Esperando aprobación...</span>
             </div>
 
             {/* Mobile link */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <p className="text-sm text-gray-500 mb-3">¿Estás en el móvil?</p>
+            <div className="mt-6 pt-6 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-3">¿Estás en el móvil?</p>
               <Button variant="link" asChild>
                 <a href={signerData.deepLinkUrl} className="text-castor-black">
                   <Smartphone className="w-4 h-4 mr-2" />
@@ -168,23 +168,23 @@ export default function ConnectAccountPage() {
 
         {status === 'approved' && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-green-500/10 dark:bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold text-foreground mb-2">
               ¡Cuenta conectada!
             </h2>
-            <p className="text-gray-600">Redirigiendo...</p>
+            <p className="text-muted-foreground">Redirigiendo...</p>
           </div>
         )}
 
         {status === 'error' && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-red-500/10 dark:bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">❌</span>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Error</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
             <Button onClick={createSigner}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Reintentar

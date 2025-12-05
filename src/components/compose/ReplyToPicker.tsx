@@ -63,8 +63,8 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
   // Si ya hay un cast seleccionado, mostrar preview
   if (replyTo) {
     return (
-      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border">
-        <MessageSquare className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+      <div className="flex items-start gap-3 p-3 bg-muted rounded-lg border">
+        <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             {replyTo.author.pfpUrl && (
@@ -74,21 +74,21 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
                 className="w-5 h-5 rounded-full"
               />
             )}
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-foreground">
               {replyTo.author.displayName || replyTo.author.username}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               @{replyTo.author.username}
             </span>
           </div>
-          <p className="text-sm text-gray-600 line-clamp-2">{replyTo.text}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{replyTo.text}</p>
         </div>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={() => onSelect(null)}
-          className="h-6 w-6 shrink-0 text-gray-400 hover:text-destructive"
+          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
         >
           <X className="w-4 h-4" />
         </Button>
@@ -104,7 +104,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="text-gray-500"
+        className="text-muted-foreground"
       >
         <MessageSquare className="w-4 h-4 mr-2" />
         Responder a un cast
@@ -153,7 +153,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
         <p className="text-sm text-destructive">{error}</p>
       )}
       
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Ejemplo: https://warpcast.com/dwr.eth/0x1234...
       </p>
     </div>

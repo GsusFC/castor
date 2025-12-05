@@ -7,15 +7,24 @@ import { LogOut, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
+import { toast } from 'sonner'
 
 export function DashboardHeader() {
   const [composeOpen, setComposeOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const router = useRouter()
   const { selectedAccountId } = useSelectedAccount()
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    setIsLoggingOut(true)
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!res.ok) throw new Error('Error al cerrar sesión')
+      router.push('/login')
+    } catch (err) {
+      toast.error('Error al cerrar sesión')
+      setIsLoggingOut(false)
+    }
   }
 
   return (
@@ -42,8 +51,9 @@ export function DashboardHeader() {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="text-gray-500 hover:text-red-600"
-              title="Cerrar sesión"
+              disabled={isLoggingOut}
+              className="text-gray-500 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+              aria-label="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
             </Button>

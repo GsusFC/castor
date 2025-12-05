@@ -7,16 +7,44 @@ import { Toaster } from 'sonner'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'Castor - Farcaster Scheduler',
-  description: 'Programa y gestiona tus casts de Farcaster',
+  metadataBase: new URL('https://castorapp.xyz'),
+  title: {
+    default: 'Castor - Farcaster Scheduler',
+    template: '%s | Castor',
+  },
+  description: 'Schedule and manage your Farcaster casts',
+  keywords: ['Farcaster', 'scheduler', 'social media', 'casts', 'schedule', 'threads'],
+  authors: [{ name: 'Castor Team' }],
+  creator: 'Castor',
   icons: {
     icon: '/brand/logo.png',
     apple: '/brand/logo.png',
   },
   openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://castorapp.xyz',
+    siteName: 'Castor',
     title: 'Castor - Farcaster Scheduler',
-    description: 'La herramienta definitiva para programar y gestionar tus casts de Farcaster',
+    description: 'The ultimate tool to schedule and manage your Farcaster casts',
+    images: [
+      {
+        url: '/brand/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'Castor Logo',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Castor - Farcaster Scheduler',
+    description: 'The ultimate tool to schedule and manage your Farcaster casts',
     images: ['/brand/logo.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 }
 
@@ -26,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
+    <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

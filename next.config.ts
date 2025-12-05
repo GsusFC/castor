@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'castorapp.xyz',
+      },
+      {
+        protocol: 'https',
         hostname: 'imagedelivery.net',
       },
       {

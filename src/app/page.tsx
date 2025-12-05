@@ -27,12 +27,12 @@ export default function HomePage() {
       })
 
       if (!res.ok) {
-        throw new Error('Error al verificar')
+        throw new Error('Verification failed')
       }
 
       router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      setError(err instanceof Error ? err.message : 'Unknown error')
       setIsLoading(false)
     }
   }, [profile, router])
@@ -63,22 +63,22 @@ export default function HomePage() {
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-castor-brand/10 border border-castor-brand/20 text-xs font-medium text-castor-brand">
             <Sparkles className="w-3 h-3" />
-            <span>Castor v1.0</span>
+            <span>Castor Beta</span>
           </div>
           
           <h1 className="text-5xl md:text-7xl font-display tracking-tight text-gray-900 leading-[1.1]">
-            Programación inteligente para <span className="text-castor-brand">Farcaster</span>
+            Smart scheduling for <span className="text-castor-brand">Farcaster</span>
           </h1>
           
           <p className="text-xl text-gray-500 md:w-3/4 mx-auto leading-relaxed">
-            La herramienta definitiva para estudios y creadores. Gestiona múltiples cuentas, programa hilos y colabora con tu equipo.
+            The ultimate tool for studios and creators. Manage multiple accounts, schedule threads and collaborate with your team.
           </p>
 
           <div className="pt-4 flex flex-col items-center gap-4">
             {isLoading ? (
               <div className="flex items-center gap-2 px-6 py-3 bg-gray-50 rounded-xl border border-gray-200 text-gray-500 animate-pulse">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="font-medium">Iniciando sesión...</span>
+                <span className="font-medium">Signing in...</span>
               </div>
             ) : (
               <div className="scale-110 transition-transform hover:scale-115">
@@ -100,9 +100,9 @@ export default function HomePage() {
             <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
               <Calendar className="w-5 h-5 text-castor-brand" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Programación Avanzada</h3>
+            <h3 className="font-display text-gray-900 mb-2">Advanced Scheduling</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Programa casts individuales o hilos completos con control total sobre fechas y horas.
+              Schedule individual casts or complete threads with full control over dates and times.
             </p>
           </Card>
 
@@ -110,9 +110,9 @@ export default function HomePage() {
             <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
               <Users className="w-5 h-5 text-castor-brand" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Multi-Cuenta</h3>
+            <h3 className="font-display text-gray-900 mb-2">Multi-Account</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Gestiona cuentas personales y de marca desde un único dashboard unificado.
+              Manage personal and brand accounts from a single unified dashboard.
             </p>
           </Card>
 
@@ -120,15 +120,15 @@ export default function HomePage() {
             <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
               <ShieldCheck className="w-5 h-5 text-castor-brand" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Colaboración Segura</h3>
+            <h3 className="font-display text-gray-900 mb-2">Secure Collaboration</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Comparte acceso a cuentas sin compartir claves privadas. Roles de equipo integrados.
+              Share account access without sharing private keys. Built-in team roles.
             </p>
           </Card>
         </div>
 
         <footer className="mt-16 text-center text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} Castor. Design by Antigravity.</p>
+          <p>© {new Date().getFullYear()} Castor. Crafted together with FLOC*</p>
         </footer>
       </main>
     </div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Users, Send, Plus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { ComposeModal } from '@/components/compose/ComposeModal'
+import { toast } from 'sonner'
 
 const navItems = [
   { href: '/dashboard', label: 'Casts', icon: Send },
@@ -14,6 +15,7 @@ const navItems = [
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -32,8 +34,15 @@ export function Sidebar() {
   }
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    setIsLoggingOut(true)
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!res.ok) throw new Error('Error al cerrar sesión')
+      router.push('/login')
+    } catch (err) {
+      toast.error('Error al cerrar sesión')
+      setIsLoggingOut(false)
+    }
   }
 
   return (
@@ -115,10 +124,11 @@ export function Sidebar() {
 
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 w-full transition-colors ${
+            disabled={isLoggingOut}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 w-full transition-colors focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               collapsed ? 'justify-center' : ''
             }`}
-            title={collapsed ? 'Cerrar sesión' : undefined}
+            aria-label="Cerrar sesión"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {!collapsed && <span>Salir</span>}

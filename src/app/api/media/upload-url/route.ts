@@ -65,26 +65,27 @@ export async function POST(request: NextRequest) {
 
     if (isImage) {
       // Para imágenes, usar direct upload de Cloudflare Images
+      // Cloudflare requiere multipart/form-data para este endpoint
+      const formData = new FormData()
+      formData.append('requireSignedURLs', 'false')
+      formData.append('metadata', JSON.stringify({ fileName }))
+
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/images/v2/direct_upload`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
-            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            requireSignedURLs: false,
-            metadata: { fileName },
-          }),
+          body: formData,
         }
       )
 
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        console.error('[Upload URL] Cloudflare Images direct upload failed:', data.errors)
-        return ApiErrors.externalError('Cloudflare Images')
+        console.error('[Upload URL] Cloudflare Images direct upload failed:', response.status, JSON.stringify(data))
+        return ApiErrors.externalError('Cloudflare Images', data.errors)
       }
 
       console.log('[Upload URL] Image upload URL created:', data.result.id)

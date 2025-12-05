@@ -251,10 +251,10 @@ export function UnifiedDashboard({
     if (castsToShow.length === 0) {
       return (
         <Card className="p-12 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <List className="w-6 h-6 text-gray-400" />
+          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <List className="w-6 h-6 text-muted-foreground" />
           </div>
-          <p className="text-gray-500">No hay casts</p>
+          <p className="text-muted-foreground">No casts</p>
         </Card>
       )
     }
@@ -277,7 +277,7 @@ export function UnifiedDashboard({
     <div className="space-y-6">
       {/* Módulo de Cuentas */}
       <section>
-        <h2 className="text-sm font-medium text-gray-500 mb-3">Cuentas</h2>
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Accounts</h2>
         <div className="flex flex-wrap gap-2">
           {sortedAccounts.map(account => {
             const accountCastsCount = casts.filter(c => c.accountId === account.id).length
@@ -292,10 +292,10 @@ export function UnifiedDashboard({
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm",
                   isSelected
-                    ? "border-gray-900 bg-gray-900 text-white"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : isPending
-                      ? "border-amber-200 bg-amber-50 text-amber-700 cursor-not-allowed"
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      ? "border-amber-200 bg-amber-50 text-amber-700 cursor-not-allowed dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                      : "border-border bg-card hover:border-primary/50"
                 )}
               >
                 {account.pfpUrl ? (
@@ -305,8 +305,8 @@ export function UnifiedDashboard({
                     className="w-5 h-5 rounded-full"
                   />
                 ) : (
-                  <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="w-3 h-3 text-gray-500" />
+                  <div className="w-5 h-5 bg-muted rounded-full flex items-center justify-center">
+                    <User className="w-3 h-3 text-muted-foreground" />
                   </div>
                 )}
                 <span>@{account.username}</span>
@@ -325,11 +325,11 @@ export function UnifiedDashboard({
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm",
               !selectedAccountId
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card hover:border-primary/50"
             )}
           >
-            <span>Todas</span>
+            <span>All</span>
             <span className="text-xs opacity-70">({casts.length})</span>
           </button>
 
@@ -340,7 +340,7 @@ export function UnifiedDashboard({
 
       {/* Tabs principales + View Toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
+        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
           <TabButton 
             active={activeTab === 'scheduled' && !showAllCasts} 
             onClick={() => {
@@ -350,7 +350,7 @@ export function UnifiedDashboard({
             count={scheduled.length}
           >
             <Clock className="w-3.5 h-3.5" />
-            Programados
+            Scheduled
           </TabButton>
           <TabButton 
             active={activeTab === 'published' && !showAllCasts} 
@@ -361,7 +361,7 @@ export function UnifiedDashboard({
             count={published.length}
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            Publicados
+            Published
           </TabButton>
           {isAdmin && (
             <TabButton 
@@ -370,24 +370,24 @@ export function UnifiedDashboard({
               count={casts.length}
             >
               <List className="w-3.5 h-3.5" />
-              Todos
+              All
             </TabButton>
           )}
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center bg-gray-100/50 p-1 rounded-lg border border-gray-200/50">
+        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setViewMode('list')}
             className={cn(
               "h-7 text-xs",
-              viewMode === 'list' && "bg-white shadow-sm"
+              viewMode === 'list' && "bg-card shadow-sm"
             )}
           >
             <List className="w-3.5 h-3.5 mr-1.5" />
-            Lista
+            List
           </Button>
           <Button
             variant="ghost"
@@ -395,11 +395,11 @@ export function UnifiedDashboard({
             onClick={() => setViewMode('calendar')}
             className={cn(
               "h-7 text-xs",
-              viewMode === 'calendar' && "bg-white shadow-sm"
+              viewMode === 'calendar' && "bg-card shadow-sm"
             )}
           >
             <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-            Calendario
+            Calendar
           </Button>
         </div>
       </div>
@@ -408,19 +408,19 @@ export function UnifiedDashboard({
       {renderContent()}
 
       {/* Sección de Recursos */}
-      <section className="pt-6 border-t">
-        <h2 className="text-sm font-medium text-gray-500 mb-4">Recursos</h2>
+      <section className="pt-6 border-t border-border">
+        <h2 className="text-sm font-medium text-muted-foreground mb-4">Resources</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Borradores */}
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-amber-600" />
+                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-950 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-sm">Borradores</h3>
-                  <p className="text-xs text-gray-500">{drafts.length} guardados</p>
+                  <h3 className="font-medium text-sm">Drafts</h3>
+                  <p className="text-xs text-muted-foreground">{drafts.length} saved</p>
                 </div>
               </div>
             </div>
@@ -429,23 +429,23 @@ export function UnifiedDashboard({
                 {drafts.slice(0, 3).map(draft => (
                   <div 
                     key={draft.id} 
-                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent cursor-pointer"
                     onClick={() => window.location.href = `/dashboard/edit/${draft.id}`}
                   >
-                    <p className="text-sm text-gray-600 truncate flex-1">
-                      {draft.content || <span className="italic text-gray-400">Sin contenido</span>}
+                    <p className="text-sm text-foreground truncate flex-1">
+                      {draft.content || <span className="italic text-muted-foreground">No content</span>}
                     </p>
-                    <Edit className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Edit className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 ))}
                 {drafts.length > 3 && (
-                  <p className="text-xs text-gray-400 text-center pt-1">
-                    +{drafts.length - 3} más
+                  <p className="text-xs text-muted-foreground text-center pt-1">
+                    +{drafts.length - 3} more
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">No hay borradores</p>
+              <p className="text-sm text-muted-foreground">No drafts</p>
             )}
           </Card>
 
@@ -453,12 +453,12 @@ export function UnifiedDashboard({
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <LayoutTemplate className="w-4 h-4 text-purple-600" />
+                <div className="w-8 h-8 bg-purple-100 dark:bg-purple-950 rounded-lg flex items-center justify-center">
+                  <LayoutTemplate className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <h3 className="font-medium text-sm">Templates</h3>
-                  <p className="text-xs text-gray-500">{filteredTemplates.length} disponibles</p>
+                  <p className="text-xs text-muted-foreground">{filteredTemplates.length} available</p>
                 </div>
               </div>
             </div>
@@ -467,11 +467,11 @@ export function UnifiedDashboard({
                 {filteredTemplates.slice(0, 3).map(template => (
                   <div 
                     key={template.id} 
-                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-gray-50"
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">{template.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{template.content}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{template.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{template.content}</p>
                     </div>
                     <Button 
                       variant="ghost" 
@@ -487,14 +487,14 @@ export function UnifiedDashboard({
                   </div>
                 ))}
                 {filteredTemplates.length > 3 && (
-                  <p className="text-xs text-gray-400 text-center pt-1">
-                    +{filteredTemplates.length - 3} más
+                  <p className="text-xs text-muted-foreground text-center pt-1">
+                    +{filteredTemplates.length - 3} more
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">
-                {selectedAccountId ? 'No hay templates' : 'Selecciona una cuenta'}
+              <p className="text-sm text-muted-foreground">
+                {selectedAccountId ? 'No templates' : 'Select an account'}
               </p>
             )}
           </Card>
@@ -533,14 +533,14 @@ function TabButton({
       className={cn(
         "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
         active 
-          ? "bg-white shadow-sm text-gray-900" 
-          : "text-gray-500 hover:text-gray-700"
+          ? "bg-card shadow-sm text-foreground" 
+          : "text-muted-foreground hover:text-foreground"
       )}
     >
       {children}
       <span className={cn(
         "ml-1 px-1.5 py-0.5 rounded text-[10px]",
-        active ? "bg-gray-100" : "bg-gray-200/50"
+        active ? "bg-muted" : "bg-muted/50"
       )}>
         {count}
       </span>
@@ -563,19 +563,19 @@ function CastCard({
   const scheduledDate = new Date(cast.scheduledAt)
   
   const statusStyles: Record<string, string> = {
-    scheduled: 'bg-blue-50 text-blue-700 border-blue-100',
-    publishing: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-    published: 'bg-green-50 text-green-700 border-green-100',
-    failed: 'bg-red-50 text-red-700 border-red-100',
-    draft: 'bg-amber-50 text-amber-700 border-amber-100',
+    scheduled: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900',
+    publishing: 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-900',
+    published: 'bg-green-50 text-green-700 border-green-100 dark:bg-green-950 dark:text-green-400 dark:border-green-900',
+    failed: 'bg-red-50 text-red-700 border-red-100 dark:bg-red-950 dark:text-red-400 dark:border-red-900',
+    draft: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900',
   }
 
   const statusLabels: Record<string, string> = {
-    scheduled: 'Programado',
-    publishing: 'Publicando',
-    published: 'Publicado',
-    failed: 'Fallido',
-    draft: 'Borrador',
+    scheduled: 'Scheduled',
+    publishing: 'Publishing',
+    published: 'Published',
+    failed: 'Failed',
+    draft: 'Draft',
   }
 
   // Truncar contenido para vista colapsada
@@ -586,10 +586,10 @@ function CastCard({
   return (
     <Card className={cn(
       "overflow-hidden transition-all group",
-      isDraft && "border-amber-200 bg-amber-50/30"
+      isDraft && "border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/30"
     )}>
       {/* Vista colapsada - siempre visible */}
-      <div className="w-full p-3 flex items-center gap-3 text-left hover:bg-gray-50/50 transition-colors cursor-pointer"
+      <div className="w-full p-3 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         {cast.account?.pfpUrl ? (
@@ -599,16 +599,16 @@ function CastCard({
             className="w-8 h-8 rounded-full flex-shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-gray-400" />
+          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-muted-foreground" />
           </div>
         )}
         
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-900 truncate">
-            {cast.content || <span className="text-gray-400 italic">Sin contenido</span>}
+          <p className="text-sm text-foreground truncate">
+            {cast.content || <span className="text-muted-foreground italic">No content</span>}
           </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <span>@{cast.account?.username}</span>
             {!isDraft && (
               <>
@@ -652,7 +652,7 @@ function CastCard({
 
         <span className={cn(
           "text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0",
-          statusStyles[cast.status] || 'bg-gray-50 text-gray-600 border-gray-100'
+          statusStyles[cast.status] || 'bg-muted text-muted-foreground border-border'
         )}>
           {statusLabels[cast.status] || cast.status}
         </span>
@@ -663,7 +663,7 @@ function CastCard({
             href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 text-gray-400 hover:text-gray-900 p-1"
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1"
             onClick={(e) => e.stopPropagation()}
             title="Ver en Warpcast"
           >
@@ -702,15 +702,15 @@ function CastCard({
         )}
 
         <ChevronDown className={cn(
-          "w-4 h-4 text-gray-400 transition-transform flex-shrink-0",
+          "w-4 h-4 text-muted-foreground transition-transform flex-shrink-0",
           expanded && "rotate-180"
         )} />
       </div>
 
       {/* Vista expandida */}
       {expanded && (
-        <div className="px-3 pb-3 border-t bg-gray-50/30">
-          <p className="text-sm text-gray-900 leading-relaxed py-3 whitespace-pre-wrap">
+        <div className="px-3 pb-3 border-t border-border bg-muted/30">
+          <p className="text-sm text-foreground leading-relaxed py-3 whitespace-pre-wrap">
             {cast.content}
           </p>
 
@@ -750,7 +750,7 @@ function CastCard({
               href={`https://warpcast.com/${cast.account?.username}/${cast.castHash.slice(0, 10)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               onClick={(e) => e.stopPropagation()}
             >
               Ver en Warpcast

@@ -44,9 +44,9 @@ export default function HomePage() {
   }, [isAuthenticated, profile, handleSuccess])
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 selection:bg-purple-100 flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">
       {/* Dot Pattern Background */}
-      <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
+      <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 max-w-5xl mx-auto w-full">
         
@@ -61,22 +61,22 @@ export default function HomePage() {
             />
           </div>
           
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-castor-brand/10 border border-castor-brand/20 text-xs font-medium text-castor-brand">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
             <Sparkles className="w-3 h-3" />
             <span>Castor Beta</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-display tracking-tight text-gray-900 leading-[1.1]">
-            Smart scheduling for <span className="text-castor-brand">Farcaster</span>
+          <h1 className="text-5xl md:text-7xl font-display tracking-tight text-foreground leading-[1.1]">
+            Smart scheduling for <span className="text-primary">Farcaster</span>
           </h1>
           
-          <p className="text-xl text-gray-500 md:w-3/4 mx-auto leading-relaxed">
+          <p className="text-xl text-muted-foreground md:w-3/4 mx-auto leading-relaxed">
             The ultimate tool for studios and creators. Manage multiple accounts, schedule threads and collaborate with your team.
           </p>
 
           <div className="pt-4 flex flex-col items-center gap-4">
             {isLoading ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-gray-50 rounded-xl border border-gray-200 text-gray-500 animate-pulse">
+              <div className="flex items-center gap-2 px-6 py-3 bg-muted rounded-xl border border-border text-muted-foreground animate-pulse">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="font-medium">Signing in...</span>
               </div>
@@ -87,7 +87,7 @@ export default function HomePage() {
             )}
             
             {error && (
-              <p className="text-red-500 text-sm font-medium bg-red-50 px-4 py-2 rounded-lg">
+              <p className="text-destructive text-sm font-medium bg-destructive/10 px-4 py-2 rounded-lg">
                 {error}
               </p>
             )}
@@ -96,38 +96,38 @@ export default function HomePage() {
 
         {/* Bento Grid Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          <Card className="p-6 bg-white/50 backdrop-blur-sm border-gray-200 hover:border-castor-brand/50 transition-colors group">
-            <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
-              <Calendar className="w-5 h-5 text-castor-brand" />
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-border hover:border-primary/50 transition-colors group">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <Calendar className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Advanced Scheduling</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <h3 className="font-display text-card-foreground mb-2">Advanced Scheduling</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Schedule individual casts or complete threads with full control over dates and times.
             </p>
           </Card>
 
-          <Card className="p-6 bg-white/50 backdrop-blur-sm border-gray-200 hover:border-castor-brand/50 transition-colors group">
-            <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
-              <Users className="w-5 h-5 text-castor-brand" />
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-border hover:border-primary/50 transition-colors group">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <Users className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Multi-Account</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <h3 className="font-display text-card-foreground mb-2">Multi-Account</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Manage personal and brand accounts from a single unified dashboard.
             </p>
           </Card>
 
-          <Card className="p-6 bg-white/50 backdrop-blur-sm border-gray-200 hover:border-castor-brand/50 transition-colors group">
-            <div className="w-10 h-10 bg-castor-brand/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-castor-brand/20 transition-colors">
-              <ShieldCheck className="w-5 h-5 text-castor-brand" />
+          <Card className="p-6 bg-card/50 backdrop-blur-sm border-border hover:border-primary/50 transition-colors group">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <ShieldCheck className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="font-display text-gray-900 mb-2">Secure Collaboration</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <h3 className="font-display text-card-foreground mb-2">Secure Collaboration</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Share account access without sharing private keys. Built-in team roles.
             </p>
           </Card>
         </div>
 
-        <footer className="mt-16 text-center text-sm text-gray-400">
+        <footer className="mt-16 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} Castor. Crafted together with FLOC*</p>
         </footer>
       </main>

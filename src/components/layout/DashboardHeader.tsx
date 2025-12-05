@@ -29,7 +29,7 @@ export function DashboardHeader() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 z-20">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-b border-border z-20">
         <div className="h-full max-w-6xl mx-auto px-6 md:px-8 flex items-center justify-between">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-3 group">
@@ -38,22 +38,22 @@ export function DashboardHeader() {
               alt="Castor" 
               className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
             />
-            <span className="font-display text-lg text-gray-900 hidden sm:block">Castor</span>
+            <span className="font-display text-lg text-foreground hidden sm:block">Castor</span>
           </Link>
 
           {/* Actions */}
           <div className="flex items-center gap-2">
             <Button onClick={() => setComposeOpen(true)} size="sm" className="gap-2">
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nuevo Cast</span>
+              <span className="hidden sm:inline">New Cast</span>
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="text-gray-500 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
-              aria-label="Cerrar sesión"
+              className="text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Sign out"
             >
               <LogOut className="w-4 h-4" />
             </Button>

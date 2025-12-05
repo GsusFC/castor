@@ -285,7 +285,7 @@ export function UnifiedDashboard({
       {/* Módulo de Cuentas */}
       <section>
         <h2 className="text-sm font-medium text-muted-foreground mb-3">Accounts</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mb-2 sm:flex-wrap sm:overflow-visible">
           {sortedAccounts.map(account => {
             const accountCastsCount = casts.filter(c => c.accountId === account.id).length
             const isSelected = selectedAccountId === account.id
@@ -297,7 +297,7 @@ export function UnifiedDashboard({
                 onClick={() => setSelectedAccountId(account.id)}
                 disabled={isPending}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm",
+                  "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm flex-shrink-0 whitespace-nowrap",
                   isSelected
                     ? "border-primary bg-primary text-primary-foreground"
                     : isPending
@@ -330,7 +330,7 @@ export function UnifiedDashboard({
           <button
             onClick={() => setSelectedAccountId(null)}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm",
+              "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm flex-shrink-0",
               !selectedAccountId
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card hover:border-primary/50"
@@ -346,8 +346,9 @@ export function UnifiedDashboard({
       </section>
 
       {/* Tabs principales + View Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Tabs - scrollable en móvil */}
+        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border overflow-x-auto no-scrollbar">
           <TabButton 
             active={activeTab === 'scheduled' && !showAllCasts} 
             onClick={() => {
@@ -356,8 +357,8 @@ export function UnifiedDashboard({
             }}
             count={scheduled.length}
           >
-            <Clock className="w-3.5 h-3.5" />
-            Scheduled
+            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="whitespace-nowrap">Scheduled</span>
           </TabButton>
           <TabButton 
             active={activeTab === 'published' && !showAllCasts} 
@@ -367,8 +368,8 @@ export function UnifiedDashboard({
             }}
             count={published.length}
           >
-            <CheckCircle className="w-3.5 h-3.5" />
-            Published
+            <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="whitespace-nowrap">Published</span>
           </TabButton>
           {isAdmin && (
             <TabButton 
@@ -376,37 +377,39 @@ export function UnifiedDashboard({
               onClick={() => setShowAllCasts(true)}
               count={casts.length}
             >
-              <List className="w-3.5 h-3.5" />
-              All
+              <List className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">All</span>
             </TabButton>
           )}
         </div>
 
-        {/* View toggle */}
-        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border">
+        {/* View toggle - solo iconos en móvil */}
+        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border self-end sm:self-auto">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setViewMode('list')}
             className={cn(
-              "h-7 text-xs",
+              "h-8 px-2 sm:px-3",
               viewMode === 'list' && "bg-card shadow-sm"
             )}
+            aria-label="List view"
           >
-            <List className="w-3.5 h-3.5 mr-1.5" />
-            List
+            <List className="w-4 h-4" />
+            <span className="hidden sm:inline ml-1.5 text-xs">List</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setViewMode('calendar')}
             className={cn(
-              "h-7 text-xs",
+              "h-8 px-2 sm:px-3",
               viewMode === 'calendar' && "bg-card shadow-sm"
             )}
+            aria-label="Calendar view"
           >
-            <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-            Calendar
+            <CalendarDays className="w-4 h-4" />
+            <span className="hidden sm:inline ml-1.5 text-xs">Calendar</span>
           </Button>
         </div>
       </div>

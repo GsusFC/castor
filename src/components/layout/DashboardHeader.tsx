@@ -50,13 +50,14 @@ export function DashboardHeader() {
 
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* New Cast button - hidden on mobile (use bottom nav instead) */}
             <Button 
               onClick={() => setComposeOpen(true)} 
               size="sm" 
-              className="gap-1.5 sm:gap-2 h-10 sm:h-9 px-3 sm:px-3 touch-target"
+              className="hidden sm:flex gap-2 h-9 px-3"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">New Cast</span>
+              <span>New Cast</span>
             </Button>
             <ThemeToggle />
             <Button

@@ -43,7 +43,7 @@ export function DashboardHeader() {
               alt="Castor" 
               className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
             />
-            <span className="font-display text-base sm:text-lg text-foreground hidden sm:block">
+            <span className="font-display text-base sm:text-lg text-foreground sm-fade-hide responsive-text">
               Castor
             </span>
           </Link>

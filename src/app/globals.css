@@ -118,4 +118,36 @@
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
+  
+  /* Responsive text that fades instead of abrupt show/hide */
+  .responsive-text {
+    transition: opacity 150ms ease, max-width 150ms ease;
+  }
+  
+  /* Hide on mobile with fade */
+  @media (max-width: 639px) {
+    .sm-fade-hide {
+      opacity: 0;
+      max-width: 0;
+      overflow: hidden;
+    }
+  }
+  
+  @media (min-width: 640px) {
+    .sm-fade-hide {
+      opacity: 1;
+      max-width: 200px;
+    }
+  }
+}
+
+/* Typography scale for mobile readability */
+@layer base {
+  /* Ensure minimum readable text size on mobile */
+  @media (max-width: 639px) {
+    .text-xs {
+      font-size: 0.875rem; /* 14px minimum on mobile */
+      line-height: 1.25rem;
+    }
+  }
 }

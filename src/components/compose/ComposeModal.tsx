@@ -38,9 +38,18 @@ interface ComposeModalProps {
   onOpenChange: (open: boolean) => void
   defaultAccountId?: string | null
   editCast?: EditCastData | null
+  defaultContent?: string
+  defaultChannelId?: string | null
 }
 
-export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }: ComposeModalProps) {
+export function ComposeModal({ 
+  open, 
+  onOpenChange, 
+  defaultAccountId, 
+  editCast,
+  defaultContent,
+  defaultChannelId 
+}: ComposeModalProps) {
   const router = useRouter()
 
   // Hooks extraídos
@@ -84,6 +93,23 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  // Cargar contenido desde template
+  useEffect(() => {
+    if (!open || !defaultContent || editCast) return
+
+    thread.setCasts([{
+      id: crypto.randomUUID(),
+      content: defaultContent,
+      media: [],
+      links: [],
+    }])
+
+    if (defaultChannelId) {
+      setSelectedChannel({ id: defaultChannelId, name: defaultChannelId })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultContent, defaultChannelId])
 
   // Cargar datos del cast en modo edición
   useEffect(() => {
@@ -275,7 +301,7 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
           accountId: selectedAccountId,
           content: cast.content,
           channelId: selectedChannel?.id,
-          scheduledAt,
+          scheduledAt: scheduledAt || undefined, // Don't send null, send undefined so it's omitted
           embeds: embeds.length > 0 ? embeds : undefined,
           isDraft: true,
         }),
@@ -345,7 +371,7 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
             variant="ghost"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="text-gray-500"
+            className="text-muted-foreground"
           >
             Cancelar
           </Button>
@@ -357,7 +383,7 @@ export function ComposeModal({ open, onOpenChange, defaultAccountId, editCast }:
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border-b border-red-200 text-red-700 px-4 py-2 text-sm">
+          <div className="bg-destructive/10 border-b border-destructive/20 text-destructive px-4 py-2 text-sm">
             {error}
           </div>
         )}

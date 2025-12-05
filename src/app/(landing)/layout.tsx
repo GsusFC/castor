@@ -1,0 +1,11 @@
+import { AuthProvider } from '@/components/providers/AuthProvider'
+
+export default function LandingLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <AuthProvider>{children}</AuthProvider>
+  )
+}

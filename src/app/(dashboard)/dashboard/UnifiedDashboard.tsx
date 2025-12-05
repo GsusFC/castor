@@ -128,6 +128,10 @@ export function UnifiedDashboard({
   // Estado para modal de edición
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editCast, setEditCast] = useState<EditCastData | null>(null)
+  
+  // Estado para crear cast desde template
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [templateContent, setTemplateContent] = useState<{ content: string; channelId: string | null } | null>(null)
 
   const handleEditCast = useCallback((cast: Cast) => {
     setEditCast({
@@ -467,7 +471,11 @@ export function UnifiedDashboard({
                 {filteredTemplates.slice(0, 3).map(template => (
                   <div 
                     key={template.id} 
-                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent"
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent cursor-pointer"
+                    onClick={() => {
+                      setTemplateContent({ content: template.content, channelId: template.channelId })
+                      setTemplateModalOpen(true)
+                    }}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{template.name}</p>
@@ -510,6 +518,18 @@ export function UnifiedDashboard({
         }}
         editCast={editCast}
         defaultAccountId={editCast?.accountId}
+      />
+
+      {/* Modal para crear desde template */}
+      <ComposeModal 
+        open={templateModalOpen} 
+        onOpenChange={(open) => {
+          setTemplateModalOpen(open)
+          if (!open) setTemplateContent(null)
+        }}
+        defaultAccountId={selectedAccountId}
+        defaultContent={templateContent?.content}
+        defaultChannelId={templateContent?.channelId}
       />
     </div>
   )

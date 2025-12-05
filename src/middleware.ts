@@ -38,6 +38,17 @@ function getSecretKey() {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const method = request.method
+  const token = request.cookies.get(AUTH_COOKIE)?.value
+
+  // Si el usuario está en la landing y tiene sesión válida, redirigir al dashboard
+  if (pathname === '/' && token) {
+    try {
+      await jwtVerify(token, getSecretKey())
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    } catch {
+      // Token inválido, continuar a la landing
+    }
+  }
 
   // Permitir rutas completamente públicas
   if (publicPaths.includes(pathname)) {
@@ -54,9 +65,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Verificar JWT
-  const token = request.cookies.get(AUTH_COOKIE)?.value
-
+  // Verificar JWT para rutas protegidas
   if (!token) {
     // Para APIs, devolver 401
     if (pathname.startsWith('/api/')) {

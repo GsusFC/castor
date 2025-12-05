@@ -88,7 +88,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
           variant="ghost"
           size="icon"
           onClick={() => onSelect(null)}
-          className="h-6 w-6 shrink-0 text-gray-400 hover:text-red-500"
+          className="h-6 w-6 shrink-0 text-gray-400 hover:text-destructive"
         >
           <X className="w-4 h-4" />
         </Button>
@@ -150,7 +150,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
       </div>
       
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       )}
       
       <p className="text-xs text-gray-500">

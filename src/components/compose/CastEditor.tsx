@@ -407,7 +407,7 @@ export function CastEditor({
             variant="ghost"
             size="icon"
             onClick={onRemove}
-            className="h-6 w-6 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+            className="h-6 w-6 text-gray-400 hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
             title="Eliminar cast"
           >
             <Trash2 className="w-4 h-4" />
@@ -596,7 +596,7 @@ export function CastEditor({
         <div className="flex items-center gap-3">
           <span className={cn(
             "text-xs font-medium transition-colors",
-            isOverLimit ? "text-red-500" : "text-gray-400"
+            isOverLimit ? "text-destructive" : "text-gray-400"
           )}>
             {charCount} / {maxChars}
           </span>

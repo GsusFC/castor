@@ -14,9 +14,9 @@ export function LinkPreview({ link, onRemove }: LinkPreviewProps) {
   // Estado de carga
   if (link.loading) {
     return (
-      <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
-        <Loader2 className="w-4 h-4 animate-spin text-gray-400 shrink-0" />
-        <span className="text-sm text-gray-500 truncate">{link.url}</span>
+      <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />
+        <span className="text-sm text-muted-foreground truncate">{link.url}</span>
       </div>
     )
   }
@@ -24,21 +24,21 @@ export function LinkPreview({ link, onRemove }: LinkPreviewProps) {
   // Estado de error o sin metadata
   if (link.error || (!link.title && !link.image)) {
     return (
-      <div className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-gray-50 group">
+      <div className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-muted/50 group">
         <div className="flex items-center gap-2 min-w-0">
           {link.favicon ? (
             <img src={link.favicon} alt="" className="w-4 h-4 shrink-0" />
           ) : (
-            <ExternalLink className="w-4 h-4 text-gray-400 shrink-0" />
+            <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
           )}
-          <span className="text-sm text-gray-600 truncate">{link.siteName || link.url}</span>
+          <span className="text-sm text-foreground truncate">{link.siteName || link.url}</span>
         </div>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={onRemove}
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400 hover:text-red-500"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-foreground hover:text-destructive"
         >
           <X className="w-3 h-3" />
         </Button>
@@ -62,7 +62,7 @@ export function LinkPreview({ link, onRemove }: LinkPreviewProps) {
 
       {/* Imagen de preview */}
       {link.image && (
-        <div className="aspect-[1.91/1] bg-gray-100 overflow-hidden max-h-48">
+        <div className="aspect-[1.91/1] bg-muted overflow-hidden max-h-48">
           <img
             src={link.image}
             alt={link.title || ''}
@@ -88,21 +88,21 @@ export function LinkPreview({ link, onRemove }: LinkPreviewProps) {
               }}
             />
           )}
-          <span className="text-xs text-gray-500 truncate">
+          <span className="text-xs text-muted-foreground truncate">
             {link.siteName}
           </span>
         </div>
 
         {/* Título */}
         {link.title && (
-          <h4 className="font-medium text-sm text-gray-900 line-clamp-2">
+          <h4 className="font-medium text-sm text-foreground line-clamp-2">
             {link.title}
           </h4>
         )}
 
         {/* Descripción */}
         {link.description && (
-          <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
             {link.description}
           </p>
         )}

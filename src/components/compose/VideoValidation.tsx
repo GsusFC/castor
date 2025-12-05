@@ -174,7 +174,7 @@ export function VideoValidation({
     },
     invalid: {
       icon: XCircle,
-      color: 'text-red-500',
+      color: 'text-destructive',
       bgColor: 'bg-red-50',
       animate: false
     }

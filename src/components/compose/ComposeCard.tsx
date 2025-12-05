@@ -109,7 +109,7 @@ export function ComposeCard({
   return (
     <Card className="overflow-hidden">
       {/* Header compacto */}
-      <div className="flex items-center gap-2 p-3 border-b bg-gray-50/50 flex-wrap">
+      <div className="flex items-center gap-2 p-3 border-b border-border bg-muted/50 flex-wrap">
         {/* Account Selector */}
         <AccountDropdown
           accounts={accounts}
@@ -175,7 +175,7 @@ export function ComposeCard({
         {/* Character count */}
         <span className={cn(
           "text-xs font-medium tabular-nums px-2",
-          hasOverLimit ? "text-red-500" : "text-gray-400"
+          hasOverLimit ? "text-destructive" : "text-muted-foreground"
         )}>
           {currentCastChars}/{maxChars}
         </span>
@@ -183,24 +183,24 @@ export function ComposeCard({
 
       {/* Reply To */}
       {replyTo && (
-        <div className="flex items-start gap-3 p-3 bg-gray-50 border-b">
+        <div className="flex items-start gap-3 p-3 bg-muted/50 border-b border-border">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {replyTo.author.pfpUrl && (
                 <img src={replyTo.author.pfpUrl} alt="" className="w-5 h-5 rounded-full" />
               )}
-              <span className="text-xs text-gray-500">
-                Respondiendo a @{replyTo.author.username}
+              <span className="text-xs text-muted-foreground">
+                Replying to @{replyTo.author.username}
               </span>
             </div>
-            <p className="text-xs text-gray-400 line-clamp-1">{replyTo.text}</p>
+            <p className="text-xs text-muted-foreground/70 line-clamp-1">{replyTo.text}</p>
           </div>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={() => onSelectReplyTo(null)}
-            className="h-6 w-6 shrink-0 text-gray-400 hover:text-red-500"
+            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
           >
             <X className="w-3 h-3" />
           </Button>

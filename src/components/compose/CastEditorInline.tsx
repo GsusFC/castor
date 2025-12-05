@@ -145,7 +145,7 @@ export function CastEditorInline({
       {/* Thread indicator */}
       {isThread && (
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+          <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
             Cast {index + 1}
           </span>
           {index > 0 && (
@@ -154,7 +154,7 @@ export function CastEditorInline({
               variant="ghost"
               size="icon"
               onClick={onRemove}
-              className="h-6 w-6 text-gray-400 hover:text-red-500"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
               aria-label={`Eliminar cast ${index + 1}`}
             >
               <X className="w-3 h-3" />
@@ -178,11 +178,11 @@ export function CastEditorInline({
         ref={textareaRef}
         value={cast.content}
         onChange={handleChange}
-        placeholder={index === 0 ? '¿Qué quieres compartir?' : 'Continúa el thread...'}
+        placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
         rows={6}
         className={cn(
-          "border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-base leading-relaxed placeholder:text-gray-400 min-h-[150px]",
-          isOverLimit && "text-red-500"
+          "border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[150px]",
+          isOverLimit && "text-destructive"
         )}
         aria-label={isThread ? `Contenido del cast ${index + 1}` : 'Contenido del cast'}
       />
@@ -211,10 +211,10 @@ export function CastEditorInline({
 
       {/* Thread char count */}
       {isThread && (
-        <div className="flex items-center justify-end mt-2 pt-2 border-t">
+        <div className="flex items-center justify-end mt-2 pt-2 border-t border-border">
           <span className={cn(
             "text-xs tabular-nums",
-            isOverLimit ? "text-red-500" : "text-gray-400"
+            isOverLimit ? "text-destructive" : "text-muted-foreground"
           )}>
             {charCount}/{maxChars}
           </span>
@@ -266,7 +266,7 @@ function MediaPreviewItem({
       {/* Error indicator */}
       {media.error && (
         <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
-          <span className="text-xs text-red-600 font-medium">Error</span>
+          <span className="text-xs text-destructive font-medium">Error</span>
         </div>
       )}
 

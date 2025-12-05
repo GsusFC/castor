@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SignInButton, useProfile } from '@farcaster/auth-kit'
 import { Loader2, Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
 
 export default function HomePage() {
@@ -127,7 +128,8 @@ export default function HomePage() {
           </Card>
         </div>
 
-        <footer className="mt-16 text-center text-sm text-muted-foreground">
+        <footer className="mt-16 flex flex-col items-center gap-4 text-sm text-muted-foreground">
+          <ThemeToggle />
           <p>© {new Date().getFullYear()} Castor. Crafted together with FLOC*</p>
         </footer>
       </main>

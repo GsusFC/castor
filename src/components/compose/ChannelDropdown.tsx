@@ -66,7 +66,7 @@ export function ChannelDropdown({
         <Button
           variant="outline"
           size="sm"
-          className={cn("h-8 gap-1", !selectedChannel && "text-gray-500")}
+          className={cn("h-8 gap-1", !selectedChannel && "text-muted-foreground")}
           aria-label={selectedChannel ? `Canal: ${selectedChannel.name}` : 'Seleccionar canal'}
         >
           {selectedChannel?.imageUrl ? (
@@ -86,13 +86,13 @@ export function ChannelDropdown({
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
         {/* Buscador */}
-        <div className="p-2 border-b">
+        <div className="p-2 border-b border-border">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar canal..."
+              placeholder="Search channel..."
               className="pl-8 h-8"
               aria-label="Buscar canal"
             />
@@ -106,20 +106,20 @@ export function ChannelDropdown({
             <button
               type="button"
               onClick={() => handleSelect(null)}
-              className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
             >
-              Quitar canal
+              Remove channel
             </button>
           )}
 
           {/* Estados de carga y vacío */}
           {isLoading ? (
             <div className="py-8 text-center">
-              <Loader2 className="w-5 h-5 animate-spin mx-auto text-gray-400" />
+              <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
             </div>
           ) : channels.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">
-              {search.length >= 2 ? 'Sin resultados' : 'Escribe para buscar'}
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {search.length >= 2 ? 'No results' : 'Type to search'}
             </p>
           ) : (
             channels.map((channel) => (
@@ -128,8 +128,8 @@ export function ChannelDropdown({
                 type="button"
                 onClick={() => handleSelect(channel)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1",
-                  selectedChannel?.id === channel.id && "bg-gray-100"
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  selectedChannel?.id === channel.id && "bg-muted"
                 )}
               >
                 {channel.imageUrl ? (
@@ -139,8 +139,8 @@ export function ChannelDropdown({
                     className="w-6 h-6 rounded object-cover"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center">
-                    <Hash className="w-3 h-3 text-gray-400" />
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center">
+                    <Hash className="w-3 h-3 text-muted-foreground" />
                   </div>
                 )}
                 <span className="truncate">{channel.name}</span>

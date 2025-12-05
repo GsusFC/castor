@@ -246,7 +246,7 @@ export function ComposeFooter({
     !isSavingDraft
 
   return (
-    <div className="flex items-center p-3 border-t bg-gray-50/50 gap-2 flex-wrap">
+    <div className="flex items-center p-3 border-t border-border bg-muted/50 gap-2 flex-wrap">
       {/* File input hidden */}
       <input
         ref={fileInputRef}
@@ -265,11 +265,11 @@ export function ComposeFooter({
         size="sm"
         onClick={() => fileInputRef.current?.click()}
         disabled={!canAddMedia}
-        className="h-8 px-2 text-gray-500"
-        aria-label="Añadir imagen o video"
+        className="h-8 px-2 text-muted-foreground"
+        aria-label="Add image or video"
       >
         <Image className="w-4 h-4 mr-1" />
-        <span className="hidden sm:inline text-xs">Imagen</span>
+        <span className="hidden sm:inline text-xs">Image</span>
       </Button>
 
       {/* GIF Picker */}
@@ -280,8 +280,8 @@ export function ComposeFooter({
             variant="ghost"
             size="sm"
             disabled={!canAddMedia}
-            className="h-8 px-2 text-gray-500 font-bold"
-            aria-label="Añadir GIF"
+            className="h-8 px-2 text-muted-foreground font-bold"
+            aria-label="Add GIF"
           >
             GIF
           </Button>
@@ -298,8 +298,8 @@ export function ComposeFooter({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-gray-500"
-            aria-label="Añadir emoji"
+            className="h-8 px-2 text-muted-foreground"
+            aria-label="Add emoji"
           >
             <Smile className="w-4 h-4" />
           </Button>
@@ -311,7 +311,7 @@ export function ComposeFooter({
                 key={emoji}
                 type="button"
                 onClick={() => insertEmoji(emoji)}
-                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-lg transition-colors"
+                className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded text-lg transition-colors"
                 aria-label={`Insertar ${emoji}`}
               >
                 {emoji}
@@ -329,12 +329,12 @@ export function ComposeFooter({
           size="sm"
           onClick={onSaveDraft}
           disabled={isSavingDraft || isSubmitting || !selectedAccountId}
-          className="h-8 px-2 text-gray-500"
-          aria-label="Guardar como borrador"
+          className="h-8 px-2 text-muted-foreground"
+          aria-label="Save as draft"
         >
           <Save className="w-4 h-4 mr-1" />
           <span className="hidden sm:inline text-xs">
-            {isSavingDraft ? 'Guardando...' : 'Borrador'}
+            {isSavingDraft ? 'Saving...' : 'Draft'}
           </span>
         </Button>
       )}
@@ -355,12 +355,12 @@ export function ComposeFooter({
           size="sm"
           onClick={onSaveTemplate}
           disabled={isSavingTemplate || isSubmitting || !selectedAccountId}
-          className="h-8 px-2 text-gray-500"
-          aria-label="Guardar como template"
+          className="h-8 px-2 text-muted-foreground"
+          aria-label="Save as template"
         >
           <LayoutTemplate className="w-4 h-4 mr-1" />
           <span className="hidden sm:inline text-xs">
-            {isSavingTemplate ? 'Guardando...' : 'Guardar'}
+            {isSavingTemplate ? 'Saving...' : 'Save'}
           </span>
         </Button>
       )}
@@ -372,18 +372,18 @@ export function ComposeFooter({
         onClick={onSubmit}
         disabled={!canSubmit}
         className="h-8"
-        aria-label={isEditMode ? 'Guardar cambios' : 'Programar cast'}
+        aria-label={isEditMode ? 'Save changes' : 'Schedule cast'}
       >
         <Send className="w-4 h-4 mr-1" />
         {isSubmitting
           ? isEditMode
-            ? 'Guardando...'
-            : 'Programando...'
+            ? 'Saving...'
+            : 'Scheduling...'
           : isEditMode
-            ? 'Guardar'
+            ? 'Save'
             : isThread
-              ? 'Programar Thread'
-              : 'Programar'}
+              ? 'Schedule Thread'
+              : 'Schedule'}
       </Button>
     </div>
   )

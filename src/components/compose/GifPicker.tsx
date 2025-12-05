@@ -98,7 +98,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
   if (!apiKey) {
     return (
-      <div className="p-4 text-center text-sm text-gray-500">
+      <div className="p-4 text-center text-sm text-muted-foreground">
         Configura NEXT_PUBLIC_GIPHY_API_KEY para usar GIFs
       </div>
     )
@@ -109,7 +109,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
       {/* Header */}
       <div className="flex items-center gap-2 p-3 border-b">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             ref={inputRef}
             type="text"
@@ -121,9 +121,9 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+          className="p-1.5 hover:bg-muted rounded-md transition-colors"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
@@ -131,10 +131,10 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
       <div className="h-64 overflow-y-auto p-2">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : displayGifs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
             {query.trim() ? 'No se encontraron GIFs' : 'Cargando...'}
           </div>
         ) : (

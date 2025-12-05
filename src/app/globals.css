@@ -67,7 +67,11 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
+  }
+  /* Ensure portals inherit theme variables */
+  [data-radix-popper-content-wrapper] {
+    --tw-bg-opacity: 1;
   }
 }

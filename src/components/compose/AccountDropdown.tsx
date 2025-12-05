@@ -36,7 +36,7 @@ export function AccountDropdown({
 
   if (accounts.length === 0) {
     return (
-      <Button variant="outline" size="sm" className="h-8 text-gray-500">
+      <Button variant="outline" size="sm" className="h-8 text-muted-foreground">
         Sin cuentas
       </Button>
     )
@@ -58,7 +58,7 @@ export function AccountDropdown({
               className="w-5 h-5 rounded-full object-cover" 
             />
           ) : (
-            <div className="w-5 h-5 rounded-full bg-gray-200" />
+            <div className="w-5 h-5 rounded-full bg-muted" />
           )}
           <span className="max-w-[100px] truncate">
             @{selectedAccount?.username || 'Cuenta'}
@@ -76,8 +76,8 @@ export function AccountDropdown({
               setOpen(false)
             }}
             className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1",
-              selectedAccount?.id === account.id && "bg-gray-100"
+              "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+              selectedAccount?.id === account.id && "bg-muted"
             )}
           >
             {account.pfpUrl ? (
@@ -87,16 +87,16 @@ export function AccountDropdown({
                 className="w-6 h-6 rounded-full object-cover" 
               />
             ) : (
-              <div className="w-6 h-6 rounded-full bg-gray-200" />
+              <div className="w-6 h-6 rounded-full bg-muted" />
             )}
             <div className="flex-1 text-left min-w-0">
               <p className="font-medium truncate">
                 {account.displayName || account.username}
               </p>
-              <p className="text-xs text-gray-500">@{account.username}</p>
+              <p className="text-xs text-muted-foreground">@{account.username}</p>
             </div>
             {account.isPremium && (
-              <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+              <span className="text-xs bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-400 px-1.5 py-0.5 rounded">
                 Pro
               </span>
             )}

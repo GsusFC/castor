@@ -53,12 +53,12 @@ export function ScheduleDropdown({
           size="sm"
           className={cn(
             "h-8 gap-1",
-            !displayLabel && "text-gray-500"
+            !displayLabel && "text-muted-foreground"
           )}
         >
           <Clock className="w-3 h-3" />
           <span className="max-w-[140px] truncate">
-            {displayLabel || 'Programar'}
+            {displayLabel || 'Schedule'}
           </span>
           <ChevronDown className="w-3 h-3 opacity-50" />
         </Button>
@@ -67,34 +67,34 @@ export function ScheduleDropdown({
         <div className="space-y-3">
           {/* Fecha */}
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">
-              Fecha
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Date
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => onDateChange(e.target.value)}
               min={today}
-              className="w-full h-9 px-3 rounded-md border text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+              className="w-full h-9 px-3 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {/* Hora */}
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">
-              Hora
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Time
             </label>
             <input
               type="time"
               value={time}
               onChange={(e) => onTimeChange(e.target.value)}
-              className="w-full h-9 px-3 rounded-md border text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+              className="w-full h-9 px-3 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {/* Zona horaria */}
-          <p className="text-xs text-gray-400 text-center">
-            Hora de Madrid (Europe/Madrid)
+          <p className="text-xs text-muted-foreground text-center">
+            Madrid time (Europe/Madrid)
           </p>
         </div>
       </PopoverContent>

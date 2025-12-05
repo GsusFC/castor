@@ -7,6 +7,7 @@ import { LogOut, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { toast } from 'sonner'
 
 export function DashboardHeader() {
@@ -19,10 +20,11 @@ export function DashboardHeader() {
     setIsLoggingOut(true)
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
-      if (!res.ok) throw new Error('Error al cerrar sesión')
-      router.push('/login')
+      if (!res.ok) throw new Error('Error signing out')
+      // Force full page reload to clear all client state
+      window.location.href = '/'
     } catch (err) {
-      toast.error('Error al cerrar sesión')
+      toast.error('Error signing out')
       setIsLoggingOut(false)
     }
   }
@@ -47,6 +49,7 @@ export function DashboardHeader() {
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Cast</span>
             </Button>
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"

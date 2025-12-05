@@ -38,8 +38,8 @@ export function TemplateDropdown({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1 text-gray-500"
-          aria-label="Seleccionar template"
+          className="h-8 gap-1 text-muted-foreground"
+          aria-label="Select template"
         >
           <LayoutTemplate className="w-3 h-3" />
           <span className="hidden sm:inline">Templates</span>
@@ -47,8 +47,8 @@ export function TemplateDropdown({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-2" align="start">
-        <p className="text-xs font-medium text-gray-500 mb-2 px-2">
-          Plantillas guardadas
+        <p className="text-xs font-medium text-muted-foreground mb-2 px-2">
+          Saved templates
         </p>
         <div className="space-y-1 max-h-60 overflow-y-auto">
           {templates.map((template) => (
@@ -59,10 +59,10 @@ export function TemplateDropdown({
                 onSelect(template)
                 setOpen(false)
               }}
-              className="w-full text-left px-2 py-2 rounded-md hover:bg-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
+              className="w-full text-left px-2 py-2 rounded-md hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             >
               <p className="text-sm font-medium truncate">{template.name}</p>
-              <p className="text-xs text-gray-500 truncate mt-0.5">
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
                 {template.content}
               </p>
             </button>

@@ -34,7 +34,14 @@ export const useTemplates = (accountId: string | null): UseTemplatesReturn => {
     setIsLoading(true)
     try {
       const res = await fetch(`/api/templates?accountId=${accountId}`)
-      if (!res.ok) throw new Error('Error al cargar templates')
+      if (!res.ok) {
+        // No mostrar error si es 401 (no autenticado) o 403 (sin acceso)
+        if (res.status !== 401 && res.status !== 403) {
+          console.error('Error loading templates:', res.status)
+        }
+        setTemplates([])
+        return
+      }
 
       const data = await res.json()
       setTemplates(data.templates || [])

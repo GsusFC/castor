@@ -92,7 +92,7 @@ export function MentionAutocomplete({
       >
         {isLoading ? (
           <div className="flex items-center justify-center p-4">
-            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
         ) : (
           users.map((user, index) => (
@@ -101,8 +101,8 @@ export function MentionAutocomplete({
               type="button"
               onClick={() => onSelect(user)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors",
-                index === selectedIndex && "bg-gray-100"
+                "w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/50 transition-colors",
+                index === selectedIndex && "bg-muted"
               )}
             >
               {user.pfpUrl ? (
@@ -112,13 +112,13 @@ export function MentionAutocomplete({
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-200" />
+                <div className="w-8 h-8 rounded-full bg-muted" />
               )}
               <div className="min-w-0">
-                <div className="font-medium text-sm text-gray-900 truncate">
+                <div className="font-medium text-sm text-foreground truncate">
                   {user.displayName || user.username}
                 </div>
-                <div className="text-xs text-gray-500 truncate">
+                <div className="text-xs text-muted-foreground truncate">
                   @{user.username}
                 </div>
               </div>

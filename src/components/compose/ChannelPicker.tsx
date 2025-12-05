@@ -129,7 +129,7 @@ export function ChannelPicker({ selectedChannel, onSelect, accountFid }: Channel
                     setIsOpen(false)
                     setSearch('')
                   }}
-                  className="w-full px-4 py-3 text-left text-sm text-red-500 hover:bg-red-50 border-b flex items-center gap-2 transition-colors"
+                  className="w-full px-4 py-3 text-left text-sm text-destructive hover:bg-red-50 border-b flex items-center gap-2 transition-colors"
                 >
                   <Hash className="w-4 h-4" />
                   Quitar canal

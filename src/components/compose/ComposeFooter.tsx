@@ -246,7 +246,7 @@ export function ComposeFooter({
     !isSavingDraft
 
   return (
-    <div className="flex items-center p-3 border-t border-border bg-muted/50 gap-2 flex-wrap">
+    <div className="flex items-center p-2 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2 flex-wrap safe-bottom">
       {/* File input hidden */}
       <input
         ref={fileInputRef}
@@ -265,7 +265,7 @@ export function ComposeFooter({
         size="sm"
         onClick={() => fileInputRef.current?.click()}
         disabled={!canAddMedia}
-        className="h-8 px-2 text-muted-foreground"
+        className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
         aria-label="Add image or video"
       >
         <Image className="w-4 h-4 mr-1" />
@@ -280,7 +280,7 @@ export function ComposeFooter({
             variant="ghost"
             size="sm"
             disabled={!canAddMedia}
-            className="h-8 px-2 text-muted-foreground font-bold"
+            className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground font-bold"
             aria-label="Add GIF"
           >
             GIF

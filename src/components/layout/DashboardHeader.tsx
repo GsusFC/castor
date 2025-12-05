@@ -31,21 +31,30 @@ export function DashboardHeader() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-b border-border z-20">
-        <div className="h-full max-w-6xl mx-auto px-6 md:px-8 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top">
+        <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between safe-x">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3 group">
+          <Link 
+            href="/dashboard" 
+            className="flex items-center gap-2 sm:gap-3 group min-h-[44px] touch-target"
+          >
             <img 
               src="/brand/logo.png" 
               alt="Castor" 
               className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
             />
-            <span className="font-display text-lg text-foreground hidden sm:block">Castor</span>
+            <span className="font-display text-base sm:text-lg text-foreground hidden sm:block">
+              Castor
+            </span>
           </Link>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setComposeOpen(true)} size="sm" className="gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button 
+              onClick={() => setComposeOpen(true)} 
+              size="sm" 
+              className="gap-1.5 sm:gap-2 h-10 sm:h-9 px-3 sm:px-3 touch-target"
+            >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Cast</span>
             </Button>
@@ -55,7 +64,7 @@ export function DashboardHeader() {
               size="icon"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="h-10 w-10 touch-target text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Sign out"
             >
               <LogOut className="w-4 h-4" />

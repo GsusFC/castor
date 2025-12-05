@@ -22,7 +22,7 @@ export function MobileNav() {
     <>
       {/* Bottom navigation - only visible on mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 sm:hidden safe-bottom">
-        <div className="flex items-center justify-around h-16 px-2 safe-x">
+        <div className="flex items-center justify-around h-16 px-4">
           {/* Home */}
           <Link
             href="/dashboard"

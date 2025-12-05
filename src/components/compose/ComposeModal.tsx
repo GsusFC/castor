@@ -357,7 +357,7 @@ export function ComposeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden fixed inset-0 translate-x-0 translate-y-0 md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
+      <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden flex flex-col fixed inset-0 translate-x-0 translate-y-0 rounded-none h-full md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-auto md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
         <DialogTitle className="sr-only">
           {isEditMode ? 'Editar Cast' : 'Nuevo Cast'}
         </DialogTitle>
@@ -366,16 +366,16 @@ export function ComposeModal({
         </DialogDescription>
 
         {/* Header móvil */}
-        <div className="flex items-center justify-between p-3 border-b md:hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border md:hidden">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="text-muted-foreground"
+            className="text-muted-foreground -ml-2 h-8"
           >
             Cancelar
           </Button>
-          <span className="font-medium text-sm">
+          <span className="font-medium text-sm absolute left-1/2 -translate-x-1/2">
             {isEditMode ? 'Editar Cast' : thread.isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
           </span>
           <div className="w-16" />
@@ -389,6 +389,7 @@ export function ComposeModal({
         )}
 
         <ComposeCard
+          className="flex-1 min-h-0"
           accounts={accounts}
           selectedAccountId={selectedAccountId}
           onSelectAccount={setSelectedAccountId}

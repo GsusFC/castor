@@ -33,11 +33,11 @@ export function PreviewPopover({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn("h-8 w-8", !hasContent && "opacity-40 cursor-not-allowed")}
+          className={cn("h-10 w-10 sm:h-8 sm:w-8 touch-target", !hasContent && "opacity-40 cursor-not-allowed")}
           disabled={!hasContent}
           aria-label="Vista previa del cast"
         >
-          <Eye className="w-4 h-4" />
+          <Eye className="w-5 h-5 sm:w-4 sm:h-4" />
         </Button>
       </PopoverTrigger>
       {hasContent && (

@@ -246,7 +246,7 @@ export function ComposeFooter({
     !isSavingDraft
 
   return (
-    <div className="flex items-center p-2 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2 flex-wrap safe-bottom">
+    <div className="flex items-center px-3 pt-2 pb-4 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2 flex-wrap">
       {/* File input hidden */}
       <input
         ref={fileInputRef}
@@ -268,7 +268,7 @@ export function ComposeFooter({
         className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
         aria-label="Add image or video"
       >
-        <Image className="w-4 h-4 mr-1" />
+        <Image className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
         <span className="hidden sm:inline text-xs">Image</span>
       </Button>
 
@@ -298,10 +298,10 @@ export function ComposeFooter({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-muted-foreground"
+            className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
             aria-label="Add emoji"
           >
-            <Smile className="w-4 h-4" />
+            <Smile className="w-5 h-5 sm:w-4 sm:h-4" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-72 p-2" align="start">
@@ -329,10 +329,10 @@ export function ComposeFooter({
           size="sm"
           onClick={onSaveDraft}
           disabled={isSavingDraft || isSubmitting || !selectedAccountId}
-          className="h-8 px-2 text-muted-foreground"
+          className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
           aria-label="Save as draft"
         >
-          <Save className="w-4 h-4 mr-1" />
+          <Save className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
           <span className="hidden sm:inline text-xs">
             {isSavingDraft ? 'Saving...' : 'Draft'}
           </span>
@@ -355,10 +355,10 @@ export function ComposeFooter({
           size="sm"
           onClick={onSaveTemplate}
           disabled={isSavingTemplate || isSubmitting || !selectedAccountId}
-          className="h-8 px-2 text-muted-foreground"
+          className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
           aria-label="Save as template"
         >
-          <LayoutTemplate className="w-4 h-4 mr-1" />
+          <LayoutTemplate className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
           <span className="hidden sm:inline text-xs">
             {isSavingTemplate ? 'Saving...' : 'Save'}
           </span>
@@ -371,10 +371,10 @@ export function ComposeFooter({
         size="sm"
         onClick={onSubmit}
         disabled={!canSubmit}
-        className="h-8"
+        className="h-10 sm:h-8 px-4 sm:px-3 touch-target"
         aria-label={isEditMode ? 'Save changes' : 'Schedule cast'}
       >
-        <Send className="w-4 h-4 mr-1" />
+        <Send className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
         {isSubmitting
           ? isEditMode
             ? 'Saving...'

@@ -23,6 +23,7 @@ interface Template {
 }
 
 interface ComposeCardProps {
+  className?: string
   accounts: Account[]
   selectedAccountId: string | null
   onSelectAccount: (id: string) => void
@@ -55,6 +56,7 @@ interface ComposeCardProps {
 }
 
 export function ComposeCard({
+  className,
   accounts,
   selectedAccountId,
   onSelectAccount,
@@ -107,9 +109,9 @@ export function ComposeCard({
   const currentCastChars = casts[0] ? calculateTextLength(casts[0].content) : 0
 
   return (
-    <Card className="overflow-hidden">
-      {/* Header compacto */}
-      <div className="flex items-center gap-2 p-2 sm:p-3 border-b border-border bg-muted/50 flex-wrap">
+    <Card className={cn("overflow-hidden flex flex-col h-full md:h-auto", className)}>
+      {/* Header - controles principales */}
+      <div className="flex items-center gap-2 p-3 border-b border-border bg-muted/30 overflow-x-auto no-scrollbar">
         {/* Account Selector */}
         <AccountDropdown
           accounts={accounts}
@@ -133,48 +135,50 @@ export function ComposeCard({
           onTimeChange={onTimeChange}
           label={scheduleLabel}
         />
-
-        {/* Template Selector - solo si hay templates y no es modo edición */}
-        {!isEditMode && templates.length > 0 && onLoadTemplate && (
-          <TemplateDropdown
-            templates={templates}
-            onSelect={onLoadTemplate}
+      </div>
+      
+      {/* Toolbar secundaria */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+        <div className="flex items-center gap-1">
+          {/* Preview button */}
+          <PreviewPopover
+            casts={casts}
+            account={selectedAccount || null}
+            channel={selectedChannel}
+            replyTo={replyTo}
+            hasContent={hasContent}
           />
-        )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
+          {/* Add to thread button - solo en modo crear */}
+          {!isEditMode && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onAddCast}
+              disabled={!hasContent}
+              className={cn(
+                "h-10 w-10 sm:h-8 sm:w-8 touch-target",
+                !hasContent && "opacity-40"
+              )}
+              title="Añadir al thread"
+            >
+              <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
+            </Button>
+          )}
 
-        {/* Preview button - solo desktop */}
-        <PreviewPopover
-          casts={casts}
-          account={selectedAccount || null}
-          channel={selectedChannel}
-          replyTo={replyTo}
-          hasContent={hasContent}
-        />
-
-        {/* Add to thread button - solo en modo crear */}
-        {!isEditMode && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onAddCast}
-            disabled={!hasContent}
-            className={cn(
-              "h-8 w-8",
-              !hasContent && "opacity-40"
-            )}
-            title="Añadir al thread"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        )}
+          {/* Template Selector - solo si hay templates y no es modo edición */}
+          {!isEditMode && templates.length > 0 && onLoadTemplate && (
+            <TemplateDropdown
+              templates={templates}
+              onSelect={onLoadTemplate}
+            />
+          )}
+        </div>
 
         {/* Character count */}
         <span className={cn(
-          "text-xs font-medium tabular-nums px-2",
+          "text-xs font-medium tabular-nums",
           hasOverLimit ? "text-destructive" : "text-muted-foreground"
         )}>
           {currentCastChars}/{maxChars}
@@ -208,7 +212,7 @@ export function ComposeCard({
       )}
 
       {/* Cast Editors */}
-      <div className="divide-y">
+      <div className="divide-y flex-1 overflow-y-auto">
         {casts.map((cast, index) => (
           <CastEditorInline
             key={cast.id}

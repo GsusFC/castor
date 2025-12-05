@@ -359,8 +359,8 @@ export function UnifiedDashboard({
             }}
             count={scheduled.length}
           >
-            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="whitespace-nowrap">Scheduled</span>
+            <Clock className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Scheduled</span>
           </TabButton>
           <TabButton 
             active={activeTab === 'published' && !showAllCasts} 
@@ -370,8 +370,8 @@ export function UnifiedDashboard({
             }}
             count={published.length}
           >
-            <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="whitespace-nowrap">Published</span>
+            <CheckCircle className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Published</span>
           </TabButton>
           {isAdmin && (
             <TabButton 
@@ -379,8 +379,8 @@ export function UnifiedDashboard({
               onClick={() => setShowAllCasts(true)}
               count={casts.length}
             >
-              <List className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="whitespace-nowrap">All</span>
+              <List className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">All</span>
             </TabButton>
           )}
         </div>
@@ -559,7 +559,7 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+        "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all",
         active 
           ? "bg-card shadow-sm text-foreground" 
           : "text-muted-foreground hover:text-foreground"
@@ -567,7 +567,7 @@ function TabButton({
     >
       {children}
       <span className={cn(
-        "ml-1 px-1.5 py-0.5 rounded text-[10px]",
+        "px-1.5 py-0.5 rounded text-[10px]",
         active ? "bg-muted" : "bg-muted/50"
       )}>
         {count}

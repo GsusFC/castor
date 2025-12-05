@@ -32,7 +32,7 @@ export function DashboardHeader() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top">
-        <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between safe-x">
+        <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between">
           {/* Logo */}
           <Link 
             href="/dashboard" 

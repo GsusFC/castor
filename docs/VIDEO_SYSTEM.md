@@ -1,5 +1,76 @@
 # Video Publishing System in Castor
 
+## TL;DR for Farcaster Team
+
+**Do we use Neynar?** Yes, but **only for publishing the cast** to Farcaster, not for uploading videos.
+
+### Video Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     VIDEO UPLOAD FLOW                           │
+│                                                                 │
+│   User uploads video                                            │
+│         │                                                       │
+│         ▼                                                       │
+│   ┌─────────────────┐                                          │
+│   │ Cloudflare      │  ← TUS protocol (resumable uploads)      │
+│   │ Stream          │  ← Processes video, generates HLS/MP4    │
+│   └─────────────────┘                                          │
+│         │                                                       │
+│         │  (alternative: Livepeer)                             │
+│         ▼                                                       │
+│   Video ready with HLS URL (.m3u8)                             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     CAST PUBLISHING FLOW                        │
+│                                                                 │
+│   Video status = 'ready'                                        │
+│         │                                                       │
+│         ▼                                                       │
+│   ┌─────────────────┐                                          │
+│   │ Neynar SDK      │  ← Only used here, for publishing        │
+│   │ publishCast()   │  ← Video URL included as embed           │
+│   └─────────────────┘                                          │
+│         │                                                       │
+│         ▼                                                       │
+│   Cast live on Farcaster with embedded video                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Architecture?
+
+1. **Video Upload → Cloudflare Stream (or Livepeer)**
+   - Videos are uploaded directly to Cloudflare Stream using TUS protocol
+   - Livepeer is supported as an alternative (decentralized infrastructure)
+   - Cloudflare processes the video and generates HLS/MP4 URLs
+   - We store the `cloudflareId` and `videoStatus` in our database
+
+2. **Cast Publishing → Neynar**
+   - When video is ready (`videoStatus: 'ready'`), our publisher uses Neynar SDK
+   - The video is included as an **embed** with the HLS or MP4 URL
+   - Warpcast renders HLS natively, so users see the video inline
+
+### Code Example
+
+```typescript
+// Publisher checks video status before publishing
+if (video.videoStatus !== 'ready') {
+  // Skip, will retry on next cron run
+  continue
+}
+
+// Publish via Neynar with video as embed
+await neynar.publishCast(signerUuid, content, {
+  embeds: [
+    { url: video.hlsUrl || video.mp4Url }  // HLS preferred
+  ]
+})
+```
+
+---
+
 ## Executive Summary
 
 Castor supports **two video providers** to maximize compatibility with Warpcast:

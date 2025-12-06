@@ -47,8 +47,8 @@ export function AccountDropdown({
       <PopoverTrigger asChild>
         <Button 
           variant="outline" 
-          size="sm" 
-          className="h-8 gap-2"
+          size="icon"
+          className="h-8 w-8 sm:w-auto sm:px-3 sm:gap-2 shrink-0"
           aria-label={`Cuenta seleccionada: ${selectedAccount?.username || 'ninguna'}`}
         >
           {selectedAccount?.pfpUrl ? (
@@ -60,10 +60,10 @@ export function AccountDropdown({
           ) : (
             <div className="w-5 h-5 rounded-full bg-muted" />
           )}
-          <span className="max-w-[100px] truncate">
+          <span className="hidden sm:inline max-w-[100px] truncate">
             @{selectedAccount?.username || 'Cuenta'}
           </span>
-          <ChevronDown className="w-3 h-3 opacity-50" />
+          <ChevronDown className="hidden sm:block w-3 h-3 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-1" align="start">

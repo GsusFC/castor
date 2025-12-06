@@ -43,8 +43,12 @@ function getSecretKey() {
 // Session Management
 // ============================================
 
+// Tiempo mínimo antes de renovar (1 día)
+const REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000
+
 /**
  * Obtiene la sesión actual del usuario
+ * Implementa sliding sessions: renueva el token si está próximo a expirar
  */
 export async function getSession(): Promise<AuthUser | null> {
   try {
@@ -59,8 +63,16 @@ export async function getSession(): Promise<AuthUser | null> {
     const session = payload as unknown as Session
 
     // Verificar expiración
-    if (new Date(session.expiresAt) < new Date()) {
+    const expiresAt = new Date(session.expiresAt)
+    if (expiresAt < new Date()) {
       return null
+    }
+
+    // Sliding session: renovar si expira en menos de 1 día
+    const timeUntilExpiry = expiresAt.getTime() - Date.now()
+    if (timeUntilExpiry < REFRESH_THRESHOLD_MS) {
+      // Renovar sesión en background (no bloquear)
+      refreshSession(session.user).catch(() => {})
     }
 
     return session.user
@@ -68,6 +80,13 @@ export async function getSession(): Promise<AuthUser | null> {
     // Token inválido o expirado
     return null
   }
+}
+
+/**
+ * Renueva la sesión actual
+ */
+async function refreshSession(user: AuthUser): Promise<void> {
+  await createSession(user)
 }
 
 /**

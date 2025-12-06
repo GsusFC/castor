@@ -4,6 +4,7 @@ import { publishCast } from '@/lib/farcaster'
 import { publisherLogger, createTimer } from '@/lib/logger'
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
+import { auditCast } from '@/lib/audit'
 
 // ============================================
 // Configuration
@@ -364,6 +365,9 @@ export async function publishDueCasts(): Promise<PublishResult> {
           hash: publishResult.hash,
           attempts: cast.retryCount + 1,
         }, 'Cast published successfully')
+        
+        // Audit log
+        auditCast.published(cast.id, cast.accountId, publishResult.hash)
         
         // Guardar hash para el siguiente cast del thread
         if (cast.threadId && publishResult.hash) {

@@ -474,13 +474,25 @@ export function UnifiedDashboard({
                 {drafts.slice(0, 3).map(draft => (
                   <div 
                     key={draft.id} 
-                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-accent cursor-pointer"
+                    className="group flex items-center gap-2 p-2 rounded-lg hover:bg-accent cursor-pointer"
                     onClick={() => router.push(`/dashboard?edit=${draft.id}`)}
                   >
                     <p className="text-sm text-foreground truncate flex-1">
                       {draft.content || <span className="italic text-muted-foreground">No content</span>}
                     </p>
-                    <Edit className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteCast(draft.id)
+                        }}
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <Edit className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
                   </div>
                 ))}
                 {drafts.length > 3 && (

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { validateFileMagicBytes, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES } from '@/lib/media-validation'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
@@ -40,16 +41,24 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationFailed([{ field: 'file', message: 'No file provided' }])
     }
 
-    // Validar tipo de archivo
-    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    const validVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm']
-    const isImage = validImageTypes.includes(file.type)
-    const isVideo = validVideoTypes.includes(file.type)
+    // Validar tipo de archivo declarado
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type)
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type)
 
     if (!isImage && !isVideo) {
       return ApiErrors.validationFailed([{ 
         field: 'file', 
         message: 'Unsupported file type. Use JPG, PNG, GIF, WebP, MP4, MOV or WebM.' 
+      }])
+    }
+
+    // Validar magic bytes (previene archivos maliciosos disfrazados)
+    const magicValidation = await validateFileMagicBytes(file, file.type)
+    if (!magicValidation.valid) {
+      console.warn('[Upload] Magic bytes validation failed:', magicValidation.error)
+      return ApiErrors.validationFailed([{ 
+        field: 'file', 
+        message: magicValidation.error || 'Invalid file content'
       }])
     }
 

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         username: farcasterUser.username,
         displayName: farcasterUser.display_name,
         pfpUrl: farcasterUser.pfp_url,
-        role: 'admin', // Por ahora todos son admin
+        role: 'member', // Default: member. Promote to admin manually in DB
       })
       dbUser = await db.query.users.findFirst({
         where: eq(users.id, userId),

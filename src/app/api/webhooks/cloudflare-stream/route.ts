@@ -171,8 +171,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, processed: true })
     
   } catch (error) {
-    console.error('[CF Webhook] Error:', error instanceof Error ? error.message : 'Unknown')
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[CF Webhook] Error:', errorMessage)
+    
+    // Retornar 200 con error en body para errores de lógica
+    // Esto evita que Cloudflare reintente infinitamente
+    // Solo retornar 500 para errores verdaderamente transitorios (ej: DB offline)
+    const isTransientError = errorMessage.includes('SQLITE_BUSY') || 
+                            errorMessage.includes('connection') ||
+                            errorMessage.includes('timeout')
+    
+    if (isTransientError) {
+      return NextResponse.json({ error: 'Transient error, please retry' }, { status: 500 })
+    }
+    
+    return NextResponse.json({ 
+      received: true, 
+      processed: false, 
+      error: errorMessage 
+    })
   }
 }
 

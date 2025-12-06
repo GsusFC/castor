@@ -141,7 +141,7 @@ export function CastEditorInline({
   }
 
   return (
-    <div ref={containerRef} className="relative p-4">
+    <div ref={containerRef} className="relative p-4 flex flex-col flex-1">
       {/* Thread indicator */}
       {isThread && (
         <div className="flex items-center justify-between mb-2">
@@ -181,7 +181,7 @@ export function CastEditorInline({
         placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
         rows={6}
         className={cn(
-          "border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[150px]",
+          "border-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[120px] md:min-h-[150px] flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none",
           isOverLimit && "text-destructive"
         )}
         aria-label={isThread ? `Contenido del cast ${index + 1}` : 'Contenido del cast'}

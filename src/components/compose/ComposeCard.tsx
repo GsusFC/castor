@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ import { ChannelDropdown } from './ChannelDropdown'
 import { TemplateDropdown } from './TemplateDropdown'
 import { PreviewPopover } from './PreviewPopover'
 import { CastEditorInline } from './CastEditorInline'
+import { ProgressBar } from './ProgressBar'
 import { ComposeFooter } from './ComposeFooter'
 
 interface Template {
@@ -111,78 +112,42 @@ export function ComposeCard({
   return (
     <Card className={cn("overflow-hidden flex flex-col h-full md:h-auto", className)}>
       {/* Header - controles principales */}
-      <div className="flex items-center gap-2 p-3 border-b border-border bg-muted/30 overflow-x-auto no-scrollbar">
-        {/* Account Selector */}
-        <AccountDropdown
-          accounts={accounts}
-          selectedAccount={selectedAccount}
-          onSelect={onSelectAccount}
-          isLoading={isLoadingAccounts}
-        />
-
-        {/* Channel Selector */}
-        <ChannelDropdown
-          selectedChannel={selectedChannel}
-          onSelect={onSelectChannel}
-          accountFid={selectedAccount?.fid}
-        />
-
-        {/* Schedule Selector */}
-        <ScheduleDropdown
-          date={scheduledDate}
-          time={scheduledTime}
-          onDateChange={onDateChange}
-          onTimeChange={onTimeChange}
-          label={scheduleLabel}
-        />
-      </div>
-      
-      {/* Toolbar secundaria */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-1">
-          {/* Preview button */}
-          <PreviewPopover
-            casts={casts}
-            account={selectedAccount || null}
-            channel={selectedChannel}
-            replyTo={replyTo}
-            hasContent={hasContent}
+      <div className="flex items-center gap-2 p-3 border-b border-border bg-muted/30">
+        {/* Dropdowns con scroll */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
+          {/* Account Selector */}
+          <AccountDropdown
+            accounts={accounts}
+            selectedAccount={selectedAccount}
+            onSelect={onSelectAccount}
+            isLoading={isLoadingAccounts}
           />
 
-          {/* Add to thread button - solo en modo crear */}
-          {!isEditMode && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onAddCast}
-              disabled={!hasContent}
-              className={cn(
-                "h-10 w-10 sm:h-8 sm:w-8 touch-target",
-                !hasContent && "opacity-40"
-              )}
-              title="Añadir al thread"
-            >
-              <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
-            </Button>
-          )}
+          {/* Channel Selector */}
+          <ChannelDropdown
+            selectedChannel={selectedChannel}
+            onSelect={onSelectChannel}
+            accountFid={selectedAccount?.fid}
+          />
 
-          {/* Template Selector - solo si hay templates y no es modo edición */}
-          {!isEditMode && templates.length > 0 && onLoadTemplate && (
-            <TemplateDropdown
-              templates={templates}
-              onSelect={onLoadTemplate}
-            />
-          )}
+          {/* Schedule Selector */}
+          <ScheduleDropdown
+            date={scheduledDate}
+            time={scheduledTime}
+            onDateChange={onDateChange}
+            onTimeChange={onTimeChange}
+            label={scheduleLabel}
+          />
         </div>
 
-        {/* Character count */}
-        <span className={cn(
-          "text-xs font-medium tabular-nums",
-          hasOverLimit ? "text-destructive" : "text-muted-foreground"
-        )}>
-          {currentCastChars}/{maxChars}
-        </span>
+        {/* Preview button - siempre visible */}
+        <PreviewPopover
+          casts={casts}
+          account={selectedAccount || null}
+          channel={selectedChannel}
+          replyTo={replyTo}
+          hasContent={hasContent}
+        />
       </div>
 
       {/* Reply To */}
@@ -211,8 +176,11 @@ export function ComposeCard({
         </div>
       )}
 
+      {/* Progress Bar */}
+      <ProgressBar current={currentCastChars} max={maxChars} />
+
       {/* Cast Editors */}
-      <div className="divide-y flex-1 overflow-y-auto">
+      <div className="divide-y flex-1 overflow-y-auto flex flex-col">
         {casts.map((cast, index) => (
           <CastEditorInline
             key={cast.id}
@@ -245,6 +213,7 @@ export function ComposeCard({
         onUpdateCast={onUpdateCast}
         templates={templates}
         onLoadTemplate={onLoadTemplate}
+        onAddCast={onAddCast}
       />
     </Card>
   )

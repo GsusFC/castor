@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Image, Smile, Save, Send, LayoutTemplate } from 'lucide-react'
+import { Image, Smile, Save, Send, LayoutTemplate, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -45,6 +45,7 @@ interface ComposeFooterProps {
   onUpdateCast: (index: number, cast: CastItem) => void
   templates?: Template[]
   onLoadTemplate?: (template: Template) => void
+  onAddCast: () => void
 }
 
 export function ComposeFooter({
@@ -65,6 +66,7 @@ export function ComposeFooter({
   onUpdateCast,
   templates = [],
   onLoadTemplate,
+  onAddCast,
 }: ComposeFooterProps) {
   const [showGifPicker, setShowGifPicker] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -246,7 +248,7 @@ export function ComposeFooter({
     !isSavingDraft
 
   return (
-    <div className="flex items-center px-3 pt-2 pb-4 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2 flex-wrap">
+    <div className="flex items-center px-3 pt-2 pb-4 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2">
       {/* File input hidden */}
       <input
         ref={fileInputRef}
@@ -341,6 +343,22 @@ export function ComposeFooter({
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Add to thread button - solo en modo crear */}
+      {!isEditMode && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onAddCast}
+          disabled={!hasContent}
+          className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
+          aria-label="Add to thread"
+        >
+          <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+          <span className="hidden sm:inline text-xs">Thread</span>
+        </Button>
+      )}
 
       {/* Template dropdown */}
       {!isEditMode && templates.length > 0 && onLoadTemplate && (

@@ -244,15 +244,39 @@ export function UnifiedDashboard({
         ? scheduled 
         : published
 
+    // Calendario solo en desktop (sm+)
     if (viewMode === 'calendar') {
       const calendarCasts = castsToShow.map(c => ({
         ...c,
         scheduledAt: new Date(c.scheduledAt),
       }))
       return (
-        <Card className="p-4">
-          <CalendarView casts={calendarCasts} onMoveCast={handleMoveCast} />
-        </Card>
+        <>
+          {/* Calendario en desktop */}
+          <Card className="p-4 hidden sm:block">
+            <CalendarView casts={calendarCasts} onMoveCast={handleMoveCast} />
+          </Card>
+          {/* Lista en móvil como fallback */}
+          <div className="space-y-3 sm:hidden">
+            {castsToShow.length === 0 ? (
+              <Card className="p-12 text-center">
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <List className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground">No casts</p>
+              </Card>
+            ) : (
+              castsToShow.map(cast => (
+                <CastCard 
+                  key={cast.id} 
+                  cast={cast} 
+                  onEdit={() => handleEditCast(cast)}
+                  onDelete={() => handleDeleteCast(cast.id)}
+                />
+              ))
+            )}
+          </div>
+        </>
       )
     }
 
@@ -394,33 +418,33 @@ export function UnifiedDashboard({
           )}
         </div>
 
-        {/* View toggle */}
-        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border">
+        {/* View toggle - solo visible en desktop */}
+        <div className="hidden sm:flex items-center bg-muted/50 p-1 rounded-lg border border-border">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setViewMode('list')}
             className={cn(
-              "h-8 px-2 sm:px-3",
+              "h-8 px-3",
               viewMode === 'list' && "bg-card shadow-sm"
             )}
             aria-label="List view"
           >
             <List className="w-4 h-4" />
-            <span className="hidden sm:inline ml-1.5 text-xs">List</span>
+            <span className="ml-1.5 text-xs">List</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setViewMode('calendar')}
             className={cn(
-              "h-8 px-2 sm:px-3",
+              "h-8 px-3",
               viewMode === 'calendar' && "bg-card shadow-sm"
             )}
             aria-label="Calendar view"
           >
             <CalendarDays className="w-4 h-4" />
-            <span className="hidden sm:inline ml-1.5 text-xs">Calendar</span>
+            <span className="ml-1.5 text-xs">Calendar</span>
           </Button>
         </div>
       </div>
@@ -428,8 +452,8 @@ export function UnifiedDashboard({
       {/* Content principal */}
       {renderContent()}
 
-      {/* Sección de Recursos */}
-      <section className="pt-6 border-t border-border">
+      {/* Sección de Recursos - oculta en móvil (accesible desde footer) */}
+      <section className="hidden sm:block pt-6 border-t border-border">
         <h2 className="text-sm font-medium text-muted-foreground mb-4">Resources</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Borradores */}
@@ -645,12 +669,10 @@ function CastCard({
           <p className="text-sm text-foreground truncate">
             {cast.content || <span className="text-muted-foreground italic">No content</span>}
           </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-            <span>@{cast.account?.username}</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 overflow-hidden">
             {!isDraft && (
               <>
-                <span>·</span>
-                <span>
+                <span className="shrink-0 whitespace-nowrap">
                   {scheduledDate.toLocaleDateString('es-ES', {
                     day: 'numeric',
                     month: 'short',
@@ -667,14 +689,14 @@ function CastCard({
             )}
             {cast.channelId && (
               <>
-                <span>·</span>
-                <span className="text-purple-600">#{cast.channelId}</span>
+                <span className="shrink-0">·</span>
+                <span className="text-purple-600 truncate max-w-[60px]">#{cast.channelId}</span>
               </>
             )}
             {cast.media.length > 0 && (
               <>
-                <span>·</span>
-                <span className="flex items-center gap-0.5">
+                <span className="shrink-0">·</span>
+                <span className="flex items-center gap-0.5 shrink-0">
                   {cast.media.some(m => m.type === 'video') ? (
                     <Video className="w-3 h-3" />
                   ) : (
@@ -687,12 +709,18 @@ function CastCard({
           </div>
         </div>
 
-        <span className={cn(
-          "text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0",
-          statusStyles[cast.status] || 'bg-muted text-muted-foreground border-border'
-        )}>
-          {statusLabels[cast.status] || cast.status}
-        </span>
+        {cast.status === 'published' ? (
+          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="w-3.5 h-3.5 text-black" />
+          </div>
+        ) : (
+          <span className={cn(
+            "text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0",
+            statusStyles[cast.status] || 'bg-muted text-muted-foreground border-border'
+          )}>
+            {statusLabels[cast.status] || cast.status}
+          </span>
+        )}
 
         {/* Link a Warpcast en vista colapsada */}
         {cast.status === 'published' && cast.castHash && (
@@ -708,9 +736,9 @@ function CastCard({
           </a>
         )}
 
-        {/* Acciones en hover (solo si no está publicado) */}
+        {/* Acciones (siempre visible en móvil, hover en desktop) */}
         {cast.status !== 'published' && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <Button 
               variant="ghost" 
               size="icon" 

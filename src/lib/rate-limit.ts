@@ -8,6 +8,8 @@ import { logger } from './logger'
 // Rate Limiter Configuration
 // ============================================
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 // Usar Redis de Upstash si está configurado, sino usar memoria local
 const redis = process.env.UPSTASH_REDIS_REST_URL
   ? new Redis({
@@ -16,7 +18,12 @@ const redis = process.env.UPSTASH_REDIS_REST_URL
     })
   : null
 
-// Cache en memoria para desarrollo (no persistente)
+// Advertir si no hay Redis en producción
+if (isProduction && !redis) {
+  console.warn('[Rate Limit] ⚠️ UPSTASH_REDIS not configured in production! Rate limiting will use in-memory fallback which does not persist across instances.')
+}
+
+// Cache en memoria para desarrollo (no persistente entre instancias)
 const memoryCache = new Map<string, { count: number; resetAt: number }>()
 
 // ============================================

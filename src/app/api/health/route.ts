@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db, users } from '@/lib/db'
 import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
+import { getCircuitBreakerStatus } from '@/lib/retry'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'

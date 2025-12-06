@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publishDueCasts } from '@/lib/publisher'
+import { withLock } from '@/lib/lock'
 
 const isProduction = process.env.NODE_ENV === 'production'
+const CRON_LOCK_KEY = 'cron:publish'
+const CRON_LOCK_TTL = 300 // 5 minutes max execution time
 
 /**
  * GET /api/cron/publish
@@ -38,11 +41,28 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await publishDueCasts()
-    
+    // Use distributed lock to prevent concurrent executions
+    const lockResult = await withLock(
+      CRON_LOCK_KEY,
+      async () => {
+        return await publishDueCasts()
+      },
+      { ttlSeconds: CRON_LOCK_TTL }
+    )
+
+    if (!lockResult.success) {
+      console.warn('[Cron] Another instance is already running')
+      return NextResponse.json({
+        success: false,
+        error: 'Another cron instance is running',
+        skipped: true,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      ...result,
+      ...lockResult.result,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

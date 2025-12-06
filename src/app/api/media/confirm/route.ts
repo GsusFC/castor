@@ -4,7 +4,9 @@ import { success, ApiErrors } from '@/lib/api/response'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
+// Dominio personalizado para videos (requerido por Farcaster)
+// Configurar video.castorapp.xyz en Cloudflare Stream
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * POST /api/media/confirm
@@ -111,15 +113,16 @@ export async function POST(request: NextRequest) {
       const hlsUrl = video.playback?.hls
       const watchUrl = `https://watch.cloudflarestream.com/${cloudflareId}`
       
-      // Construir URL HLS con custom domain si está configurado
-      // Formato: https://{domain}/{videoId}/manifest/video.m3u8
-      let finalHlsUrl = hlsUrl
-      if (!finalHlsUrl || CF_STREAM_DOMAIN !== 'customer-l9k1ruqd8kemqqty.cloudflarestream.com') {
-        finalHlsUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}/manifest/video.m3u8`
-      }
+      // Construir URLs con dominio personalizado (requerido por Farcaster)
+      // Formato Farcaster: video URL y thumbnail deben compartir base path
+      // HLS: https://video.castorapp.xyz/{id}/manifest/video.m3u8
+      // Thumbnail: https://video.castorapp.xyz/{id}/thumbnails/thumbnail.jpg
+      const baseUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}`
+      const finalHlsUrl = `${baseUrl}/manifest/video.m3u8`
       
-      // Thumbnail URL en formato compatible con Farcaster
-      const thumbnailUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}/thumbnails/thumbnail.jpg`
+      // Thumbnail URL - Cloudflare usa /thumbnails/thumbnail.jpg
+      // Farcaster espera que al reemplazar .m3u8 path funcione
+      const thumbnailUrl = `${baseUrl}/thumbnails/thumbnail.jpg`
 
       console.log('[Confirm] Video confirmed:', {
         cloudflareId,

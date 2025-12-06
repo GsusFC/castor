@@ -6,6 +6,8 @@ import crypto from 'crypto'
 const CF_WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+// Dominio personalizado para videos (requerido por Farcaster)
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * Verifica la firma del webhook de Cloudflare
@@ -125,16 +127,21 @@ export async function POST(request: NextRequest) {
         console.warn('[CF Webhook] Could not enable downloads:', await enableDownloadsRes.text())
       }
       
+      // Construir URLs con dominio personalizado (requerido por Farcaster)
+      const baseUrl = `https://${CF_STREAM_DOMAIN}/${data.uid}`
+      const hlsUrl = `${baseUrl}/manifest/video.m3u8`
+      const thumbnailUrl = `${baseUrl}/thumbnails/thumbnail.jpg`
+      
       // Actualizar media en DB
       await db
         .update(castMedia)
         .set({
           videoStatus: 'ready',
           mp4Url: mp4Url || undefined,
-          hlsUrl: data.playback?.hls || undefined,
-          thumbnailUrl: data.thumbnail || undefined,
-          // Actualizar URL principal al MP4 si está disponible
-          url: mp4Url || data.playback?.hls || media.url,
+          hlsUrl,
+          thumbnailUrl,
+          // Priorizar HLS para Farcaster (mejor compatibilidad)
+          url: hlsUrl,
         })
         .where(eq(castMedia.id, media.id))
       

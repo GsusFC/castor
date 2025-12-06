@@ -10,6 +10,8 @@ import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
 const MAX_RETRY_COUNT = 3
 const RETRY_DELAY_MINUTES = [5, 15, 60] // Backoff: 5min, 15min, 1hr
+// Dominio personalizado para videos (requerido por Farcaster)
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * Determines if a failed cast should be retried
@@ -202,7 +204,10 @@ export async function publishDueCasts(): Promise<PublishResult> {
           if (cfResponse.ok) {
             const cfData = await cfResponse.json()
             if (cfData.result?.readyToStream) {
-              const hlsUrl = cfData.result.playback?.hls
+              // Construir URLs con dominio personalizado (requerido por Farcaster)
+              const baseUrl = `https://${CF_STREAM_DOMAIN}/${video.cloudflareId}`
+              const hlsUrl = `${baseUrl}/manifest/video.m3u8`
+              const thumbnailUrl = `${baseUrl}/thumbnails/thumbnail.jpg`
               
               let mp4Url: string | null = null
               try {
@@ -227,13 +232,16 @@ export async function publishDueCasts(): Promise<PublishResult> {
               
               await db.update(castMedia).set({
                 videoStatus: 'ready',
-                hlsUrl: hlsUrl || undefined,
+                hlsUrl,
+                thumbnailUrl,
                 mp4Url: mp4Url || undefined,
+                url: hlsUrl, // Priorizar HLS para Farcaster
               }).where(eq(castMedia.cloudflareId, video.cloudflareId!))
               
               video.videoStatus = 'ready'
               video.hlsUrl = hlsUrl
               video.mp4Url = mp4Url
+              video.url = hlsUrl
               
               publisherLogger.info({ cloudflareId: video.cloudflareId, hlsUrl, mp4Url }, 'Cloudflare video ready')
             }

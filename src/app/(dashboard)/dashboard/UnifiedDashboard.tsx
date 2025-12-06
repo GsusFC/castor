@@ -736,9 +736,9 @@ function CastCard({
           </a>
         )}
 
-        {/* Acciones (siempre visible en móvil, hover en desktop) */}
+        {/* Acciones (siempre visibles) */}
         {cast.status !== 'published' && (
-          <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
             <Button 
               variant="ghost" 
               size="icon" 

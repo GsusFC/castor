@@ -4,9 +4,9 @@ import { success, ApiErrors } from '@/lib/api/response'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
-// Dominio personalizado para videos (requerido por Farcaster)
-// Configurar video.castorapp.xyz en Cloudflare Stream
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
+// Dominio de Cloudflare Stream (específico de la cuenta)
+// Usar el customer subdomain asignado por Cloudflare
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
 
 /**
  * POST /api/media/confirm

@@ -3,6 +3,33 @@ import { NeynarAPIClient } from '@neynar/nodejs-sdk'
 export const neynar = new NeynarAPIClient({ apiKey: process.env.NEYNAR_API_KEY! })
 
 /**
+ * Valida formato básico de mnemonic BIP39
+ * - Debe tener 12, 15, 18, 21 o 24 palabras
+ * - Solo letras minúsculas y espacios
+ */
+function validateMnemonicFormat(mnemonic: string): { valid: boolean; error?: string } {
+  const trimmed = mnemonic.trim()
+  
+  if (!trimmed) {
+    return { valid: false, error: 'Mnemonic is empty' }
+  }
+
+  // Solo letras minúsculas y espacios
+  if (!/^[a-z\s]+$/.test(trimmed)) {
+    return { valid: false, error: 'Mnemonic contains invalid characters (should be lowercase words separated by spaces)' }
+  }
+
+  const words = trimmed.split(/\s+/)
+  const validWordCounts = [12, 15, 18, 21, 24]
+  
+  if (!validWordCounts.includes(words.length)) {
+    return { valid: false, error: `Mnemonic has ${words.length} words, expected one of: ${validWordCounts.join(', ')}` }
+  }
+
+  return { valid: true }
+}
+
+/**
  * Publicar un cast
  */
 export async function publishCast(
@@ -47,6 +74,12 @@ export async function createSigner() {
     
     if (!mnemonic) {
       throw new Error('FARCASTER_DEVELOPER_MNEMONIC not configured')
+    }
+
+    // Validar formato del mnemonic
+    const validation = validateMnemonicFormat(mnemonic)
+    if (!validation.valid) {
+      throw new Error(`Invalid mnemonic format: ${validation.error}`)
     }
 
     // Usar el SDK de Neynar con mnemonic para crear signer con URL

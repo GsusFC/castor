@@ -3,6 +3,7 @@ import { eq, lte, and, asc, or } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster'
 import { publisherLogger, createTimer } from '@/lib/logger'
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
+import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
 
 // ============================================
 // Configuration
@@ -147,12 +148,13 @@ export async function publishDueCasts(): Promise<PublishResult> {
       
       for (const video of livepeerVideos) {
         try {
-          const lpResponse = await fetch(
+          const lpResponse = await fetchWithTimeout(
             `https://livepeer.studio/api/asset/${video.livepeerAssetId}`,
             {
               headers: {
                 'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
               },
+              timeoutMs: DEFAULT_TIMEOUTS.API,
             }
           )
           
@@ -192,12 +194,13 @@ export async function publishDueCasts(): Promise<PublishResult> {
       
       for (const video of cloudflareVideos) {
         try {
-          const cfResponse = await fetch(
+          const cfResponse = await fetchWithTimeout(
             `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}`,
             {
               headers: {
                 'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
               },
+              timeoutMs: DEFAULT_TIMEOUTS.API,
             }
           )
           
@@ -211,7 +214,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
               
               let mp4Url: string | null = null
               try {
-                const downloadRes = await fetch(
+                const downloadRes = await fetchWithTimeout(
                   `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}/downloads`,
                   {
                     method: 'POST',
@@ -220,6 +223,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
                       'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({}),
+                    timeoutMs: DEFAULT_TIMEOUTS.API,
                   }
                 )
                 if (downloadRes.ok) {

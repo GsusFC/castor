@@ -94,9 +94,9 @@ export default function ConnectAccountPage() {
     <div className="max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 touch-target" asChild>
           <Link href="/dashboard/accounts">
-            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+            <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground" />
           </Link>
         </Button>
         <div>
@@ -105,7 +105,7 @@ export default function ConnectAccountPage() {
         </div>
       </div>
 
-      <Card className="p-8">
+      <Card className="p-4 sm:p-8">
         {status === 'loading' && (
           <div className="text-center py-12">
             <Loader2 className="w-12 h-12 animate-spin text-castor-black mx-auto mb-4" />
@@ -119,9 +119,10 @@ export default function ConnectAccountPage() {
             <div className="bg-card p-4 rounded-xl border inline-block mb-6 shadow-sm">
               <QRCodeSVG
                 value={signerData.deepLinkUrl}
-                size={240}
+                size={200}
                 level="M"
                 includeMargin={false}
+                className="w-[180px] h-[180px] sm:w-[200px] sm:h-[200px]"
               />
             </div>
 
@@ -158,7 +159,7 @@ export default function ConnectAccountPage() {
               <p className="text-sm text-muted-foreground mb-3">¿Estás en el móvil?</p>
               <Button variant="link" asChild>
                 <a href={signerData.deepLinkUrl} className="text-castor-black">
-                  <Smartphone className="w-4 h-4 mr-2" />
+                  <Smartphone className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
                   Abrir en Warpcast
                 </a>
               </Button>
@@ -185,8 +186,8 @@ export default function ConnectAccountPage() {
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">Error</h2>
             <p className="text-muted-foreground mb-6">{error}</p>
-            <Button onClick={createSigner}>
-              <RefreshCw className="w-4 h-4 mr-2" />
+            <Button onClick={createSigner} className="h-10 sm:h-9 touch-target">
+              <RefreshCw className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
               Reintentar
             </Button>
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { 
   User, Clock, Calendar, ExternalLink, Edit, Trash2, 
   Plus, CheckCircle, AlertCircle, List, CalendarDays,
@@ -284,7 +285,15 @@ export function UnifiedDashboard({
     <div className="space-y-6">
       {/* Módulo de Cuentas */}
       <section>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">Accounts</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-muted-foreground">Accounts</h2>
+          <Link 
+            href="/dashboard/accounts" 
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Manage
+          </Link>
+        </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mb-2 sm:flex-wrap sm:overflow-visible">
           {sortedAccounts.map(account => {
             const accountCastsCount = casts.filter(c => c.accountId === account.id).length
@@ -348,9 +357,9 @@ export function UnifiedDashboard({
       </section>
 
       {/* Tabs principales + View Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {/* Tabs - scrollable en móvil */}
-        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between gap-2">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
           <TabButton 
             active={activeTab === 'scheduled' && !showAllCasts} 
             onClick={() => {
@@ -385,8 +394,8 @@ export function UnifiedDashboard({
           )}
         </div>
 
-        {/* View toggle - solo iconos en móvil */}
-        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border self-end sm:self-auto">
+        {/* View toggle */}
+        <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border">
           <Button
             variant="ghost"
             size="sm"

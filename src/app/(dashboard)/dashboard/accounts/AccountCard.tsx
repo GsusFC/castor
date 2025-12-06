@@ -161,9 +161,9 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             onClick={handleToggleShare}
             disabled={isSharing}
             title={isShared ? 'Dejar de compartir' : 'Compartir con el equipo'}
-            className={isShared ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400" : "text-muted-foreground"}
+            className={`h-10 w-10 sm:h-9 sm:w-9 touch-target ${isShared ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400" : "text-muted-foreground"}`}
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-5 h-5 sm:w-4 sm:h-4" />
           </Button>
         )}
         
@@ -191,10 +191,10 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             variant="ghost"
             size="icon"
             onClick={() => setShowConfirm(true)}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Eliminar cuenta"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
           </Button>
         )}
         </div>

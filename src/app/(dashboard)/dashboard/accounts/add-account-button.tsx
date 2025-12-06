@@ -13,10 +13,10 @@ export function AddAccountButton({ variant = 'default' }: AddAccountButtonProps)
     return (
       <Link 
         href="/dashboard/accounts/connect"
-        className="flex items-center justify-center w-9 h-9 rounded-lg border border-dashed border-gray-300 hover:border-gray-400 hover:bg-muted transition-all"
+        className="flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-muted transition-all touch-target"
         title="Añadir cuenta"
       >
-        <Plus className="w-4 h-4 text-muted-foreground" />
+        <Plus className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground" />
       </Link>
     )
   }

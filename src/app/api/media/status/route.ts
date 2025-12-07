@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
-const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN
+const CF_API_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
 
 /**
  * GET /api/media/status

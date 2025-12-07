@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar si el FID está en la whitelist (Beta)
+    const allowedFids = process.env.ALLOWED_FIDS?.split(',').map(Number) ?? []
+    if (allowedFids.length > 0 && !allowedFids.includes(fid)) {
+      return NextResponse.json(
+        { error: 'Access restricted to beta users' },
+        { status: 403 }
+      )
+    }
+
     // Obtener datos del usuario de Farcaster
     const userResponse = await neynar.fetchBulkUsers({ fids: [fid] })
     const farcasterUser = userResponse.users[0]

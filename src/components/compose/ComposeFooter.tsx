@@ -127,6 +127,7 @@ export function ComposeFooter({
           const { uploadUrl, cloudflareId } = urlJson.data
 
           // Direct upload usando FormData (HTTP simple, sin TUS)
+          console.log('[Upload] Starting video upload to:', uploadUrl)
           const videoFormData = new FormData()
           videoFormData.append('file', file)
           
@@ -134,17 +135,25 @@ export function ComposeFooter({
             method: 'POST',
             body: videoFormData,
           })
-          if (!uploadRes.ok) throw new Error('Video upload failed')
+          console.log('[Upload] Video upload response:', uploadRes.status, uploadRes.ok)
+          if (!uploadRes.ok) {
+            const errorText = await uploadRes.text()
+            console.error('[Upload] Video upload error:', errorText)
+            throw new Error('Video upload failed')
+          }
 
+          console.log('[Upload] Confirming video:', cloudflareId)
           const confirmRes = await fetch('/api/media/confirm', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ cloudflareId, type: 'video' }),
           })
           const confirmJson = await confirmRes.json()
+          console.log('[Upload] Confirm response:', confirmRes.status, confirmJson)
           if (!confirmRes.ok) throw new Error(confirmJson.error || 'Failed to confirm upload')
 
           const data = confirmJson.data
+          console.log('[Upload] Video confirmed, updating media:', data)
 
           currentMedia = currentMedia.map(m =>
             m.preview === mediaItem.preview
@@ -153,7 +162,7 @@ export function ComposeFooter({
                   url: data.url,
                   uploading: false,
                   cloudflareId: data.cloudflareId || cloudflareId,
-                  videoStatus: 'pending' as const,
+                  videoStatus: data.videoStatus || 'pending',
                 }
               : m
           )

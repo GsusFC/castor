@@ -127,10 +127,10 @@ export function ComposeFooter({
           const { uploadUrl, cloudflareId } = urlJson.data
 
           const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
               'Tus-Resumable': '1.0.0',
-              'Upload-Length': file.size.toString(),
+              'Upload-Offset': '0',
               'Content-Type': 'application/offset+octet-stream',
             },
             body: file,

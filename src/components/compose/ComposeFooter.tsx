@@ -126,14 +126,13 @@ export function ComposeFooter({
 
           const { uploadUrl, cloudflareId } = urlJson.data
 
+          // Direct upload usando FormData (HTTP simple, sin TUS)
+          const videoFormData = new FormData()
+          videoFormData.append('file', file)
+          
           const uploadRes = await fetch(uploadUrl, {
-            method: 'PATCH',
-            headers: {
-              'Tus-Resumable': '1.0.0',
-              'Upload-Offset': '0',
-              'Content-Type': 'application/offset+octet-stream',
-            },
-            body: file,
+            method: 'POST',
+            body: videoFormData,
           })
           if (!uploadRes.ok) throw new Error('Video upload failed')
 

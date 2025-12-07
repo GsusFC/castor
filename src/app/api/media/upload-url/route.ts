@@ -97,29 +97,33 @@ export async function POST(request: NextRequest) {
       })
 
     } else {
-      // Para videos, usar TUS protocol de Cloudflare Stream
+      // Para videos, usar direct_upload (HTTP simple, mejor soporte CORS)
       const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream?direct_user=true`,
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
-            'Tus-Resumable': '1.0.0',
-            'Upload-Length': fileSize.toString(),
-            'Upload-Metadata': `name ${btoa(fileName)},type ${btoa(fileType)}`,
+            'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            maxDurationSeconds: 3600,
+            allowedOrigins: ['*'],
+            requireSignedURLs: false,
+            meta: { name: fileName },
+          }),
         }
       )
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('[Upload URL] Cloudflare Stream init failed:', response.status, errorData.errors)
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        console.error('[Upload URL] Cloudflare Stream init failed:', response.status, data.errors)
         return ApiErrors.externalError('Cloudflare Stream')
       }
 
-      // Obtener la URL de upload del header
-      const uploadUrl = response.headers.get('location')
-      const streamMediaId = response.headers.get('stream-media-id')
+      const uploadUrl = data.result.uploadURL
+      const streamMediaId = data.result.uid
 
       if (!uploadUrl || !streamMediaId) {
         console.error('[Upload URL] No upload URL or media ID in response')

@@ -121,14 +121,23 @@ export function MobileNav() {
 
   return (
     <>
+      {/* FAB - New Cast button - fixed above nav */}
+      <button
+        onClick={() => setComposeOpen(true)}
+        className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 sm:hidden"
+        aria-label="New Cast"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
       {/* Bottom navigation - only visible on mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 sm:hidden safe-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
+        <div className="flex items-center justify-around h-16 px-4">
           {/* Home */}
           <Link
             href="/dashboard"
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors",
+              "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
               pathname === '/dashboard'
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -142,7 +151,7 @@ export function MobileNav() {
           <Link
             href="/dashboard/feed"
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors",
+              "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
               pathname === '/dashboard/feed'
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -152,37 +161,23 @@ export function MobileNav() {
             <span className="text-[10px] font-medium">Feed</span>
           </Link>
 
-          {/* New Cast - Central FAB style */}
-          <button
-            onClick={() => setComposeOpen(true)}
-            className="flex items-center justify-center w-12 h-12 -mt-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95"
-            aria-label="New Cast"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-
           {/* Drafts */}
           <button
             onClick={() => setDraftsOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors text-muted-foreground"
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
           >
             <FileText className="w-5 h-5" />
             <span className="text-[10px] font-medium">Drafts</span>
           </button>
 
-          {/* Accounts */}
-          <Link
-            href="/dashboard/accounts"
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors",
-              pathname === '/dashboard/accounts' || pathname?.startsWith('/dashboard/accounts/')
-                ? "text-primary"
-                : "text-muted-foreground"
-            )}
+          {/* Templates */}
+          <button
+            onClick={() => setTemplatesOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
           >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Accounts</span>
-          </Link>
+            <LayoutTemplate className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Templates</span>
+          </button>
         </div>
       </nav>
 

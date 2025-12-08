@@ -1,17 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
 import { AIReplyDialog } from '@/components/feed/AIReplyDialog'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog'
+import { LeftSidebar } from '@/components/feed/LeftSidebar'
+import { RightSidebar } from '@/components/feed/RightSidebar'
 import { cn } from '@/lib/utils'
 import { Loader2, User } from 'lucide-react'
 import { toast } from 'sonner'
 
-type FeedTab = 'home' | 'following' | 'trending' | 'notifications'
+type FeedTab = 'home' | 'following' | 'trending' | 'notifications' | 'channel'
+
+interface SelectedChannel {
+  id: string
+  name: string
+  image_url?: string
+}
 
 interface UserProfile {
   displayName?: string
@@ -93,6 +101,32 @@ export default function FeedPage() {
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [profile, setProfile] = useState<UserProfile>({})
+  const [headerHidden, setHeaderHidden] = useState(false)
+  const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
+  const lastScrollY = useRef(0)
+
+  // Detectar cuando el header está oculto
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      const scrollingDown = currentScrollY > lastScrollY.current
+      
+      if (currentScrollY > 100 && scrollingDown) {
+        setHeaderHidden(true)
+      } else if (currentScrollY < lastScrollY.current) {
+        setHeaderHidden(false)
+      }
+      
+      if (currentScrollY < 50) {
+        setHeaderHidden(false)
+      }
+      
+      lastScrollY.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Obtener FID y perfil del usuario logueado
   useEffect(() => {
@@ -120,9 +154,15 @@ export default function FeedPage() {
     fetchUser()
   }, [])
 
+  // Handler para seleccionar canal
+  const handleSelectChannel = (channel: SelectedChannel) => {
+    setSelectedChannel(channel)
+    setActiveTab('channel')
+  }
+
   // Feed query
   const feedQuery = useInfiniteQuery({
-    queryKey: ['feed', activeTab, userFid],
+    queryKey: ['feed', activeTab, userFid, selectedChannel?.id],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
         type: activeTab === 'notifications' ? 'trending' : activeTab,
@@ -131,6 +171,9 @@ export default function FeedPage() {
       if (pageParam) params.set('cursor', pageParam)
       if (userFid && (activeTab === 'following' || activeTab === 'home')) {
         params.set('fid', userFid.toString())
+      }
+      if (activeTab === 'channel' && selectedChannel) {
+        params.set('channel', selectedChannel.id)
       }
 
       const res = await fetch(`/api/feed?${params}`)
@@ -241,51 +284,87 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg mb-6">
-        {/* Avatar/Profile button */}
-        <button
-          onClick={() => setProfileOpen(true)}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors"
-          title="Editar perfil"
-        >
-          {profile.pfpUrl ? (
-            <img 
-              src={profile.pfpUrl} 
-              alt="Perfil"
-              className="w-7 h-7 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-              <User className="w-4 h-4 text-muted-foreground" />
-            </div>
-          )}
-        </button>
+    <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_300px] gap-6 -mt-4 sm:-mt-6 md:-mt-8">
+      {/* Left Sidebar - hidden on mobile/tablet */}
+      <div className="hidden lg:block">
+        <LeftSidebar onSelectChannel={handleSelectChannel} />
+      </div>
 
-        {/* Feed tabs */}
-        {(['home', 'following', 'trending', 'notifications'] as FeedTab[]).map((tab) => (
+      {/* Main Feed */}
+      <div className="max-w-2xl w-full mx-auto lg:mx-0">
+      {/* Sticky Tabs Header */}
+      <div className={cn(
+        "sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 lg:-mx-0 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 lg:px-0",
+        headerHidden ? "top-0" : "top-14 sm:top-16"
+      )}>
+        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
+          {/* Avatar/Profile button */}
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-              activeTab === tab
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            onClick={() => setProfileOpen(true)}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors flex-shrink-0"
+            title="Editar perfil"
           >
-            {tab === 'home' && 'Home'}
-            {tab === 'following' && 'Following'}
-            {tab === 'trending' && 'Trending'}
-            {tab === 'notifications' && '🔔'}
+            {profile.pfpUrl ? (
+              <img 
+                src={profile.pfpUrl} 
+                alt="Perfil"
+                className="w-7 h-7 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-4 h-4 text-muted-foreground" />
+              </div>
+            )}
           </button>
-        ))}
+
+          {/* Feed tabs */}
+          {(['home', 'following', 'trending', 'notifications'] as FeedTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => {
+                setActiveTab(tab)
+                if (tab !== 'channel') setSelectedChannel(null)
+              }}
+              className={cn(
+                "flex-1 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors",
+                activeTab === tab && activeTab !== 'channel'
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab === 'home' && 'Home'}
+              {tab === 'following' && (
+                <span><span className="hidden sm:inline">Following</span><span className="sm:hidden">Feed</span></span>
+              )}
+              {tab === 'trending' && (
+                <span><span className="hidden sm:inline">Trending</span><span className="sm:hidden">🔥</span></span>
+              )}
+              {tab === 'notifications' && '🔔'}
+            </button>
+          ))}
+
+          {/* Canal seleccionado */}
+          {selectedChannel && (
+            <button
+              onClick={() => {
+                setSelectedChannel(null)
+                setActiveTab('home')
+              }}
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md bg-primary text-primary-foreground"
+            >
+              {selectedChannel.image_url && (
+                <img src={selectedChannel.image_url} alt="" className="w-4 h-4 rounded" />
+              )}
+              <span className="truncate max-w-20">{selectedChannel.name}</span>
+              <span className="text-primary-foreground/70">✕</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notification Filters */}
       {activeTab === 'notifications' && (
-        <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
+        <div className="flex items-center gap-1 mt-4 mb-4 overflow-x-auto pb-2">
           {NOTIFICATION_FILTERS.map((filter) => (
             <button
               key={filter.value}
@@ -304,7 +383,7 @@ export default function FeedPage() {
       )}
 
       {/* Content */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", activeTab !== 'notifications' && "mt-4")}>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -350,6 +429,12 @@ export default function FeedPage() {
             Cargar más...
           </button>
         )}
+      </div>
+      </div>
+
+      {/* Right Sidebar - hidden on mobile/tablet/laptop */}
+      <div className="hidden xl:block">
+        <RightSidebar />
       </div>
 
       {/* AI Reply Dialog */}

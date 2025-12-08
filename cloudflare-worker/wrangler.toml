@@ -1,0 +1,8 @@
+name = "video-proxy"
+main = "video-proxy.js"
+compatibility_date = "2024-01-01"
+
+# Custom domain - conectar video.castorapp.xyz a este worker
+# routes = [
+#   { pattern = "video.castorapp.xyz/*", zone_name = "castorapp.xyz" }
+# ]

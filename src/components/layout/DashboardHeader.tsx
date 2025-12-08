@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { LogOut, Plus, LayoutDashboard, Rss } from 'lucide-react'
@@ -14,11 +14,39 @@ import { cn } from '@/lib/utils'
 export function DashboardHeader() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
+  const lastScrollY = useRef(0)
   const router = useRouter()
   const pathname = usePathname()
   const { selectedAccountId } = useSelectedAccount()
   
   const isFeed = pathname?.includes('/feed')
+
+  // Hide on scroll down, show on scroll up
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      const scrollingDown = currentScrollY > lastScrollY.current
+      const scrollingUp = currentScrollY < lastScrollY.current
+      
+      // Only hide after scrolling past 100px
+      if (currentScrollY > 100 && scrollingDown) {
+        setIsVisible(false)
+      } else if (scrollingUp) {
+        setIsVisible(true)
+      }
+      
+      // Always show at top
+      if (currentScrollY < 50) {
+        setIsVisible(true)
+      }
+      
+      lastScrollY.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -35,7 +63,10 @@ export function DashboardHeader() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top">
+      <header className={cn(
+        "fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top transition-transform duration-300",
+        !isVisible && "-translate-y-full"
+      )}>
         <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between">
           {/* Logo + Nav */}
           <div className="flex items-center gap-4">

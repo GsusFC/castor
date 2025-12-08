@@ -44,13 +44,15 @@ export function VideoValidation({
       return
     }
 
-    // Si el video está procesándose en Cloudflare, hacer polling
-    if ((videoStatus === 'pending' || videoStatus === 'processing') && cloudflareId) {
+    // Si el video está procesándose en Cloudflare, mostrar estado y hacer polling
+    if (videoStatus === 'pending' || videoStatus === 'processing') {
       setValidation({
         isValid: false,
         status: 'processing',
         message: 'Procesando video...'
       })
+      
+      if (!cloudflareId) return
       
       // Polling cada 5 segundos para verificar si el video está listo
       const pollInterval = setInterval(async () => {
@@ -109,7 +111,7 @@ export function VideoValidation({
       setValidation({
         isValid: true,
         status: 'valid',
-        message: 'Video Cloudflare listo',
+        message: 'Video listo',
       })
       return
     }

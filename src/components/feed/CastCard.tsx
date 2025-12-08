@@ -391,7 +391,7 @@ export function CastCard({
       </div>
 
       {/* Content */}
-      <div className="mt-3 ml-13">
+      <div className="mt-3 ml-0 sm:ml-13">
         <p className="whitespace-pre-wrap break-words">{cast.text}</p>
         
         {/* Embeds (images, videos, frames, quote casts) */}
@@ -514,11 +514,11 @@ export function CastCard({
       </div>
 
       {/* Actions */}
-      <div className="mt-3 ml-13 flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-3 ml-0 sm:ml-13 flex items-center gap-1 sm:gap-2 text-sm flex-wrap" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={handleLike}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
             isLiked 
               ? "bg-pink-500/10 text-pink-500 hover:bg-pink-500/20" 
               : "text-muted-foreground hover:text-pink-500 hover:bg-muted"
@@ -531,7 +531,7 @@ export function CastCard({
         <button
           onClick={handleRecast}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
             isRecasted 
               ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" 
               : "text-muted-foreground hover:text-green-500 hover:bg-muted"
@@ -544,7 +544,7 @@ export function CastCard({
         <button 
           onClick={handleLoadReplies}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
             showReplies 
               ? "bg-blue-500/10 text-blue-500" 
               : "text-muted-foreground hover:text-blue-500 hover:bg-muted"
@@ -584,7 +584,7 @@ export function CastCard({
 
       {/* Replies */}
       {showReplies && replies.length > 0 && (
-        <div className="mt-3 ml-13 space-y-3 border-l-2 border-border pl-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-3 ml-0 sm:ml-13 space-y-3 border-l-2 border-border pl-3 sm:pl-4" onClick={(e) => e.stopPropagation()}>
           {replies.map((reply) => (
             <div key={reply.hash} className="text-sm group">
               <div className="flex items-center gap-2">
@@ -660,7 +660,7 @@ export function CastCard({
       {/* Inline Reply Composer (solo cuando está expandido) */}
       {isExpanded && (
         <div 
-          className="mt-4 ml-13 pt-4 border-t border-border"
+          className="mt-4 ml-0 sm:ml-13 pt-4 border-t border-border"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex gap-3">

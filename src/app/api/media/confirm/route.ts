@@ -4,8 +4,7 @@ import { success, ApiErrors } from '@/lib/api/response'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
-// Dominio de Cloudflare Stream (específico de la cuenta)
-// Usar el customer subdomain asignado por Cloudflare
+// Dominio de Cloudflare Stream personalizado (validado por Farcaster)
 const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
 
 /**
@@ -131,16 +130,19 @@ export async function POST(request: NextRequest) {
         mp4Url,
       })
 
-      // Prioridad: mp4Url (si está listo) > hlsUrl > watchUrl
-      // El publisher también tiene esta lógica, pero guardamos la mejor URL disponible
+      // Farcaster requiere .m3u8 (HLS), NO mp4
+      // La URL debe terminar en .m3u8 y soportar /thumbnail.jpg
+      // Formato: https://video.castorapp.xyz/{id}/manifest/video.m3u8
+      // Thumbnail: https://video.castorapp.xyz/{id}/thumbnails/thumbnail.jpg
+      
       return success({
-        url: mp4Url || finalHlsUrl || watchUrl,
+        url: finalHlsUrl, // Siempre usar HLS para Farcaster
         type: 'video',
         id: cloudflareId,
         cloudflareId,
         videoStatus: isReady ? 'ready' : 'pending',
         hlsUrl: finalHlsUrl,
-        mp4Url,
+        mp4Url: mp4Url || `${baseUrl}/downloads/default.mp4`,
         watchUrl,
         thumbnailUrl,
       })

@@ -11,7 +11,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { accountId, content, channelId, embeds, parentHash } = await request.json()
+    const body = await request.json()
+    const { accountId, content, channelId, embeds, parentHash } = body
+    
+    console.log('[Publish API] Request:', {
+      accountId,
+      content: content?.slice(0, 50),
+      channelId,
+      embeds,
+      parentHash,
+    })
 
     if (!accountId || !content?.trim()) {
       return NextResponse.json(
@@ -36,8 +45,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Preparar embeds
-    const embedUrls = embeds?.map((e: { url: string }) => ({ url: e.url })) || []
+    // Preparar embeds - solo extraer URLs válidas
+    const embedUrls = embeds
+      ?.filter((e: { url?: string }) => e.url && e.url.trim())
+      .map((e: { url: string }) => ({ url: e.url })) || []
+
+    console.log('[Publish API] Embeds to send:', embedUrls)
 
     // Publicar cast
     const result = await publishCast(account.signerUuid, content, {
@@ -45,6 +58,8 @@ export async function POST(request: NextRequest) {
       channelId: channelId || undefined,
       parentHash: parentHash || undefined,
     })
+    
+    console.log('[Publish API] Result:', result)
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 })

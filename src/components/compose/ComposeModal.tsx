@@ -341,10 +341,16 @@ export function ComposeModal({
       }
 
       const cast = thread.casts[0]
+      
+      console.log('[Publish] Cast media:', cast.media)
+      console.log('[Publish] Cast links:', cast.links)
+      
       const embeds = [
         ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
         ...cast.links.map(l => ({ url: l.url })),
       ]
+      
+      console.log('[Publish] Final embeds:', embeds)
 
       const res = await fetch('/api/casts/publish', {
         method: 'POST',

@@ -82,6 +82,52 @@ export function ComposeFooter({
     castsRef.current = casts
   }, [casts])
 
+  // Polling para videos pendientes
+  useEffect(() => {
+    const pendingVideos = casts.flatMap((c, castIdx) => 
+      c.media
+        .map((m, mediaIdx) => ({ ...m, castIdx, mediaIdx }))
+        .filter(m => m.type === 'video' && m.cloudflareId && m.videoStatus === 'pending')
+    )
+
+    if (pendingVideos.length === 0) return
+
+    const checkVideoStatus = async () => {
+      console.log('[Video Poll] Checking', pendingVideos.length, 'pending videos')
+      for (const video of pendingVideos) {
+        try {
+          const res = await fetch('/api/media/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cloudflareId: video.cloudflareId, type: 'video' }),
+          })
+          if (!res.ok) continue
+          
+          const { data } = await res.json()
+          console.log('[Video Poll] Status for', video.cloudflareId, ':', data.videoStatus, data.url)
+          
+          if (data.videoStatus === 'ready' && data.url) {
+            const cast = castsRef.current[video.castIdx]
+            if (!cast) continue
+            
+            const updatedMedia = cast.media.map((m, idx) => 
+              idx === video.mediaIdx 
+                ? { ...m, url: data.url, videoStatus: 'ready' as const }
+                : m
+            )
+            console.log('[Video Poll] Video ready! Updating media')
+            onUpdateCast(video.castIdx, { ...cast, media: updatedMedia })
+          }
+        } catch (err) {
+          console.error('[Video Poll] Error:', err)
+        }
+      }
+    }
+
+    const interval = setInterval(checkVideoStatus, 3000)
+    return () => clearInterval(interval)
+  }, [casts, onUpdateCast])
+
   const currentCast = casts[0]
   const canAddMedia = currentCast && currentCast.media.length < 2
 
@@ -157,7 +203,13 @@ export function ComposeFooter({
           if (!confirmRes.ok) throw new Error(confirmJson.error || 'Failed to confirm upload')
 
           const data = confirmJson.data
-          console.log('[Upload] Video confirmed, updating media:', data)
+          console.log('[Upload] Video confirmed:', {
+            url: data.url,
+            cloudflareId: data.cloudflareId || cloudflareId,
+            videoStatus: data.videoStatus,
+            hlsUrl: data.hlsUrl,
+            mp4Url: data.mp4Url,
+          })
 
           currentMedia = currentMedia.map(m =>
             m.preview === mediaItem.preview
@@ -170,6 +222,7 @@ export function ComposeFooter({
                 }
               : m
           )
+          console.log('[Upload] Updated media array:', currentMedia)
         } else {
           // Image upload to Cloudflare Images
           const urlRes = await fetch('/api/media/upload-url', {
@@ -260,13 +313,19 @@ export function ComposeFooter({
     !isPublishing &&
     !isSavingDraft
 
+  // Verificar si hay media subiendo o videos pendientes
+  const hasMediaIssues = casts.some(c => 
+    c.media.some(m => m.uploading || m.error || m.videoStatus === 'pending')
+  )
+
   const canPublishNow =
     selectedAccountId &&
     hasContent &&
     !hasOverLimit &&
     !isSubmitting &&
     !isPublishing &&
-    !isSavingDraft
+    !isSavingDraft &&
+    !hasMediaIssues
 
   // Determina si el usuario ha configurado una fecha/hora programada
   const hasSchedule = Boolean(scheduledDate && scheduledTime)

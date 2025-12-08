@@ -37,10 +37,35 @@ interface Cast {
   }
   replies: { count: number }
   embeds?: {
-    url: string
+    url?: string
+    cast?: {
+      hash: string
+      text: string
+      timestamp: string
+      author: {
+        fid: number
+        username: string
+        display_name: string
+        pfp_url?: string
+      }
+      embeds?: { url: string; metadata?: { content_type?: string } }[]
+      channel?: { id: string; name: string }
+    }
     metadata?: {
       content_type?: string
       image?: { width_px: number; height_px: number }
+      video?: {
+        streams?: { codec_name?: string }[]
+        duration_s?: number
+      }
+      html?: {
+        ogImage?: { url: string }[]
+        ogTitle?: string
+      }
+      frame?: {
+        title?: string
+        image?: string
+      }
     }
   }[]
   channel?: {

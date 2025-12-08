@@ -27,7 +27,7 @@ const HoverCardContext = React.createContext<{
 
 export function HoverCard({ children, openDelay = 200, onOpenChange }: HoverCardProps) {
   const [open, setOpen] = React.useState<boolean>(false)
-  const timeoutRef = React.useRef<NodeJS.Timeout>()
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   const handleSetOpen = (newOpen: boolean) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)

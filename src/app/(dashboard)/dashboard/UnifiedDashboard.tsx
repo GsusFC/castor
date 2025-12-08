@@ -162,13 +162,32 @@ export function UnifiedDashboard({
     }
   }, [searchParams, casts, handleEditCast, router])
 
-  // Auto-refresh cada 30s si hay casts programados
+  // Auto-refresh inteligente: más frecuente cuando hay casts próximos a publicarse
   const scheduledCasts = casts.filter(c => c.status === 'scheduled')
   useEffect(() => {
     if (scheduledCasts.length === 0) return
-    const timer = setInterval(() => router.refresh(), 30000)
+    
+    const checkAndRefresh = () => {
+      const now = new Date()
+      const hasUpcomingCast = scheduledCasts.some(cast => {
+        const scheduledTime = new Date(cast.scheduledAt)
+        const diffMs = scheduledTime.getTime() - now.getTime()
+        // Cast programado en los próximos 2 minutos o ya pasó
+        return diffMs <= 2 * 60 * 1000
+      })
+      
+      if (hasUpcomingCast) {
+        router.refresh()
+      }
+    }
+    
+    // Check cada 15 segundos
+    const timer = setInterval(checkAndRefresh, 15000)
+    // Check inmediato también
+    checkAndRefresh()
+    
     return () => clearInterval(timer)
-  }, [router, scheduledCasts.length])
+  }, [router, scheduledCasts])
 
   // Filtrar datos según cuenta seleccionada (o mostrar todos si showAllCasts)
   const filteredCasts = showAllCasts 

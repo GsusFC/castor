@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Users, Plus, FileText, LayoutTemplate, Edit, Trash2 } from 'lucide-react'
+import { Home, Users, Plus, FileText, LayoutTemplate, Edit, Trash2, Rss } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ComposeModal } from '@/components/compose/ComposeModal'
@@ -138,14 +138,19 @@ export function MobileNav() {
             <span className="text-[10px] font-medium">Home</span>
           </Link>
 
-          {/* Drafts */}
-          <button
-            onClick={() => setDraftsOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors text-muted-foreground"
+          {/* Feed */}
+          <Link
+            href="/dashboard/feed"
+            className={cn(
+              "flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors",
+              pathname === '/dashboard/feed'
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
           >
-            <FileText className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Drafts</span>
-          </button>
+            <Rss className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Feed</span>
+          </Link>
 
           {/* New Cast - Central FAB style */}
           <button
@@ -156,13 +161,13 @@ export function MobileNav() {
             <Plus className="w-5 h-5" />
           </button>
 
-          {/* Templates */}
+          {/* Drafts */}
           <button
-            onClick={() => setTemplatesOpen(true)}
+            onClick={() => setDraftsOpen(true)}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-lg transition-colors text-muted-foreground"
           >
-            <LayoutTemplate className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Templates</span>
+            <FileText className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Drafts</span>
           </button>
 
           {/* Accounts */}

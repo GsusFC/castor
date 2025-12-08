@@ -36,9 +36,11 @@ interface ComposeFooterProps {
   scheduledDate: string
   scheduledTime: string
   isSubmitting: boolean
+  isPublishing: boolean
   isSavingDraft: boolean
   isSavingTemplate: boolean
   onSubmit: () => void
+  onPublishNow: () => void
   onSaveDraft: () => void
   onSaveTemplate?: () => void
   casts: CastItem[]
@@ -57,9 +59,11 @@ export function ComposeFooter({
   scheduledDate,
   scheduledTime,
   isSubmitting,
+  isPublishing,
   isSavingDraft,
   isSavingTemplate,
   onSubmit,
+  onPublishNow,
   onSaveDraft,
   onSaveTemplate,
   casts,
@@ -253,7 +257,19 @@ export function ComposeFooter({
     scheduledDate &&
     scheduledTime &&
     !isSubmitting &&
+    !isPublishing &&
     !isSavingDraft
+
+  const canPublishNow =
+    selectedAccountId &&
+    hasContent &&
+    !hasOverLimit &&
+    !isSubmitting &&
+    !isPublishing &&
+    !isSavingDraft
+
+  // Determina si el usuario ha configurado una fecha/hora programada
+  const hasSchedule = Boolean(scheduledDate && scheduledTime)
 
   return (
     <div className="flex items-center px-3 pt-2 pb-4 sm:p-3 border-t border-border bg-muted/50 gap-1 sm:gap-2">
@@ -391,25 +407,27 @@ export function ComposeFooter({
         </Button>
       )}
 
-      {/* Submit button */}
+      {/* Main action button - Cast o Schedule según contexto */}
       <Button
         type="button"
         size="sm"
-        onClick={onSubmit}
-        disabled={!canSubmit}
+        onClick={hasSchedule ? onSubmit : onPublishNow}
+        disabled={hasSchedule ? !canSubmit : !canPublishNow}
         className="h-10 sm:h-8 px-4 sm:px-3 touch-target"
-        aria-label={isEditMode ? 'Save changes' : 'Schedule cast'}
+        aria-label={isEditMode ? 'Save changes' : hasSchedule ? 'Schedule cast' : 'Cast now'}
       >
         <Send className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-        {isSubmitting
+        {isSubmitting || isPublishing
           ? isEditMode
             ? 'Saving...'
-            : 'Scheduling...'
+            : hasSchedule
+              ? 'Scheduling...'
+              : 'Casting...'
           : isEditMode
             ? 'Save'
             : isThread
-              ? 'Schedule Thread'
-              : 'Schedule'}
+              ? hasSchedule ? 'Schedule Thread' : 'Cast Thread'
+              : hasSchedule ? 'Schedule' : 'Cast'}
       </Button>
     </div>
   )

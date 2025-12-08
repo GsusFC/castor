@@ -2,19 +2,23 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { LogOut, Plus } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { LogOut, Plus, LayoutDashboard, Rss } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export function DashboardHeader() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const { selectedAccountId } = useSelectedAccount()
+  
+  const isFeed = pathname?.includes('/feed')
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -33,24 +37,51 @@ export function DashboardHeader() {
     <>
       <header className="fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top">
         <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between">
-          {/* Logo */}
-          <Link 
-            href="/dashboard" 
-            className="flex items-center gap-2 sm:gap-3 group min-h-[44px] touch-target"
-          >
-            <img 
-              src="/brand/logo.png" 
-              alt="Castor" 
-              className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
-            />
-            <span className="font-display text-base sm:text-lg text-foreground sm-fade-hide responsive-text">
-              Castor
-            </span>
-          </Link>
+          {/* Logo + Nav */}
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/dashboard" 
+              className="flex items-center gap-2 group min-h-[44px] touch-target"
+            >
+              <img 
+                src="/brand/logo.png" 
+                alt="Castor" 
+                className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
+              />
+            </Link>
+
+            {/* Nav Tabs - hidden on mobile */}
+            <nav className="hidden sm:flex items-center bg-muted/50 rounded-lg p-1">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  !isFeed
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link
+                href="/dashboard/feed"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  isFeed
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Rss className="w-4 h-4" />
+                <span>Feed</span>
+              </Link>
+            </nav>
+          </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* New Cast button - hidden on mobile (use bottom nav instead) */}
+          <div className="flex items-center gap-1">
+            {/* New Cast button - hidden on mobile */}
             <Button 
               onClick={() => setComposeOpen(true)} 
               size="sm" 
@@ -59,13 +90,13 @@ export function DashboardHeader() {
               <Plus className="w-4 h-4" />
               <span>New Cast</span>
             </Button>
-            <ThemeToggle />
+            <ThemeToggle collapsed />
             <Button
               variant="ghost"
               size="icon"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="h-10 w-10 touch-target text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive"
               aria-label="Sign out"
             >
               <LogOut className="w-4 h-4" />

@@ -68,6 +68,7 @@ export function ComposeModal({
   // Estado local restante
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyToCast | null>(null)
@@ -323,6 +324,56 @@ export function ComposeModal({
     }
   }
 
+  // Publicar ahora
+  const handlePublishNow = async () => {
+    setError(null)
+
+    if (!selectedAccountId || !hasContent) {
+      return
+    }
+
+    setIsPublishing(true)
+
+    try {
+      const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
+      if (hasMediaErrors) {
+        throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
+      }
+
+      const cast = thread.casts[0]
+      const embeds = [
+        ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
+        ...cast.links.map(l => ({ url: l.url })),
+      ]
+
+      const res = await fetch('/api/casts/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: selectedAccountId,
+          content: cast.content,
+          channelId: selectedChannel?.id,
+          embeds: embeds.length > 0 ? embeds : undefined,
+          parentHash: replyTo?.hash,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al publicar')
+
+      toast.success('Cast publicado!')
+      resetForm()
+      onOpenChange(false)
+      router.refresh()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
   // Cargar template
   const handleLoadTemplate = (template: Template) => {
     thread.setCasts([{
@@ -408,8 +459,10 @@ export function ComposeModal({
           onSelectReplyTo={setReplyTo}
           maxChars={maxChars}
           isSubmitting={isSubmitting}
+          isPublishing={isPublishing}
           isSavingDraft={isSavingDraft}
           onSubmit={handleSubmit}
+          onPublishNow={handlePublishNow}
           onSaveDraft={handleSaveDraft}
           hasContent={hasContent}
           hasOverLimit={hasOverLimit}

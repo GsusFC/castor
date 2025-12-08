@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   :root {
     /* Light theme - Clean and minimal */
     --background: 0 0% 98%;

@@ -43,8 +43,10 @@ interface ComposeCardProps {
   onSelectReplyTo: (cast: ReplyToCast | null) => void
   maxChars: number
   isSubmitting: boolean
+  isPublishing: boolean
   isSavingDraft: boolean
   onSubmit: () => void
+  onPublishNow: () => void
   onSaveDraft: () => void
   hasContent: boolean
   hasOverLimit: boolean
@@ -76,8 +78,10 @@ export function ComposeCard({
   onSelectReplyTo,
   maxChars,
   isSubmitting,
+  isPublishing,
   isSavingDraft,
   onSubmit,
+  onPublishNow,
   onSaveDraft,
   hasContent,
   hasOverLimit,
@@ -204,9 +208,11 @@ export function ComposeCard({
         scheduledDate={scheduledDate}
         scheduledTime={scheduledTime}
         isSubmitting={isSubmitting}
+        isPublishing={isPublishing}
         isSavingDraft={isSavingDraft}
         isSavingTemplate={isSavingTemplate}
         onSubmit={onSubmit}
+        onPublishNow={onPublishNow}
         onSaveDraft={onSaveDraft}
         onSaveTemplate={onSaveTemplate}
         casts={casts}

@@ -22,6 +22,13 @@ const publicPrefixes = [
 // APIs que solo requieren autenticación para métodos que modifican
 const readOnlyPublicApis = [
   '/api/channels',   // Listar canales es público
+  '/api/feed',       // Feed es público para lectura
+]
+
+// APIs que requieren auth pero POST es público (para AI)
+const authPostApis = [
+  '/api/ai/',        // AI endpoints
+  '/api/me',         // User info
 ]
 
 function getSecretKey() {
@@ -62,6 +69,11 @@ export async function middleware(request: NextRequest) {
 
   // APIs de solo lectura: permitir GET sin auth
   if (readOnlyPublicApis.some(api => pathname.startsWith(api)) && method === 'GET') {
+    return NextResponse.next()
+  }
+
+  // APIs que permiten POST con auth (verificar auth en el endpoint)
+  if (authPostApis.some(api => pathname.startsWith(api))) {
     return NextResponse.next()
   }
 

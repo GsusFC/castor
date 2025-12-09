@@ -67,7 +67,7 @@ export function DashboardHeader() {
         "fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top transition-transform duration-300",
         !isVisible && "-translate-y-full"
       )}>
-        <div className="h-14 sm:h-16 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 flex items-center justify-between">
+        <div className="h-14 sm:h-16 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between">
           {/* Logo + Nav */}
           <div className="flex items-center gap-4">
             <Link 

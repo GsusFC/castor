@@ -17,7 +17,7 @@ export default function DashboardLayout({
             <div className="fixed inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
             <DashboardHeader />
             <main className="min-h-screen relative z-10 pt-14 sm:pt-16 pb-20 sm:pb-0">
-              <div className="py-4 sm:py-6 md:py-8 px-4 sm:px-6 md:px-8 max-w-6xl mx-auto">{children}</div>
+              <div className="py-4 sm:py-6 md:py-8 px-4 sm:px-6 lg:px-12 max-w-[1440px] mx-auto">{children}</div>
             </main>
             <MobileNav />
           </div>

@@ -4,9 +4,8 @@ import { success, ApiErrors } from '@/lib/api/response'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
-// Dominio de Cloudflare Stream
-// TODO: Cambiar a video.castorapp.xyz cuando el DNS propague completamente
-const CF_STREAM_DOMAIN = 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
+// Dominio de Cloudflare Stream personalizado (validado por Farcaster)
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * POST /api/media/confirm

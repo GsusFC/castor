@@ -284,14 +284,14 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_300px] gap-6 -mt-4 sm:-mt-6 md:-mt-8">
+    <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr_320px] gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
       {/* Left Sidebar - hidden on mobile/tablet */}
       <div className="hidden lg:block">
         <LeftSidebar onSelectChannel={handleSelectChannel} />
       </div>
 
       {/* Main Feed */}
-      <div className="max-w-2xl w-full mx-auto lg:mx-0">
+      <div className="max-w-2xl xl:max-w-3xl w-full mx-auto lg:mx-0">
       {/* Sticky Tabs Header */}
       <div className={cn(
         "sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 lg:-mx-0 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 lg:px-0",

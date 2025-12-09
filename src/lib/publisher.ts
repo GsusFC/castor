@@ -314,6 +314,12 @@ export async function publishDueCasts(): Promise<PublishResult> {
         return { url: m.url }
       }) || []
 
+      publisherLogger.info({ 
+        castId: cast.id,
+        mediaCount: castWithMedia.media?.length || 0,
+        embeds: embeds,
+      }, 'Prepared embeds for cast')
+
       // Determinar parentHash para threads
       let parentHash = cast.parentHash || undefined
       if (cast.threadId && cast.threadOrder && cast.threadOrder > 0) {

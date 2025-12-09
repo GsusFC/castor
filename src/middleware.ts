@@ -23,6 +23,8 @@ const publicPrefixes = [
 const readOnlyPublicApis = [
   '/api/channels',   // Listar canales es público
   '/api/feed',       // Feed es público para lectura
+  '/api/users/',     // Perfiles de usuario son públicos
+  '/api/search',     // Búsqueda es pública
 ]
 
 // APIs que requieren auth pero POST es público (para AI)

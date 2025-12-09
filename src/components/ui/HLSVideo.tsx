@@ -15,7 +15,13 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !src) return
+    if (!video) return
+    
+    // Validar que src existe y es una URL válida
+    if (!src || src.trim() === '') {
+      setError(true)
+      return
+    }
 
     const isHLS = src.includes('.m3u8')
 
@@ -32,21 +38,25 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
           hls.attachMedia(video)
           hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
             if (data.fatal) {
-              console.error('[HLS] Fatal error:', data)
+              console.warn('[HLS] Fatal error:', data.type, data.details, data.reason || '')
               setError(true)
             }
           })
         } else {
-          console.error('[HLS] Not supported')
           setError(true)
         }
-      }).catch((err) => {
-        console.error('[HLS] Failed to load hls.js:', err)
+      }).catch(() => {
         setError(true)
       })
     } else {
       // Safari o video no-HLS: usar src directamente
       video.src = src
+      
+      // Manejar errores de carga del video
+      const handleError = () => setError(true)
+      video.addEventListener('error', handleError)
+      
+      return () => video.removeEventListener('error', handleError)
     }
 
     return () => {

@@ -20,6 +20,12 @@ export interface LinkEmbed {
   favicon?: string
   loading?: boolean
   error?: boolean
+  // Frame/MiniApp metadata
+  isFrame?: boolean
+  frameVersion?: string
+  frameImage?: string
+  frameButtons?: string[]
+  framePostUrl?: string
 }
 
 export interface CastItem {

@@ -22,17 +22,26 @@ export async function POST(request: NextRequest) {
       parentHash,
     })
 
-    if (!accountId || !content?.trim()) {
+    if (!content?.trim()) {
       return NextResponse.json(
-        { error: 'accountId and content are required' },
+        { error: 'content is required' },
         { status: 400 }
       )
     }
 
-    // Obtener cuenta con signer
-    const account = await db.query.accounts.findFirst({
-      where: eq(accounts.id, accountId),
-    })
+    // Obtener cuenta con signer (usar accountId específico o el primer account aprobado)
+    let account
+    if (accountId) {
+      account = await db.query.accounts.findFirst({
+        where: eq(accounts.id, accountId),
+      })
+    } else {
+      // Buscar el primer account aprobado del usuario
+      const userAccounts = await db.query.accounts.findMany({
+        where: eq(accounts.ownerId, session.userId),
+      })
+      account = userAccounts.find(a => a.signerStatus === 'approved')
+    }
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })

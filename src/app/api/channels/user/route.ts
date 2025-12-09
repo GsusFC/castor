@@ -10,17 +10,30 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '100')
 
-    const response = await neynar.fetchUserChannelMemberships({
-      fid: session.fid,
-      limit,
-    }) as any
+    // Paginar para obtener todos los canales
+    const allMemberships: any[] = []
+    let cursor: string | undefined
+    const pageSize = 100 // Máximo por página de Neynar
 
-    // Response puede tener 'members' o 'channels' según la versión
-    const memberships = response.members || response.channels || []
-    
-    const channels = memberships.map((membership: any) => ({
+    do {
+      const response = await neynar.fetchUserChannelMemberships({
+        fid: session.fid,
+        limit: pageSize,
+        cursor,
+      }) as any
+
+      const memberships = response.members || response.channels || []
+      allMemberships.push(...memberships)
+      
+      cursor = response.next?.cursor
+      
+      // Parar si ya tenemos suficientes o no hay más
+      if (allMemberships.length >= limit || !cursor) break
+    } while (cursor)
+
+    const channels = allMemberships.slice(0, limit).map((membership: any) => ({
       id: membership.channel?.id || membership.id,
       name: membership.channel?.name || membership.name,
       image_url: membership.channel?.image_url || membership.image_url,

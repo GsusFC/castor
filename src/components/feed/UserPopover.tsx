@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { UserPlus, UserCheck, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
+import { UserPlus, UserCheck, ExternalLink, User } from 'lucide-react'
 import {
   HoverCard,
   HoverCardContent,
@@ -79,15 +80,13 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
   return (
     <HoverCard openDelay={300} onOpenChange={(open: boolean) => open && fetchProfile()}>
       <HoverCardTrigger asChild>
-        <a 
-          href={warpcastUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link 
+          href={`/dashboard/user/${username}`}
           className="cursor-pointer"
           onClick={(e) => e.stopPropagation()}
         >
           {children}
-        </a>
+        </Link>
       </HoverCardTrigger>
       <HoverCardContent className="w-72" align="start">
         <div className="space-y-3">
@@ -115,11 +114,11 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
           {profile && (
             <div className="flex items-center gap-4 text-sm">
               <span>
-                <strong>{profile.following_count.toLocaleString()}</strong>
+                <strong>{(profile.following_count ?? 0).toLocaleString()}</strong>
                 <span className="text-muted-foreground ml-1">siguiendo</span>
               </span>
               <span>
-                <strong>{profile.follower_count.toLocaleString()}</strong>
+                <strong>{(profile.follower_count ?? 0).toLocaleString()}</strong>
                 <span className="text-muted-foreground ml-1">seguidores</span>
               </span>
             </div>
@@ -135,6 +134,14 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
+            <Link
+              href={`/dashboard/user/${username}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <User className="w-4 h-4" />
+              Ver perfil
+            </Link>
             <button
               onClick={(e) => {
                 e.preventDefault()
@@ -142,23 +149,14 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
                 handleFollow()
               }}
               disabled={isFollowing || isFollowLoading}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors ${
                 isFollowing 
-                  ? 'bg-muted text-muted-foreground'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  ? 'bg-green-500/20 text-green-500'
+                  : 'bg-muted hover:bg-muted/80'
               }`}
+              title={isFollowing ? 'Siguiendo' : 'Seguir'}
             >
-              {isFollowing ? (
-                <>
-                  <UserCheck className="w-4 h-4" />
-                  Siguiendo
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4" />
-                  {isFollowLoading ? 'Siguiendo...' : 'Seguir'}
-                </>
-              )}
+              {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
             </button>
             <a
               href={warpcastUrl}

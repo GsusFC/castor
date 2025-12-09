@@ -3,10 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Heart, Repeat2, MessageCircle, Bookmark, Globe, Sparkles, X, Send, Loader2 } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, Sparkles, X, Send, Loader2, Share, Image, Film } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
+import { PowerBadge } from '@/components/ui/PowerBadge'
+import { GifPicker } from '@/components/compose/GifPicker'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
 
 interface CastAuthor {
@@ -14,6 +17,7 @@ interface CastAuthor {
   username: string
   display_name: string
   pfp_url?: string
+  power_badge?: boolean
   pro?: { status: string }
 }
 
@@ -55,10 +59,14 @@ interface CastEmbed {
     html?: {
       ogImage?: { url: string }[]
       ogTitle?: string
+      ogDescription?: string
+      favicon?: string
     }
     frame?: {
+      version?: string
       title?: string
       image?: string
+      buttons?: { title?: string; index?: number }[]
     }
   }
 }
@@ -76,21 +84,11 @@ interface Cast {
 
 interface CastCardProps {
   cast: Cast
-  onTranslate?: (text: string) => void
-  onAIReply?: (cast: Cast) => void
-  onLike?: (hash: string) => void
-  onRecast?: (hash: string) => void
-  onSave?: (cast: Cast) => void
   onOpenMiniApp?: (url: string, title: string) => void
 }
 
 export function CastCard({ 
   cast, 
-  onTranslate, 
-  onAIReply,
-  onLike,
-  onRecast,
-  onSave,
   onOpenMiniApp,
 }: CastCardProps) {
   const [translation, setTranslation] = useState<string | null>(null)
@@ -101,15 +99,18 @@ export function CastCard({
   const [likesCount, setLikesCount] = useState(cast.reactions.likes_count)
   const [recastsCount, setRecastsCount] = useState(cast.reactions.recasts_count)
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
-  const [showReplies, setShowReplies] = useState(false)
   const [replies, setReplies] = useState<any[]>([])
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [replyText, setReplyText] = useState('')
+  const [replyMedia, setReplyMedia] = useState<{ preview: string; url?: string; uploading: boolean; isGif?: boolean } | null>(null)
+  const [showGifPicker, setShowGifPicker] = useState(false)
   const [isSendingReply, setIsSendingReply] = useState(false)
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isTranslatingReply, setIsTranslatingReply] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -125,27 +126,13 @@ export function CastCard({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isExpanded])
 
-  // Cargar replies al expandir
-  const handleExpand = async () => {
-    if (isExpanded) return
-    setIsExpanded(true)
-    
-    if (replies.length === 0 && cast.replies.count > 0) {
-      setLoadingReplies(true)
-      try {
-        const res = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
-        const data = await res.json()
-        setReplies(data.replies || [])
-        setShowReplies(true)
-      } catch (error) {
-        console.error('Error loading replies:', error)
-      } finally {
-        setLoadingReplies(false)
-      }
-    } else if (replies.length > 0) {
-      setShowReplies(true)
+  // Auto-resize textarea cuando cambia el texto (ej: AI genera contenido)
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
-  }
+  }, [replyText])
 
   // Generar respuesta con AI
   const handleGenerateAIReply = async () => {
@@ -154,11 +141,19 @@ export function CastCard({
       const res = await fetch('/api/ai/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castText: cast.text }),
+        body: JSON.stringify({ 
+          originalText: cast.text,
+          authorUsername: cast.author.username,
+          tone: 'friendly',
+          language: 'English',
+        }),
       })
       const data = await res.json()
-      if (data.reply) {
-        setReplyText(data.reply)
+      if (data.suggestions && data.suggestions.length > 0) {
+        // Usar la primera sugerencia
+        setReplyText(data.suggestions[0])
+      } else if (data.error) {
+        toast.error(data.error)
       }
     } catch (error) {
       toast.error('Error al generar respuesta')
@@ -188,18 +183,91 @@ export function CastCard({
     }
   }
 
+  // Subir imagen para reply
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten imágenes')
+      return
+    }
+    
+    // Crear preview
+    const preview = URL.createObjectURL(file)
+    setReplyMedia({ preview, uploading: true })
+    
+    try {
+      // Obtener URL de subida
+      const urlRes = await fetch('/api/media/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+        }),
+      })
+      const urlJson = await urlRes.json()
+      if (!urlRes.ok) throw new Error(urlJson.error || 'Error al obtener URL')
+      
+      const { uploadUrl, cloudflareId } = urlJson.data
+      
+      // Subir imagen
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!uploadRes.ok) throw new Error('Error al subir imagen')
+      
+      // Confirmar subida
+      const confirmRes = await fetch('/api/media/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cloudflareId, type: 'image' }),
+      })
+      const confirmJson = await confirmRes.json()
+      if (!confirmRes.ok) throw new Error(confirmJson.error || 'Error al confirmar')
+      
+      setReplyMedia({ preview, url: confirmJson.data.url, uploading: false })
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Error al subir imagen')
+      setReplyMedia(null)
+    }
+    
+    // Limpiar input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // Seleccionar GIF
+  const handleGifSelect = (gifUrl: string) => {
+    setReplyMedia({ preview: gifUrl, url: gifUrl, uploading: false, isGif: true })
+    setShowGifPicker(false)
+  }
+
   // Enviar respuesta
   const handleSendReply = async () => {
-    if (!replyText.trim() || isSendingReply) return
+    if ((!replyText.trim() && !replyMedia?.url) || isSendingReply) return
+    if (replyMedia?.uploading) {
+      toast.error('Espera a que termine de subir la imagen')
+      return
+    }
     
     setIsSendingReply(true)
     try {
+      const embeds = replyMedia?.url ? [{ url: replyMedia.url }] : undefined
+      
       const res = await fetch('/api/casts/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: replyText,
+          content: replyText,
           parentHash: cast.hash,
+          embeds,
         }),
       })
       
@@ -207,6 +275,7 @@ export function CastCard({
       
       toast.success('Respuesta publicada')
       setReplyText('')
+      setReplyMedia(null)
       
       // Recargar replies
       const repliesRes = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
@@ -219,25 +288,30 @@ export function CastCard({
     }
   }
 
-  const handleLoadReplies = async () => {
-    if (showReplies) {
-      setShowReplies(false)
+  // Unificado: bocadillo también expande el cast
+  const handleToggleReplies = async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    
+    if (isExpanded) {
+      // Si ya está expandido, colapsar
+      setIsExpanded(false)
       return
     }
-    if (replies.length > 0) {
-      setShowReplies(true)
-      return
-    }
-    setLoadingReplies(true)
-    try {
-      const res = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=5`)
-      const data = await res.json()
-      setReplies(data.replies || [])
-      setShowReplies(true)
-    } catch (error) {
-      console.error('Error loading replies:', error)
-    } finally {
-      setLoadingReplies(false)
+    
+    // Expandir y cargar replies
+    setIsExpanded(true)
+    
+    if (replies.length === 0 && cast.replies.count > 0) {
+      setLoadingReplies(true)
+      try {
+        const res = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
+        const data = await res.json()
+        setReplies(data.replies || [])
+      } catch (error) {
+        console.error('Error loading replies:', error)
+      } finally {
+        setLoadingReplies(false)
+      }
     }
   }
 
@@ -310,6 +384,17 @@ export function CastCard({
     }
   }
 
+  const handleShare = async () => {
+    const url = `https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`
+    
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Enlace copiado')
+    } catch {
+      toast.error('Error al copiar')
+    }
+  }
+
   const timeAgo = formatDistanceToNow(new Date(cast.timestamp), { 
     addSuffix: false,
     locale: es,
@@ -318,7 +403,7 @@ export function CastCard({
   return (
     <div 
       ref={cardRef}
-      onClick={handleExpand}
+      onClick={handleToggleReplies}
       className={cn(
         "p-4 border rounded-lg bg-card transition-all cursor-pointer",
         isExpanded 
@@ -327,7 +412,7 @@ export function CastCard({
       )}
     >
       {/* Header */}
-      <div className="flex items-start gap-3" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-start gap-3">
         <UserPopover
           fid={cast.author.fid}
           username={cast.author.username}
@@ -360,11 +445,7 @@ export function CastCard({
             >
               <span className="font-semibold truncate hover:underline">{cast.author.display_name}</span>
             </UserPopover>
-            {cast.author.pro?.status === 'subscribed' && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded">
-                PRO
-              </span>
-            )}
+            {(cast.author.power_badge || cast.author.pro?.status === 'subscribed') && <PowerBadge size={16} />}
           </div>
           {/* @username · tiempo · canal */}
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -395,12 +476,35 @@ export function CastCard({
       <div className="mt-3 ml-0 sm:ml-13">
         <p className="whitespace-pre-wrap break-words">{cast.text}</p>
         
-        {/* Embeds (images, videos, frames, quote casts) */}
+        {/* Translation - justo debajo del texto */}
+        {showTranslation && translation && (
+          <div className="mt-2 text-sm text-muted-foreground italic">
+            <span className="flex items-center gap-1 text-xs not-italic mb-0.5">
+              <Globe className="w-3 h-3" />
+              Traducción
+            </span>
+            {translation}
+          </div>
+        )}
+        
+        {/* Embeds (images, videos, frames, links, quote casts) */}
         {cast.embeds && cast.embeds.length > 0 && (() => {
           const images = cast.embeds.filter(e => e.url && e.metadata?.content_type?.startsWith('image/'))
           const videos = cast.embeds.filter(e => e.url && (e.metadata?.content_type?.startsWith('video/') || e.metadata?.video))
-          const frames = cast.embeds.filter(e => e.url && e.metadata?.frame)
+          const frames = cast.embeds.filter(e => e.url && (e.metadata?.frame?.version || e.metadata?.frame?.image))
           const quoteCasts = cast.embeds.filter(e => e.cast)
+          // Links con OG metadata (no images, videos, frames ni quotes)
+          const processedUrls = new Set([
+            ...images.map(e => e.url),
+            ...videos.map(e => e.url),
+            ...frames.map(e => e.url),
+          ])
+          const links = cast.embeds.filter(e => 
+            e.url && 
+            !e.cast &&
+            !processedUrls.has(e.url) &&
+            e.metadata?.html?.ogTitle
+          )
           
           return (
             <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -498,17 +602,6 @@ export function CastCard({
             </div>
           )
         })()}
-        
-        {/* Translation */}
-        {showTranslation && translation && (
-          <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Globe className="w-3 h-3" />
-              <span>Traducción al español</span>
-            </div>
-            <p className="text-sm">{translation}</p>
-          </div>
-        )}
       </div>
 
       {/* Actions */}
@@ -540,23 +633,16 @@ export function CastCard({
         </button>
 
         <button 
-          onClick={handleLoadReplies}
+          onClick={handleToggleReplies}
           className={cn(
             "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
-            showReplies 
+            isExpanded 
               ? "bg-blue-500/10 text-blue-500" 
               : "text-muted-foreground hover:text-blue-500 hover:bg-muted"
           )}
         >
           <MessageCircle className="w-4 h-4" />
           <span>{loadingReplies ? '...' : cast.replies.count}</span>
-        </button>
-
-        <button
-          onClick={() => onSave?.(cast)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <Bookmark className="w-4 h-4" />
         </button>
 
         <button
@@ -568,164 +654,219 @@ export function CastCard({
               ? "bg-blue-500/10 text-blue-500" 
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
+          title="Traducir al español"
         >
-          <Globe className="w-4 h-4" />
+          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
         </button>
 
         <button
-          onClick={() => onAIReply?.(cast)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+          onClick={handleShare}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Copiar enlace"
         >
-          <Sparkles className="w-4 h-4" />
+          <Share className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Replies */}
-      {showReplies && replies.length > 0 && (
-        <div className="mt-3 ml-0 sm:ml-13 space-y-3 border-l-2 border-border pl-3 sm:pl-4" onClick={(e) => e.stopPropagation()}>
-          {replies.map((reply) => (
-            <div key={reply.hash} className="text-sm group">
-              <div className="flex items-center gap-2">
-                {reply.author && (
-                  <UserPopover
-                    fid={reply.author.fid}
-                    username={reply.author.username}
-                    displayName={reply.author.display_name}
-                    pfpUrl={reply.author.pfp_url}
-                  >
-                    <div className="flex items-center gap-2">
-                      {reply.author.pfp_url && (
-                        <img 
-                          src={reply.author.pfp_url} 
-                          alt={reply.author.username}
-                          className="w-5 h-5 rounded-full hover:opacity-80"
-                        />
-                      )}
-                      <span className="font-medium hover:underline">{reply.author.display_name}</span>
-                      <span className="text-muted-foreground text-xs">@{reply.author.username}</span>
-                    </div>
-                  </UserPopover>
-                )}
-              </div>
-              <p className="mt-1 text-muted-foreground">{reply.text}</p>
-              
-              {/* Reply actions */}
-              <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Heart className="w-3 h-3" />
-                  {reply.reactions?.likes_count || 0}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Repeat2 className="w-3 h-3" />
-                  {reply.reactions?.recasts_count || 0}
-                </span>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => onLike?.(reply.hash)}
-                    className="hover:text-pink-500 transition-colors"
-                    title="Like"
-                  >
-                    <Heart className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onRecast?.(reply.hash)}
-                    className="hover:text-green-500 transition-colors"
-                    title="Recast"
-                  >
-                    <Repeat2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onAIReply?.({
-                      hash: reply.hash,
-                      text: reply.text,
-                      timestamp: reply.timestamp,
-                      author: reply.author,
-                      reactions: reply.reactions || { likes_count: 0, recasts_count: 0 },
-                      replies: { count: 0 },
-                    })}
-                    className="hover:text-primary transition-colors"
-                    title="AI Reply"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Inline Reply Composer (solo cuando está expandido) */}
+      {/* Expanded Section: Composer first, then Replies */}
       {isExpanded && (
-        <div 
-          className="mt-4 ml-0 sm:ml-13 pt-4 border-t border-border"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder={`Responder a @${cast.author.username}...`}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-                rows={2}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleSendReply()
-                  }
-                }}
-              />
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleGenerateAIReply}
-                    disabled={isGeneratingAI}
-                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                    title="Generar respuesta con AI"
-                  >
-                    {isGeneratingAI ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
-                    <span>AI</span>
-                  </button>
-                  {replyText.trim() && (
-                    <button
-                      onClick={handleTranslateReply}
-                      disabled={isTranslatingReply}
-                      className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-muted-foreground hover:text-blue-500 hover:bg-muted transition-colors"
-                      title="Traducir a inglés"
-                    >
-                      {isTranslatingReply ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Globe className="w-3.5 h-3.5" />
-                      )}
-                      <span>EN</span>
-                    </button>
-                  )}
-                </div>
-                <button
-                  onClick={handleSendReply}
-                  disabled={!replyText.trim() || isSendingReply}
+        <div className="mt-4 ml-0 sm:ml-13 space-y-4" onClick={(e) => e.stopPropagation()}>
+          {/* Composer - Always first */}
+          <div className="pt-4 border-t border-border">
+            <textarea
+              ref={textareaRef}
+              value={replyText}
+              onChange={(e) => {
+                setReplyText(e.target.value)
+                // Auto-resize
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = 'auto'
+                  textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+                }
+              }}
+              placeholder={`Responder a @${cast.author.username}...`}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[5rem] max-h-64 overflow-hidden"
+              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSendReply()
+                }
+              }}
+            />
+            
+            {/* Preview de imagen */}
+            {replyMedia && (
+              <div className="mt-2 relative inline-block">
+                <img 
+                  src={replyMedia.preview} 
+                  alt="Preview" 
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
-                    replyText.trim() 
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                    "h-20 rounded-lg object-cover",
+                    replyMedia.uploading && "opacity-50"
                   )}
+                />
+                {replyMedia.uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
+                )}
+                <button
+                  onClick={() => setReplyMedia(null)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/90"
                 >
-                  {isSendingReply ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span>Responder</span>
+                  <X className="w-3 h-3" />
                 </button>
               </div>
+            )}
+            
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleGenerateAIReply}
+                  disabled={isGeneratingAI}
+                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                  title="Generar respuesta con AI"
+                >
+                  {isGeneratingAI ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>AI</span>
+                </button>
+                <button
+                  onClick={handleTranslateReply}
+                  disabled={isTranslatingReply || !replyText.trim()}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
+                    replyText.trim() 
+                      ? "text-muted-foreground hover:text-blue-500 hover:bg-muted"
+                      : "text-muted-foreground/50 cursor-not-allowed"
+                  )}
+                  title="Traducir a inglés"
+                >
+                  {isTranslatingReply ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Globe className="w-3.5 h-3.5" />
+                  )}
+                  <span>EN</span>
+                </button>
+                <div className="w-px h-4 bg-border mx-1" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!!replyMedia}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
+                    replyMedia 
+                      ? "text-muted-foreground/50 cursor-not-allowed"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  title="Añadir imagen"
+                >
+                  <Image className="w-3.5 h-3.5" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <Popover open={showGifPicker} onOpenChange={setShowGifPicker}>
+                  <PopoverTrigger asChild>
+                    <button
+                      disabled={!!replyMedia}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
+                        replyMedia 
+                          ? "text-muted-foreground/50 cursor-not-allowed"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      title="Añadir GIF"
+                    >
+                      <Film className="w-3.5 h-3.5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <GifPicker 
+                      onSelect={handleGifSelect} 
+                      onClose={() => setShowGifPicker(false)} 
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <button
+                onClick={handleSendReply}
+                disabled={(!replyText.trim() && !replyMedia?.url) || isSendingReply || replyMedia?.uploading}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                  (replyText.trim() || replyMedia?.url) && !replyMedia?.uploading
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                )}
+              >
+                {isSendingReply ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                <span>Responder</span>
+              </button>
             </div>
           </div>
+
+          {/* Replies - Scrollable area with max 5 */}
+          {loadingReplies ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : replies.length > 0 && (
+            <div className="max-h-64 overflow-y-auto space-y-3 border-l-2 border-border pl-3 sm:pl-4">
+              {replies.slice(0, 5).map((reply) => (
+                <div key={reply.hash} className="text-sm">
+                  <div className="flex items-center gap-2">
+                    {reply.author && (
+                      <UserPopover
+                        fid={reply.author.fid}
+                        username={reply.author.username}
+                        displayName={reply.author.display_name}
+                        pfpUrl={reply.author.pfp_url}
+                      >
+                        <div className="flex items-center gap-2">
+                          {reply.author.pfp_url && (
+                            <img 
+                              src={reply.author.pfp_url} 
+                              alt={reply.author.username}
+                              className="w-5 h-5 rounded-full hover:opacity-80"
+                            />
+                          )}
+                          <span className="font-medium hover:underline text-xs">{reply.author.display_name}</span>
+                          <span className="text-muted-foreground text-xs">@{reply.author.username}</span>
+                        </div>
+                      </UserPopover>
+                    )}
+                  </div>
+                  <p className="mt-1 text-muted-foreground text-sm">{reply.text}</p>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-3 h-3" />
+                      {reply.reactions?.likes_count || 0}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Repeat2 className="w-3 h-3" />
+                      {reply.reactions?.recasts_count || 0}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {replies.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  +{replies.length - 5} respuestas más
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

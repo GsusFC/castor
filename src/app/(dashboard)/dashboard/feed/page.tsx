@@ -4,13 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
-import { AIReplyDialog } from '@/components/feed/AIReplyDialog'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
-import { EditProfileDialog } from '@/components/profile/EditProfileDialog'
 import { LeftSidebar } from '@/components/feed/LeftSidebar'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { cn } from '@/lib/utils'
 import { Loader2, User } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 
 type FeedTab = 'home' | 'following' | 'trending' | 'notifications' | 'channel'
@@ -22,9 +21,8 @@ interface SelectedChannel {
 }
 
 interface UserProfile {
-  displayName?: string
-  bio?: string
   pfpUrl?: string
+  username?: string
 }
 type NotificationFilter = 'all' | 'reply' | 'mention' | 'like' | 'recast' | 'follow'
 
@@ -95,11 +93,8 @@ const NOTIFICATION_FILTERS: { value: NotificationFilter; label: string }[] = [
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
-  const [selectedCast, setSelectedCast] = useState<Cast | null>(null)
-  const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const [userFid, setUserFid] = useState<number | null>(null)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [profile, setProfile] = useState<UserProfile>({})
   const [headerHidden, setHeaderHidden] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
@@ -140,10 +135,10 @@ export default function FeedPage() {
           const profileRes = await fetch(`/api/users/${data.fid}`)
           if (profileRes.ok) {
             const profileData = await profileRes.json()
+            const user = profileData.user || profileData
             setProfile({
-              displayName: profileData.display_name || '',
-              pfpUrl: profileData.pfp_url || '',
-              bio: profileData.bio || '',
+              pfpUrl: user.pfp_url || '',
+              username: user.username || '',
             })
           }
         }
@@ -213,60 +208,6 @@ export default function FeedPage() {
     ? allNotifications 
     : allNotifications.filter((n: { type: string }) => n.type === notificationFilter)
 
-  const handleAIReply = (cast: Cast) => {
-    setSelectedCast(cast)
-    setAiDialogOpen(true)
-  }
-
-  const handleLike = async (hash: string) => {
-    try {
-      const res = await fetch('/api/feed/reaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castHash: hash, reactionType: 'like' }),
-      })
-      if (!res.ok) throw new Error('Failed')
-      toast.success('Like añadido')
-    } catch {
-      toast.error('Error al dar like')
-    }
-  }
-
-  const handleRecast = async (hash: string) => {
-    try {
-      const res = await fetch('/api/feed/reaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castHash: hash, reactionType: 'recast' }),
-      })
-      if (!res.ok) throw new Error('Failed')
-      toast.success('Recast añadido')
-    } catch {
-      toast.error('Error al recastear')
-    }
-  }
-
-  const handleSave = async (cast: Cast) => {
-    toast.info('Guardado - Próximamente')
-  }
-
-  const handlePublishReply = async (text: string, parentHash: string) => {
-    toast.success('Respuesta publicada (simulado)')
-  }
-
-  const handleScheduleReply = async (text: string, parentHash: string) => {
-    toast.info('Programar respuesta - Próximamente')
-  }
-
-  // Click en notificación -> abrir cast (solo para replies y mentions)
-  const handleNotificationClick = (notification: { type: string; cast?: Cast }) => {
-    const replyableTypes = ['reply', 'mention']
-    if (replyableTypes.includes(notification.type) && notification.cast) {
-      setSelectedCast(notification.cast as Cast)
-      setAiDialogOpen(true)
-    }
-  }
-
   const isLoading = activeTab === 'notifications' 
     ? notificationsQuery.isLoading 
     : feedQuery.isLoading
@@ -298,11 +239,11 @@ export default function FeedPage() {
         headerHidden ? "top-0" : "top-14 sm:top-16"
       )}>
         <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
-          {/* Avatar/Profile button */}
-          <button
-            onClick={() => setProfileOpen(true)}
+          {/* Avatar/Profile link */}
+          <Link
+            href={profile.username ? `/dashboard/user/${profile.username}` : '#'}
             className="p-1.5 rounded-md hover:bg-muted transition-colors flex-shrink-0"
-            title="Editar perfil"
+            title="Mi perfil"
           >
             {profile.pfpUrl ? (
               <img 
@@ -315,7 +256,7 @@ export default function FeedPage() {
                 <User className="w-4 h-4 text-muted-foreground" />
               </div>
             )}
-          </button>
+          </Link>
 
           {/* Feed tabs */}
           {(['home', 'following', 'trending', 'notifications'] as FeedTab[]).map((tab) => (
@@ -394,7 +335,6 @@ export default function FeedPage() {
               <NotificationCard 
                 key={`${notification.type}-${notification.most_recent_timestamp}-${i}`} 
                 notification={notification as any}
-                onClick={() => handleNotificationClick(notification as any)}
               />
             ))
           ) : (
@@ -407,10 +347,6 @@ export default function FeedPage() {
             <CastCard
               key={cast.hash}
               cast={cast}
-              onAIReply={handleAIReply}
-              onLike={handleLike}
-              onRecast={handleRecast}
-              onSave={handleSave}
               onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
             />
           ))
@@ -437,15 +373,6 @@ export default function FeedPage() {
         <RightSidebar />
       </div>
 
-      {/* AI Reply Dialog */}
-      <AIReplyDialog
-        cast={selectedCast}
-        open={aiDialogOpen}
-        onOpenChange={setAiDialogOpen}
-        onPublish={handlePublishReply}
-        onSchedule={handleScheduleReply}
-      />
-
       {/* Mini App Drawer */}
       <MiniAppDrawer
         open={!!miniApp}
@@ -454,28 +381,6 @@ export default function FeedPage() {
         title={miniApp?.title || ''}
       />
 
-      {/* Edit Profile Dialog */}
-      <EditProfileDialog
-        open={profileOpen}
-        onOpenChange={setProfileOpen}
-        currentProfile={profile}
-        onSave={async () => {
-          if (!userFid) return
-          try {
-            const profileRes = await fetch(`/api/users/${userFid}`)
-            if (profileRes.ok) {
-              const data = await profileRes.json()
-              setProfile({
-                displayName: data.display_name || '',
-                pfpUrl: data.pfp_url || '',
-                bio: data.bio || '',
-              })
-            }
-          } catch (error) {
-            console.error('Error reloading profile:', error)
-          }
-        }}
-      />
     </div>
   )
 }

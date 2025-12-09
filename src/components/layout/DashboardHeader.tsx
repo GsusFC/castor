@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { GlobalSearch } from '@/components/feed/GlobalSearch'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -108,6 +109,14 @@ export function DashboardHeader() {
                 <span>Feed</span>
               </Link>
             </nav>
+          </div>
+
+          {/* Search - hidden on mobile */}
+          <div className="hidden md:block flex-1 max-w-md mx-4">
+            <GlobalSearch 
+              onSelectUser={(user) => router.push(`/dashboard/user/${user.username}`)}
+              onSelectChannel={(channel) => router.push(`/dashboard/feed?channel=${channel.id}`)}
+            />
           </div>
 
           {/* Actions */}

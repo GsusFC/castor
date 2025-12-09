@@ -140,13 +140,33 @@ export async function POST(request: NextRequest) {
     const siteName = getMetaContent('og:site_name') || 
                      parsedUrl.hostname.replace(/^www\./, '')
 
+    // Detectar Farcaster Frames / Mini Apps
+    const frameVersion = getMetaContent('fc:frame') || getMetaContent('of:version')
+    let frameImage = getMetaContent('fc:frame:image') || getMetaContent('of:image')
+    const frameButton1 = getMetaContent('fc:frame:button:1') || getMetaContent('of:button:1')
+    const frameButton2 = getMetaContent('fc:frame:button:2') || getMetaContent('of:button:2')
+    const framePostUrl = getMetaContent('fc:frame:post_url') || getMetaContent('of:post_url')
+    
+    // Resolver URL relativa de frame image
+    if (frameImage && !frameImage.startsWith('http')) {
+      frameImage = new URL(frameImage, url).href
+    }
+
+    const isFrame = !!frameVersion
+    
     const metadata = {
       url,
       title: title?.substring(0, 200),
       description: description?.substring(0, 300),
-      image,
+      image: frameImage || image, // Preferir frame image si existe
       siteName,
       favicon: `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=32`,
+      // Frame/MiniApp metadata
+      isFrame,
+      frameVersion,
+      frameImage,
+      frameButtons: [frameButton1, frameButton2].filter(Boolean),
+      framePostUrl,
     }
 
     return NextResponse.json(metadata)

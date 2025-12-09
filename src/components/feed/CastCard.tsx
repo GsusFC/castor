@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale'
 import { Heart, Repeat2, MessageCircle, Bookmark, Globe, Sparkles, X, Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
+import { HLSVideo } from '@/components/ui/HLSVideo'
 import { toast } from 'sonner'
 
 interface CastAuthor {
@@ -456,12 +457,9 @@ export function CastCard({
                   {/* Videos */}
                   {videos.map((embed, i) => (
                     <div key={`video-${i}`} className="h-44 w-60 flex-shrink-0 rounded-lg overflow-hidden bg-black">
-                      <video
-                        src={embed.url}
-                        controls
-                        playsInline
+                      <HLSVideo
+                        src={embed.url || ''}
                         className="w-full h-full object-cover"
-                        preload="metadata"
                       />
                     </div>
                   ))}

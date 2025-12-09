@@ -42,12 +42,25 @@ export async function publishCast(
   }
 ) {
   try {
+    console.log('[Farcaster] Publishing cast with:', {
+      signerUuid,
+      text: text.slice(0, 50),
+      embeds: options?.embeds,
+      channelId: options?.channelId,
+    })
+    
     const response = await neynar.publishCast({
       signerUuid,
       text,
       embeds: options?.embeds,
       channelId: options?.channelId,
       parent: options?.parentHash,
+    })
+
+    console.log('[Farcaster] Publish response:', {
+      hash: response.cast.hash,
+      embeds: (response.cast as { embeds?: unknown[] }).embeds,
+      text: response.cast.text,
     })
 
     return {

@@ -25,7 +25,7 @@ export function LeftSidebar({ onSelectChannel }: LeftSidebarProps) {
     const fetchChannels = async () => {
       try {
         // Fetch user channels
-        const userRes = await fetch('/api/channels/user?limit=20')
+        const userRes = await fetch('/api/channels/user?limit=100')
         if (userRes.ok) {
           const userData = await userRes.json()
           setUserChannels(userData.channels || [])

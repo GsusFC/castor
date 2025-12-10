@@ -93,6 +93,14 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Solo procesar URLs HTTP/HTTPS
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return NextResponse.json(
+      { error: 'Only HTTP/HTTPS URLs are supported', metadata: null },
+      { status: 400 }
+    )
+  }
+
   try {
     // Fetch the URL with timeout
     const controller = new AbortController()

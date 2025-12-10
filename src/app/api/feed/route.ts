@@ -90,16 +90,25 @@ export async function GET(request: NextRequest) {
         casts: response.casts || [],
         next: { cursor: response.next?.cursor ?? undefined },
       }
-    } else if (type === 'home' && fid) {
+    } else if (type === 'home') {
       // Feed algorítmico personalizado (For You)
-      const response = await neynar.fetchFeedForYou({
-        fid: parseInt(fid),
-        limit,
-        cursor,
-      })
-      result = {
-        casts: response.casts || [],
-        next: { cursor: response.next?.cursor ?? undefined },
+      if (!fid) {
+        // Si no hay fid, usar trending como fallback
+        const response = await neynar.fetchTrendingFeed({ limit, cursor })
+        result = {
+          casts: response.casts || [],
+          next: { cursor: response.next?.cursor ?? undefined },
+        }
+      } else {
+        const response = await neynar.fetchFeedForYou({
+          fid: parseInt(fid),
+          limit,
+          cursor,
+        })
+        result = {
+          casts: response.casts || [],
+          next: { cursor: response.next?.cursor ?? undefined },
+        }
       }
     } else if (type === 'following' && fid) {
       const response = await neynar.fetchFeed({

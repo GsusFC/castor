@@ -8,13 +8,11 @@ import {
   Calendar, 
   BarChart3, 
   Users, 
-  Moon, 
-  Sun, 
+  Settings,
   LogOut,
   Plus,
   Hash
 } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
@@ -35,7 +33,6 @@ const MY_CHANNELS = [
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
   const [composeOpen, setComposeOpen] = useState(false)
 
   const handleLogout = async () => {
@@ -117,13 +114,13 @@ export function AppSidebar() {
         {/* Footer Actions */}
         <div className="p-4 border-t border-border/50">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            <Link
+              href="/dashboard/settings"
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Cambiar tema"
+              title="Configuración"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+              <Settings className="w-4 h-4" />
+            </Link>
             <button
               onClick={handleLogout}
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"

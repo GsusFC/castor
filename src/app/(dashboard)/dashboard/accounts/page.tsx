@@ -45,7 +45,7 @@ export default async function AccountsPage() {
       {/* Main Content */}
       <div className="w-full">
         {/* Header */}
-        <div className="sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0 top-14 lg:top-0">
+        <div className="sticky top-0 z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">

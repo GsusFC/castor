@@ -266,13 +266,12 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
+    <div className="flex gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
       {/* Main Feed */}
-      <div className="max-w-2xl w-full mx-auto xl:mx-0">
+      <div className="flex-1 max-w-2xl">
       {/* Sticky Tabs Header */}
       <div className={cn(
-        "sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0",
-        headerHidden ? "top-0" : "top-14 lg:top-0"
+        "sticky top-0 z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0"
       )}>
         <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
           {/* Avatar/Profile link */}
@@ -422,7 +421,7 @@ export default function FeedPage() {
       </div>
 
       {/* Right Sidebar - hidden on mobile/tablet/laptop */}
-      <div className="hidden xl:block">
+      <div className="hidden xl:block w-[320px] shrink-0">
         <RightSidebar />
       </div>
 

@@ -41,11 +41,11 @@ export default async function AccountsPage() {
   const standardAccounts = accountsList.filter(a => !a.isPremium)
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 lg:gap-8 max-w-4xl xl:max-w-6xl mx-auto -mt-4 sm:-mt-6 md:-mt-8">
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 lg:gap-8 max-w-4xl xl:max-w-6xl mx-auto">
       {/* Main Content */}
       <div className="w-full">
         {/* Header */}
-        <div className="sticky top-0 z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0">
+        <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">

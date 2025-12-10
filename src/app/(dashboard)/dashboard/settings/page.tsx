@@ -8,9 +8,9 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
 
   return (
-    <div className="max-w-2xl mx-auto -mt-4 sm:-mt-6 md:-mt-8">
+    <div className="max-w-2xl mx-auto">
       {/* Header */}
-      <div className="sticky top-0 z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0">
+      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
             <Settings className="w-5 h-5 text-primary" />

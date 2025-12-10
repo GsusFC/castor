@@ -124,14 +124,14 @@ export function MobileNav() {
       {/* FAB - New Cast button - fixed above nav */}
       <button
         onClick={() => setComposeOpen(true)}
-        className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 sm:hidden"
+        className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 lg:hidden"
         aria-label="New Cast"
       >
         <Plus className="w-6 h-6" />
       </button>
 
       {/* Bottom navigation - only visible on mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 sm:hidden safe-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 lg:hidden pb-safe">
         <div className="flex items-center justify-around h-16 px-4">
           {/* Home */}
           <Link

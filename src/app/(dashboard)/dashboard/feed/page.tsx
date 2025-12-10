@@ -266,34 +266,32 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="flex gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
+    <div className="flex gap-6 lg:gap-8 w-full">
       {/* Main Feed */}
-      <div className="flex-1 max-w-2xl">
+      <div className="flex-1 min-w-0">
       {/* Sticky Tabs Header */}
-      <div className={cn(
-        "sticky top-0 z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0"
-      )}>
-        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
-          {/* Avatar/Profile link */}
+      <div className="sticky top-0 z-40 py-3 bg-background/80 backdrop-blur-lg border-b border-border/50">
+        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-full max-w-full">
+          {/* Avatar/Profile link - 44px touch target */}
           <Link
             href={profile.username ? `/dashboard/user/${profile.username}` : '#'}
-            className="p-1.5 rounded-md hover:bg-muted transition-colors flex-shrink-0"
+            className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             title="Mi perfil"
           >
             {profile.pfpUrl ? (
               <img 
                 src={profile.pfpUrl} 
                 alt="Perfil"
-                className="w-7 h-7 rounded-full object-cover"
+                className="w-8 h-8 rounded-full object-cover"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <User className="w-4 h-4 text-muted-foreground" />
               </div>
             )}
           </Link>
 
-          {/* Feed tabs */}
+          {/* Feed tabs - 44px touch targets */}
           {(['home', 'following', 'trending', 'notifications'] as FeedTab[]).map((tab) => (
             <button
               key={tab}
@@ -302,36 +300,32 @@ export default function FeedPage() {
                 if (tab !== 'channel') setSelectedChannel(null)
               }}
               className={cn(
-                "flex-1 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors",
+                "w-11 h-11 flex items-center justify-center text-lg rounded-lg transition-colors flex-shrink-0",
                 activeTab === tab && activeTab !== 'channel'
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {tab === 'home' && 'Home'}
-              {tab === 'following' && (
-                <span><span className="hidden sm:inline">Following</span><span className="sm:hidden">Feed</span></span>
-              )}
-              {tab === 'trending' && (
-                <span><span className="hidden sm:inline">Trending</span><span className="sm:hidden">🔥</span></span>
-              )}
+              {tab === 'home' && '🏠'}
+              {tab === 'following' && '👥'}
+              {tab === 'trending' && '🔥'}
               {tab === 'notifications' && '🔔'}
             </button>
           ))}
 
-          {/* Canal seleccionado */}
+          {/* Canal seleccionado - 44px touch target */}
           {selectedChannel && (
             <button
               onClick={() => {
                 setSelectedChannel(null)
                 setActiveTab('home')
               }}
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md bg-primary text-primary-foreground"
+              className="h-11 flex items-center gap-1.5 px-3 text-sm font-medium rounded-lg bg-primary text-primary-foreground flex-shrink-0"
             >
               {selectedChannel.image_url && (
-                <img src={selectedChannel.image_url} alt="" className="w-4 h-4 rounded" />
+                <img src={selectedChannel.image_url} alt="" className="w-5 h-5 rounded" />
               )}
-              <span className="truncate max-w-20">{selectedChannel.name}</span>
+              <span className="truncate max-w-16">{selectedChannel.name}</span>
               <span className="text-primary-foreground/70">✕</span>
             </button>
           )}

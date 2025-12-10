@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Users, Plus, FileText, LayoutTemplate, Edit, Trash2, Rss } from 'lucide-react'
+import { Home, Users, Plus, FileText, LayoutTemplate, Edit, Trash2, Rss, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ComposeModal } from '@/components/compose/ComposeModal'
+import { GlobalSearch } from '@/components/feed/GlobalSearch'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import {
   Sheet,
@@ -43,6 +44,7 @@ export function MobileNav() {
 
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   // Cargar drafts cuando se abre el sheet
@@ -110,6 +112,9 @@ export function MobileNav() {
     }
   }
 
+  // Detectar si estamos en la sección de feed
+  const isFeedSection = pathname?.startsWith('/dashboard/feed') || pathname?.startsWith('/dashboard/user')
+
   // Filtrar por cuenta seleccionada
   const filteredDrafts = selectedAccountId
     ? drafts.filter(d => d.accountId === selectedAccountId)
@@ -133,51 +138,67 @@ export function MobileNav() {
       {/* Bottom navigation - only visible on mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 lg:hidden pb-safe">
         <div className="flex items-center justify-around h-16 px-4">
-          {/* Home */}
-          <Link
-            href="/dashboard"
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
-              pathname === '/dashboard'
-                ? "text-primary"
-                : "text-muted-foreground"
-            )}
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Home</span>
-          </Link>
+          {/* Menú contextual según la sección */}
+          {isFeedSection ? (
+            <>
+              {/* En Feed: Home, Search, Accounts */}
+              <Link
+                href="/dashboard"
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+              >
+                <Home className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Home</span>
+              </Link>
 
-          {/* Feed */}
-          <Link
-            href="/dashboard/feed"
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
-              pathname === '/dashboard/feed'
-                ? "text-primary"
-                : "text-muted-foreground"
-            )}
-          >
-            <Rss className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Feed</span>
-          </Link>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+              >
+                <Search className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Search</span>
+              </button>
 
-          {/* Drafts */}
-          <button
-            onClick={() => setDraftsOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-          >
-            <FileText className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Drafts</span>
-          </button>
+              <Link
+                href="/dashboard/accounts"
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
+                  pathname === '/dashboard/accounts'
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Accounts</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              {/* En Dashboard: Feed, Drafts, Templates */}
+              <Link
+                href="/dashboard/feed"
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+              >
+                <Rss className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Feed</span>
+              </Link>
 
-          {/* Templates */}
-          <button
-            onClick={() => setTemplatesOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-          >
-            <LayoutTemplate className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Templates</span>
-          </button>
+              <button
+                onClick={() => setDraftsOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+              >
+                <FileText className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Drafts</span>
+              </button>
+
+              <button
+                onClick={() => setTemplatesOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+              >
+                <LayoutTemplate className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Templates</span>
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -267,6 +288,26 @@ export function MobileNav() {
                 </div>
               ))
             )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Search Sheet */}
+      <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+        <SheetContent side="bottom" className="h-[80vh]">
+          <SheetHeader>
+            <SheetTitle>Search</SheetTitle>
+            <SheetDescription>
+              Buscar usuarios en Farcaster
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">
+            <GlobalSearch 
+              onSelectUser={(username) => {
+                setSearchOpen(false)
+                router.push(`/dashboard/user/${username}`)
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>

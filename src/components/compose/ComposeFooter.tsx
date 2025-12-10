@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Image, Smile, Save, Send, LayoutTemplate, Plus } from 'lucide-react'
+import { Image, Smile, Save, Send, LayoutTemplate, Plus, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -350,11 +350,10 @@ export function ComposeFooter({
         size="sm"
         onClick={() => fileInputRef.current?.click()}
         disabled={!canAddMedia}
-        className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
+        className="h-10 sm:h-8 px-2 touch-target text-muted-foreground"
         aria-label="Add image or video"
       >
-        <Image className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-        <span className="hidden sm:inline text-xs">Image</span>
+        <Image className="w-5 h-5 sm:w-4 sm:h-4" />
       </Button>
 
       {/* GIF Picker */}
@@ -406,8 +405,11 @@ export function ComposeFooter({
         </PopoverContent>
       </Popover>
 
-      {/* Draft button - solo en modo crear */}
-      {!isEditMode && (
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Draft button - solo en modo crear y con contenido */}
+      {!isEditMode && hasContent && (
         <Button
           type="button"
           variant="ghost"
@@ -421,25 +423,6 @@ export function ComposeFooter({
           <span className="hidden sm:inline text-xs">
             {isSavingDraft ? 'Saving...' : 'Draft'}
           </span>
-        </Button>
-      )}
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Add to thread button - solo en modo crear */}
-      {!isEditMode && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onAddCast}
-          disabled={!hasContent}
-          className="h-10 sm:h-8 px-3 sm:px-2 touch-target text-muted-foreground"
-          aria-label="Add to thread"
-        >
-          <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-          <span className="hidden sm:inline text-xs">Thread</span>
         </Button>
       )}
 
@@ -466,6 +449,24 @@ export function ComposeFooter({
         </Button>
       )}
 
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Add to thread button - solo en modo crear */}
+      {!isEditMode && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onAddCast}
+          disabled={!hasContent}
+          className="h-10 sm:h-8 px-2 touch-target text-muted-foreground"
+          aria-label="Add to thread"
+        >
+          <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
+        </Button>
+      )}
+
       {/* Main action button - Cast o Schedule según contexto */}
       <Button
         type="button"
@@ -475,7 +476,11 @@ export function ComposeFooter({
         className="h-10 sm:h-8 px-4 sm:px-3 touch-target"
         aria-label={isEditMode ? 'Save changes' : hasSchedule ? 'Schedule cast' : 'Cast now'}
       >
-        <Send className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+        {hasSchedule ? (
+          <Calendar className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+        ) : (
+          <Send className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+        )}
         {isSubmitting || isPublishing
           ? isEditMode
             ? 'Saving...'
@@ -485,7 +490,7 @@ export function ComposeFooter({
           : isEditMode
             ? 'Save'
             : isThread
-              ? hasSchedule ? 'Schedule Thread' : 'Cast Thread'
+              ? hasSchedule ? 'Schedule' : 'Cast Thread'
               : hasSchedule ? 'Schedule' : 'Cast'}
       </Button>
     </div>

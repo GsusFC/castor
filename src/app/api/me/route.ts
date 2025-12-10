@@ -18,10 +18,12 @@ export async function GET() {
 
     return NextResponse.json({
       fid: session.fid,
+      userId: session.userId,
       username: session.username,
       displayName: session.displayName,
       pfpUrl: session.pfpUrl,
       accountId: account?.id || null,
+      isPro: account?.isPremium || false,
     })
   } catch (error) {
     console.error('[Me API] Error:', error)

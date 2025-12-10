@@ -49,11 +49,11 @@ export async function middleware(request: NextRequest) {
   const method = request.method
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
-  // Si el usuario está en la landing y tiene sesión válida, redirigir al dashboard
+  // Si el usuario está en la landing y tiene sesión válida, redirigir al feed
   if (pathname === '/' && token) {
     try {
       await jwtVerify(token, getSecretKey())
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/dashboard/feed', request.url))
     } catch {
       // Token inválido, continuar a la landing
     }

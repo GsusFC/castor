@@ -33,11 +33,37 @@ export function SelectedAccountProvider({
     }
   }, [])
 
-  // Hidratar desde localStorage solo en el cliente
+  // Hidratar: obtener cuenta del usuario por FID y usarla por defecto
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    setSelectedAccountIdState(stored || defaultAccountId)
-    setIsHydrated(true)
+    const initAccount = async () => {
+      try {
+        // Obtener el FID del usuario logueado
+        const meRes = await fetch('/api/me')
+        const meData = meRes.ok ? await meRes.json() : {}
+        const userFid = meData.fid
+
+        // Obtener cuentas disponibles
+        const accountsRes = await fetch('/api/accounts')
+        const accountsData = accountsRes.ok ? await accountsRes.json() : { accounts: [] }
+        const accounts = accountsData.accounts || []
+
+        // Buscar la cuenta del usuario (mismo FID)
+        const userAccount = accounts.find((a: { fid: number }) => a.fid === userFid)
+        
+        // Por defecto: siempre la cuenta del usuario
+        const accountId = userAccount?.id || accounts[0]?.id || null
+        
+        setSelectedAccountIdState(accountId)
+        setIsHydrated(true)
+      } catch {
+        // Fallback al comportamiento anterior
+        const stored = localStorage.getItem(STORAGE_KEY)
+        setSelectedAccountIdState(stored || defaultAccountId)
+        setIsHydrated(true)
+      }
+    }
+    
+    initAccount()
   }, [defaultAccountId])
 
   return (

@@ -43,6 +43,20 @@
       "when": 1765345735697,
       "tag": "0005_sticky_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1765382466710,
+      "tag": "0006_overjoyed_longshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1765404974435,
+      "tag": "0007_lonely_solo",
+      "breakpoints": true
     }
   ]
 }

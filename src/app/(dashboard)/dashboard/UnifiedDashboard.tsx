@@ -89,6 +89,7 @@ interface UnifiedDashboardProps {
   casts: Cast[]
   templates: Template[]
   currentUserId: string
+  userFid: number
   isAdmin: boolean
 }
 
@@ -100,17 +101,20 @@ export function UnifiedDashboard({
   casts, 
   templates,
   currentUserId,
+  userFid,
   isAdmin 
 }: UnifiedDashboardProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { selectedAccountId, setSelectedAccountId } = useSelectedAccount()
   
-  // Ordenar cuentas: personales primero, luego business
+  // Ordenar cuentas: cuenta del usuario primero (mismo FID), luego el resto
   const sortedAccounts = [...accounts].sort((a, b) => {
-    // Personales primero
-    if (a.type === 'personal' && b.type !== 'personal') return -1
-    if (a.type !== 'personal' && b.type === 'personal') return 1
+    // Cuenta del usuario primero
+    const aIsUser = a.fid === userFid
+    const bIsUser = b.fid === userFid
+    if (aIsUser && !bIsUser) return -1
+    if (!aIsUser && bIsUser) return 1
     return 0
   })
   
@@ -351,10 +355,10 @@ export function UnifiedDashboard({
                 className={cn(
                   "flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-3 sm:py-2 rounded-lg border transition-all text-sm flex-shrink-0",
                   isSelected
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-foreground/20 bg-muted text-foreground font-medium"
                     : isPending
                       ? "border-amber-500/30 bg-amber-500/10 text-amber-600 cursor-not-allowed dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400"
-                      : "border-border bg-card hover:border-primary/50"
+                      : "border-border bg-card hover:border-foreground/30 text-muted-foreground hover:text-foreground"
                 )}
                 title={`@${account.username} (${accountCastsCount})`}
               >
@@ -385,8 +389,8 @@ export function UnifiedDashboard({
             className={cn(
               "flex items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:px-3 sm:py-2 rounded-lg border transition-all text-sm flex-shrink-0 min-w-[40px] sm:min-w-0",
               !selectedAccountId
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card hover:border-primary/50"
+                ? "border-foreground/20 bg-muted text-foreground font-medium"
+                : "border-border bg-card hover:border-foreground/30 text-muted-foreground hover:text-foreground"
             )}
             title={`All (${casts.length})`}
           >

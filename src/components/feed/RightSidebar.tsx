@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { UserPlus, TrendingUp, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { GlobalSearch } from '@/components/feed/GlobalSearch'
 
 interface SuggestedUser {
   fid: number
@@ -25,7 +26,12 @@ interface TrendingCast {
   }
 }
 
-export function RightSidebar() {
+interface RightSidebarProps {
+  onSelectUser?: (username: string) => void
+}
+
+export function RightSidebar({ onSelectUser }: RightSidebarProps) {
+  const router = useRouter()
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([])
   const [trendingCasts, setTrendingCasts] = useState<TrendingCast[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -50,7 +56,22 @@ export function RightSidebar() {
   }, [])
 
   return (
-    <aside className="sticky top-20 space-y-6">
+    <aside className="space-y-6">
+      {/* Search */}
+      <GlobalSearch 
+        onSelectUser={(user) => {
+          if (onSelectUser) {
+            onSelectUser(user.username)
+          } else {
+            router.push(`/dashboard/user/${user.username}`)
+          }
+        }}
+        onSelectChannel={(channel) => router.push(`/dashboard/feed?channel=${channel.id}`)}
+        onSelectCast={(cast) => {
+          const url = `https://farcaster.xyz/~/conversations/${cast.hash}`
+          window.open(url, '_blank')
+        }}
+      />
       {/* Who to follow */}
       <section className="p-4 rounded-xl bg-muted/30 border border-border">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">

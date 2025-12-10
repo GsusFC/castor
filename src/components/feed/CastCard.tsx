@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Heart, Repeat2, MessageCircle, Globe, Sparkles, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
@@ -100,7 +100,9 @@ interface CastCardProps {
   onQuote?: (castUrl: string) => void
   onDelete?: (castHash: string) => void
   onReply?: (cast: Cast) => void
+  onSelectUser?: (username: string) => void
   currentUserFid?: number
+  isPro?: boolean
 }
 
 export function CastCard({ 
@@ -109,7 +111,9 @@ export function CastCard({
   onQuote,
   onDelete,
   onReply,
+  onSelectUser,
   currentUserFid,
+  isPro = false,
 }: CastCardProps) {
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
@@ -447,11 +451,12 @@ export function CastCard({
     >
       {/* Header */}
       <div className="flex items-start gap-3">
-        <UserPopover
-          fid={cast.author.fid}
-          username={cast.author.username}
-          displayName={cast.author.display_name}
-          pfpUrl={cast.author.pfp_url}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelectUser?.(cast.author.username)
+          }}
+          className="cursor-pointer"
         >
           {cast.author.pfp_url ? (
             <img 
@@ -466,24 +471,33 @@ export function CastCard({
               </span>
             </div>
           )}
-        </UserPopover>
+        </button>
         
         <div className="flex-1 min-w-0">
           {/* Nombre + PRO */}
           <div className="flex items-center gap-1.5">
-            <UserPopover
-              fid={cast.author.fid}
-              username={cast.author.username}
-              displayName={cast.author.display_name}
-              pfpUrl={cast.author.pfp_url}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectUser?.(cast.author.username)
+              }}
+              className="font-semibold truncate hover:underline cursor-pointer"
             >
-              <span className="font-semibold truncate hover:underline">{cast.author.display_name}</span>
-            </UserPopover>
+              {cast.author.display_name}
+            </button>
             {(cast.author.power_badge || cast.author.pro?.status === 'subscribed') && <PowerBadge size={16} />}
           </div>
           {/* @username · tiempo · canal */}
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <span>@{cast.author.username}</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectUser?.(cast.author.username)
+              }}
+              className="hover:underline cursor-pointer"
+            >
+              @{cast.author.username}
+            </button>
             <span>·</span>
             <span>{timeAgo}</span>
             {cast.channel && (
@@ -611,15 +625,13 @@ export function CastCard({
             <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
               {/* Quote Casts */}
               {quoteCasts.map((embed, i) => embed.cast && (
-                <a
+                <button
                   key={`quote-${i}`}
-                  href={`https://farcaster.xyz/${embed.cast.author.username}/${embed.cast.hash.slice(0, 10)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
+                  onClick={() => onSelectUser?.(embed.cast!.author.username)}
+                  className="block w-full text-left"
                 >
                   <CastRenderer cast={embed.cast} />
-                </a>
+                </button>
               ))}
 
               {/* Media Grid */}
@@ -747,34 +759,36 @@ export function CastCard({
         })()}
       </div>
 
-      {/* Actions */}
-      <div className="mt-3 ml-0 sm:ml-13 flex items-center gap-1 sm:gap-2 text-sm flex-wrap" onClick={(e) => e.stopPropagation()}>
+      {/* Actions - distributed across width */}
+      <div className="mt-3 ml-0 sm:ml-13 flex items-center justify-between text-sm" onClick={(e) => e.stopPropagation()}>
+        {/* Like */}
         <button
           onClick={handleLike}
           className={cn(
-            "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
             isLiked 
-              ? "bg-pink-500/10 text-pink-500 hover:bg-pink-500/20" 
-              : "text-muted-foreground hover:text-pink-500 hover:bg-muted"
+              ? "text-pink-500" 
+              : "text-muted-foreground hover:text-pink-500"
           )}
         >
           <Heart className={cn("w-4 h-4 transition-transform group-active:scale-125", isLiked && "fill-current")} />
-          <span>{likesCount}</span>
+          <span className="text-xs">{likesCount}</span>
         </button>
 
+        {/* Recast */}
         <Popover open={showRecastMenu} onOpenChange={setShowRecastMenu}>
           <PopoverTrigger asChild>
             <button
               onClick={(e) => e.stopPropagation()}
               className={cn(
-                "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+                "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
                 isRecasted 
-                  ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" 
-                  : "text-muted-foreground hover:text-green-500 hover:bg-muted"
+                  ? "text-green-500" 
+                  : "text-muted-foreground hover:text-green-500"
               )}
             >
               <Repeat2 className={cn("w-4 h-4 transition-transform group-active:scale-125", isRecasted && "fill-current")} />
-              <span>{recastsCount}</span>
+              <span className="text-xs">{recastsCount}</span>
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-40 p-1" align="start">
@@ -795,60 +809,39 @@ export function CastCard({
           </PopoverContent>
         </Popover>
 
+        {/* Reply */}
         <button 
           onClick={() => {
-            // Si hay onReply, abrir modal directamente
             if (onReply) {
               onReply(cast)
             } else {
-              // Fallback: expandir para ver respuestas
               handleToggleReplies()
             }
           }}
           className={cn(
-            "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
             isExpanded 
-              ? "bg-blue-500/10 text-blue-500" 
-              : "text-muted-foreground hover:text-blue-500 hover:bg-muted"
+              ? "text-blue-500" 
+              : "text-muted-foreground hover:text-blue-500"
           )}
         >
           <MessageCircle className="w-4 h-4 transition-transform group-active:scale-125" />
-          <span>{loadingReplies ? '...' : cast.replies.count}</span>
+          <span className="text-xs">{loadingReplies ? '...' : cast.replies.count}</span>
         </button>
 
+        {/* Translate */}
         <button
           onClick={handleTranslate}
           disabled={isTranslating}
           className={cn(
-            "group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center px-2 py-1.5 rounded-md transition-colors",
             showTranslation 
-              ? "bg-blue-500/10 text-blue-500" 
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              ? "text-blue-500" 
+              : "text-muted-foreground hover:text-foreground"
           )}
-          title="Traducir al español"
+          title="Traducir"
         >
-          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4 transition-transform group-active:scale-110" />}
-        </button>
-
-        <button
-          onClick={handleShare}
-          className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Copiar enlace"
-        >
-          <Share className="w-4 h-4 transition-transform group-active:scale-110" />
-        </button>
-
-        {/* AI Reply */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setAiReplyTarget(cast)
-            setShowAIPicker(true)
-          }}
-          className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-          title="Responder con IA"
-        >
-          <Sparkles className="w-4 h-4 transition-transform group-active:scale-110" />
+          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
         </button>
 
         {/* Delete (solo para casts propios) */}
@@ -856,16 +849,21 @@ export function CastCard({
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-auto"
-            title="Eliminar cast"
+            className="group flex items-center px-2 py-1.5 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+            title="Eliminar"
           >
-            {isDeleting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Trash2 className="w-4 h-4 transition-transform group-active:scale-110" />
-            )}
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </button>
         )}
+
+        {/* Share - último */}
+        <button
+          onClick={handleShare}
+          className="group flex items-center px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+          title="Compartir"
+        >
+          <Share className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Expanded Section: Composer first, then Replies */}
@@ -1003,24 +1001,6 @@ export function CastCard({
                         >
                           <Share className="w-4 h-4" />
                         </button>
-                        <button 
-                          className="flex items-center gap-1.5 hover:text-primary transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setAiReplyTarget({
-                              hash: reply.hash,
-                              text: reply.text,
-                              timestamp: reply.timestamp,
-                              author: reply.author,
-                              reactions: reply.reactions || { likes_count: 0, recasts_count: 0 },
-                              replies: { count: 0 },
-                            })
-                            setShowAIPicker(true)
-                          }}
-                          title="Responder con IA"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1070,6 +1050,7 @@ export function CastCard({
             if (!open) setAiReplyTarget(null)
           }}
           onPublish={handleAIPublish}
+          maxChars={isPro ? 10000 : 1024}
         />
       )}
     </div>

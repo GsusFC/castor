@@ -114,6 +114,7 @@ export default async function DashboardPage() {
       casts={serializedCasts}
       templates={serializedTemplates}
       currentUserId={session.userId}
+      userFid={session.fid}
       isAdmin={session.role === 'admin'}
     />
   )

@@ -14,6 +14,7 @@ import { PreviewPopover } from './PreviewPopover'
 import { CastEditorInline } from './CastEditorInline'
 import { ProgressBar } from './ProgressBar'
 import { ComposeFooter } from './ComposeFooter'
+import { AITabs } from './AITabs'
 
 interface Template {
   id: string
@@ -154,31 +155,22 @@ export function ComposeCard({
         />
       </div>
 
-      {/* Reply To */}
-      {replyTo && (
-        <div className="flex items-start gap-3 p-3 bg-muted/50 border-b border-border">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {replyTo.author.pfpUrl && (
-                <img src={replyTo.author.pfpUrl} alt="" className="w-5 h-5 rounded-full" />
-              )}
-              <span className="text-xs text-muted-foreground">
-                Replying to @{replyTo.author.username}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground/70 line-clamp-1">{replyTo.text}</p>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onSelectReplyTo(null)}
-            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <X className="w-3 h-3" />
-          </Button>
-        </div>
-      )}
+      {/* AI Tabs */}
+      <AITabs
+        currentDraft={casts[0]?.content || ''}
+        onSelectText={(text) => {
+          if (casts[0]) {
+            onUpdateCast(0, { ...casts[0], content: text })
+          }
+        }}
+        replyingTo={replyTo ? { 
+          text: replyTo.text, 
+          author: replyTo.author.username,
+          pfpUrl: replyTo.author.pfpUrl ?? undefined 
+        } : undefined}
+        onClearReply={() => onSelectReplyTo(null)}
+        maxChars={maxChars}
+      />
 
       {/* Progress Bar */}
       <ProgressBar current={currentCastChars} max={maxChars} />

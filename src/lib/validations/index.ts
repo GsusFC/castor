@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
+import { MAX_CHARS_PRO, MAX_EMBEDS_PRO } from '@/lib/compose/constants'
 
 // ============================================
 // Common Schemas
@@ -18,7 +19,7 @@ export const paginationSchema = z.object({
 
 export const scheduleCastSchema = z.object({
   accountId: z.string().min(1, 'accountId is required'),
-  content: z.string().max(1024, 'Content too long'),
+  content: z.string().max(MAX_CHARS_PRO, 'Content too long'),
   scheduledAt: z.string().datetime().optional(),
   channelId: z.string().nullable().optional(),
   parentHash: z.string().nullable().optional(),
@@ -29,7 +30,7 @@ export const scheduleCastSchema = z.object({
     livepeerAssetId: z.string().optional(), // ID del asset en Livepeer
     livepeerPlaybackId: z.string().optional(), // Playback ID de Livepeer
     videoStatus: z.enum(['pending', 'processing', 'ready', 'error']).optional(),
-  })).max(2, 'Maximum 2 embeds allowed').optional(),
+  })).max(MAX_EMBEDS_PRO, 'Maximum embeds exceeded').optional(),
   isDraft: z.boolean().optional(),
 }).refine(
   (data) => data.isDraft || (data.content && data.content.trim().length > 0),
@@ -40,14 +41,14 @@ export const scheduleCastSchema = z.object({
 )
 
 export const updateCastSchema = z.object({
-  content: z.string().max(1024).optional(),
+  content: z.string().max(MAX_CHARS_PRO).optional(),
   scheduledAt: z.string().datetime().optional(),
   channelId: z.string().nullable().optional(),
   accountId: z.string().optional(),
   embeds: z.array(z.object({
     url: z.string().url(),
     type: z.enum(['image', 'video']).optional(),
-  })).max(2).optional(),
+  })).max(MAX_EMBEDS_PRO).optional(),
 })
 
 // ============================================
@@ -57,13 +58,13 @@ export const updateCastSchema = z.object({
 export const createTemplateSchema = z.object({
   accountId: z.string().min(1, 'accountId is required'),
   name: z.string().min(1, 'Name is required').max(100),
-  content: z.string().min(1, 'Content is required').max(1024),
+  content: z.string().min(1, 'Content is required').max(MAX_CHARS_PRO),
   channelId: z.string().nullable().optional(),
 })
 
 export const updateTemplateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  content: z.string().min(1).max(1024).optional(),
+  content: z.string().min(1).max(MAX_CHARS_PRO).optional(),
   channelId: z.string().nullable().optional(),
 })
 

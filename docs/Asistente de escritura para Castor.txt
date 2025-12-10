@@ -1,0 +1,655 @@
+Perfecto, aquí está el setup completo de Castor con Gemini 2.5 Flash y caché optimizado:
+
+## Arquitectura completa con caché
+
+```typescript
+// /lib/ai/castor-ai.ts
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NeynarAPIClient } from '@neynar/nodejs-sdk';
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+const neynar = new NeynarAPIClient(process.env.NEYNAR_API_KEY!);
+
+interface UserStyleProfile {
+  userId: string;
+  fid: number;
+  tone: 'casual' | 'formal' | 'technical' | 'humorous' | 'mixed';
+  avgLength: number;
+  commonPhrases: string[];
+  topics: string[];
+  emojiUsage: 'none' | 'light' | 'heavy';
+  languagePreference: 'en' | 'es' | 'mixed';
+  lastAnalyzed: string;
+  sampleCasts: string[];
+}
+
+export class CastorAI {
+  private flashModel;
+  private proModel;
+  
+  constructor() {
+    // Modelo para sugerencias rápidas
+    this.flashModel = genAI.getGenerativeModel({ 
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        temperature: 0.9,
+        topP: 0.95,
+        maxOutputTokens: 320,
+        topK: 40,
+      }
+    });
+
+    // Modelo para análisis profundo
+    this.proModel = genAI.getGenerativeModel({ 
+      model: 'gemini-2.5-pro',
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+      }
+    });
+  }
+
+  /**
+   * Analiza el estilo del usuario - Ejecutar 1x al día o cuando cambie sustancialmente
+   */
+  async analyzeUserStyle(fid: number): Promise<UserStyleProfile> {
+    try {
+      // 1. Obtener últimos 100 casts del usuario
+      const casts = await neynar.fetchBulkCasts({
+        casts: await this.getUserRecentCastHashes(fid, 100)
+      });
+
+      const castTexts = casts.result.casts
+        .map(c => c.text)
+        .filter(t => t.length > 10); // Filtrar casts muy cortos
+
+      // 2. Prompt para análisis de estilo
+      const analysisPrompt = `
+Analiza el estilo de escritura de este usuario de Farcaster basándote en sus últimos ${castTexts.length} casts:
+
+${castTexts.slice(0, 50).map((text, i) => `${i + 1}. "${text}"`).join('\n')}
+
+Extrae y responde SOLO con JSON válido (sin markdown, sin explicaciones):
+{
+  "tone": "casual|formal|technical|humorous|mixed",
+  "avgLength": <número>,
+  "commonPhrases": ["frase1", "frase2", "frase3"],
+  "topics": ["tema1", "tema2", "tema3"],
+  "emojiUsage": "none|light|heavy",
+  "languagePreference": "en|es|mixed",
+  "writingPatterns": {
+    "startsWithQuestion": <true/false>,
+    "usesThreads": <true/false>,
+    "quotesOften": <true/false>
+  }
+}`;
+
+      const result = await this.proModel.generateContent(analysisPrompt);
+      const analysisText = result.response.text()
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      
+      const analysis = JSON.parse(analysisText);
+
+      // 3. Crear perfil
+      const profile: UserStyleProfile = {
+        userId: `fid:${fid}`,
+        fid,
+        tone: analysis.tone,
+        avgLength: analysis.avgLength,
+        commonPhrases: analysis.commonPhrases,
+        topics: analysis.topics,
+        emojiUsage: analysis.emojiUsage,
+        languagePreference: analysis.languagePreference,
+        lastAnalyzed: new Date().toISOString(),
+        sampleCasts: castTexts.slice(0, 20) // Guardar 20 ejemplos representativos
+      };
+
+      return profile;
+    } catch (error) {
+      console.error('Error analyzing user style:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera sugerencias de respuesta en tiempo real
+   */
+  async generateSuggestions(
+    fid: number,
+    context: {
+      profile: UserStyleProfile;
+      replyingTo?: {
+        text: string;
+        author: string;
+      };
+      currentDraft?: string;
+      conversationContext?: string[];
+    }
+  ): Promise<string[]> {
+    try {
+      // Construir prompt optimizado
+      const systemContext = this.buildSystemContext(context.profile);
+      const userPrompt = this.buildUserPrompt(context);
+
+      // Usar chat para mantener contexto
+      const chat = this.flashModel.startChat({
+        history: [
+          {
+            role: 'user',
+            parts: [{ text: systemContext }]
+          },
+          {
+            role: 'model',
+            parts: [{ text: 'Entendido. Estoy listo para sugerir respuestas auténticas en el estilo de este usuario.' }]
+          }
+        ]
+      });
+
+      const result = await chat.sendMessage(userPrompt);
+      const suggestions = this.parseSuggestions(result.response.text());
+
+      return suggestions;
+    } catch (error) {
+      console.error('Error generating suggestions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Construye el contexto del sistema (se puede cachear)
+   */
+  private buildSystemContext(profile: UserStyleProfile): string {
+    return `Eres el asistente de escritura para ${profile.userId} en Farcaster.
+
+PERFIL DEL USUARIO:
+- Tono: ${profile.tone}
+- Longitud promedio: ${profile.avgLength} caracteres
+- Frases características: ${profile.commonPhrases.join(', ')}
+- Temas frecuentes: ${profile.topics.join(', ')}
+- Uso de emojis: ${profile.emojiUsage}
+- Idioma preferido: ${profile.languagePreference}
+
+EJEMPLOS DE CASTS REALES:
+${profile.sampleCasts.slice(0, 10).map((cast, i) => `${i + 1}. "${cast}"`).join('\n')}
+
+REGLAS:
+- Máximo 280 caracteres por sugerencia
+- Mantén el tono y estilo del usuario
+- Usa su vocabulario y expresiones típicas
+- Respeta su preferencia de idioma
+- Ajusta el uso de emojis según su patrón`;
+  }
+
+  /**
+   * Construye el prompt del usuario
+   */
+  private buildUserPrompt(context: {
+    replyingTo?: { text: string; author: string };
+    currentDraft?: string;
+    conversationContext?: string[];
+  }): string {
+    let prompt = '';
+
+    if (context.replyingTo) {
+      prompt += `El usuario está respondiendo a @${context.replyingTo.author}:\n"${context.replyingTo.text}"\n\n`;
+    }
+
+    if (context.conversationContext && context.conversationContext.length > 0) {
+      prompt += `Contexto de la conversación:\n${context.conversationContext.join('\n')}\n\n`;
+    }
+
+    if (context.currentDraft) {
+      prompt += `Borrador actual del usuario: "${context.currentDraft}"\n\n`;
+      prompt += `Mejora este borrador y ofrece 2 alternativas adicionales.`;
+    } else {
+      prompt += `Sugiere 3 formas diferentes de responder.`;
+    }
+
+    prompt += `\n\nFormato de respuesta (EXACTAMENTE así):
+1. [primera sugerencia]
+2. [segunda sugerencia]
+3. [tercera sugerencia]`;
+
+    return prompt;
+  }
+
+  /**
+   * Parsea las sugerencias del modelo
+   */
+  private parseSuggestions(text: string): string[] {
+    // Eliminar markdown si existe
+    const cleaned = text.replace(/```.*?\n?/g, '').trim();
+    
+    // Extraer sugerencias numeradas
+    const suggestions = cleaned
+      .split(/\n\d+\.\s+/)
+      .filter(s => s.trim().length > 0)
+      .map(s => s.trim())
+      .filter(s => s.length <= 280);
+
+    // Asegurar que tengamos exactamente 3 sugerencias
+    return suggestions.slice(0, 3);
+  }
+
+  /**
+   * Helper para obtener hashes de casts recientes
+   */
+  private async getUserRecentCastHashes(fid: number, limit: number = 100): Promise<string[]> {
+    const casts = await neynar.fetchAllCastsCreatedByUser(fid, {
+      limit
+    });
+    
+    return casts.casts.map(cast => cast.hash);
+  }
+
+  /**
+   * Genera un cast desde cero (sin reply)
+   */
+  async generateNewCast(
+    fid: number,
+    context: {
+      profile: UserStyleProfile;
+      topic?: string;
+      mood?: string;
+    }
+  ): Promise<string[]> {
+    const prompt = `El usuario quiere escribir un cast nuevo${context.topic ? ` sobre: ${context.topic}` : ''}${context.mood ? ` con tono ${context.mood}` : ''}.
+
+Sugiere 3 opciones diferentes que este usuario escribiría naturalmente.
+
+Formato:
+1. [sugerencia]
+2. [sugerencia]
+3. [sugerencia]`;
+
+    const chat = this.flashModel.startChat({
+      history: [
+        {
+          role: 'user',
+          parts: [{ text: this.buildSystemContext(context.profile) }]
+        },
+        {
+          role: 'model',
+          parts: [{ text: 'Listo para generar casts en el estilo del usuario.' }]
+        }
+      ]
+    });
+
+    const result = await chat.sendMessage(prompt);
+    return this.parseSuggestions(result.response.text());
+  }
+}
+```
+
+## Sistema de caché con Cloudflare KV
+
+```typescript
+// /lib/cache/profile-cache.ts
+interface CachedProfile {
+  profile: UserStyleProfile;
+  expiresAt: number;
+}
+
+export class ProfileCache {
+  private kvNamespace: KVNamespace; // Cloudflare KV
+
+  constructor(kv: KVNamespace) {
+    this.kvNamespace = kv;
+  }
+
+  /**
+   * Guarda perfil en caché por 24 horas
+   */
+  async set(profile: UserStyleProfile): Promise<void> {
+    const cacheKey = `profile:${profile.fid}`;
+    const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 horas
+    
+    const cached: CachedProfile = {
+      profile,
+      expiresAt
+    };
+
+    await this.kvNamespace.put(
+      cacheKey,
+      JSON.stringify(cached),
+      { expirationTtl: 86400 } // 24 horas en segundos
+    );
+  }
+
+  /**
+   * Obtiene perfil del caché
+   */
+  async get(fid: number): Promise<UserStyleProfile | null> {
+    const cacheKey = `profile:${fid}`;
+    const cached = await this.kvNamespace.get(cacheKey, 'json') as CachedProfile | null;
+
+    if (!cached) return null;
+    if (Date.now() > cached.expiresAt) return null;
+
+    return cached.profile;
+  }
+
+  /**
+   * Invalida caché del usuario (cuando actualiza su estilo)
+   */
+  async invalidate(fid: number): Promise<void> {
+    const cacheKey = `profile:${fid}`;
+    await this.kvNamespace.delete(cacheKey);
+  }
+}
+```
+
+## API Endpoint para Castor
+
+```typescript
+// /app/api/ai/suggest/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { CastorAI } from '@/lib/ai/castor-ai';
+import { ProfileCache } from '@/lib/cache/profile-cache';
+import { verifyNeynarWebhook } from '@/lib/auth/neynar';
+
+// Rate limiting: 10 sugerencias por minuto por usuario
+const rateLimiter = new Map<number, number[]>();
+
+export async function POST(request: NextRequest) {
+  try {
+    const { fid, action, context } = await request.json();
+
+    // Verificar rate limit
+    if (!checkRateLimit(fid)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Max 10 suggestions per minute.' },
+        { status: 429 }
+      );
+    }
+
+    const ai = new CastorAI();
+    const cache = new ProfileCache(
+      // @ts-ignore - KV namespace from env
+      process.env.CASTOR_KV
+    );
+
+    // 1. Obtener o generar perfil
+    let profile = await cache.get(fid);
+    
+    if (!profile) {
+      console.log(`Analyzing style for fid ${fid}...`);
+      profile = await ai.analyzeUserStyle(fid);
+      await cache.set(profile);
+    }
+
+    // 2. Generar sugerencias según la acción
+    let suggestions: string[];
+
+    if (action === 'reply') {
+      suggestions = await ai.generateSuggestions(fid, {
+        profile,
+        replyingTo: context.replyingTo,
+        currentDraft: context.draft,
+        conversationContext: context.thread
+      });
+    } else if (action === 'compose') {
+      suggestions = await ai.generateNewCast(fid, {
+        profile,
+        topic: context.topic,
+        mood: context.mood
+      });
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid action' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      suggestions,
+      profile: {
+        tone: profile.tone,
+        avgLength: profile.avgLength
+      }
+    });
+
+  } catch (error) {
+    console.error('AI suggestion error:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate suggestions' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Endpoint para refrescar el perfil del usuario
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { fid } = await request.json();
+    
+    const ai = new CastorAI();
+    const cache = new ProfileCache(
+      // @ts-ignore
+      process.env.CASTOR_KV
+    );
+
+    // Invalidar caché y re-analizar
+    await cache.invalidate(fid);
+    const profile = await ai.analyzeUserStyle(fid);
+    await cache.set(profile);
+
+    return NextResponse.json({
+      message: 'Profile refreshed',
+      profile
+    });
+
+  } catch (error) {
+    console.error('Profile refresh error:', error);
+    return NextResponse.json(
+      { error: 'Failed to refresh profile' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Rate limiting helper
+ */
+function checkRateLimit(fid: number): boolean {
+  const now = Date.now();
+  const userRequests = rateLimiter.get(fid) || [];
+  
+  // Filtrar requests del último minuto
+  const recentRequests = userRequests.filter(
+    timestamp => now - timestamp < 60000
+  );
+
+  if (recentRequests.length >= 10) {
+    return false;
+  }
+
+  recentRequests.push(now);
+  rateLimiter.set(fid, recentRequests);
+  
+  return true;
+}
+```
+
+## Componente de UI en Castor
+
+```typescript
+// /components/cast-composer/ai-suggestions.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useDebounce } from '@/hooks/use-debounce';
+
+interface AISuggestionsProps {
+  fid: number;
+  replyingTo?: {
+    text: string;
+    author: string;
+  };
+  draft: string;
+  onSelectSuggestion: (text: string) => void;
+}
+
+export function AISuggestions({ 
+  fid, 
+  replyingTo, 
+  draft,
+  onSelectSuggestion 
+}: AISuggestionsProps) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debouncedDraft = useDebounce(draft, 500);
+
+  useEffect(() => {
+    if (debouncedDraft.length > 5 || replyingTo) {
+      fetchSuggestions();
+    }
+  }, [debouncedDraft, replyingTo]);
+
+  async function fetchSuggestions() {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fid,
+          action: replyingTo ? 'reply' : 'compose',
+          context: {
+            replyingTo,
+            draft: debouncedDraft
+          }
+        })
+      });
+
+      const data = await response.json();
+      setSuggestions(data.suggestions);
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!suggestions.length && !loading) return null;
+
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="flex items-center gap-2 text-sm text-gray-500">
+        <span>✨</span>
+        <span>Sugerencias personalizadas</span>
+      </div>
+      
+      {loading ? (
+        <div className="animate-pulse space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-16 bg-gray-100 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {suggestions.map((suggestion, i) => (
+            <button
+              key={i}
+              onClick={() => onSelectSuggestion(suggestion)}
+              className="w-full text-left p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors"
+            >
+              <p className="text-sm">{suggestion}</p>
+              <span className="text-xs text-gray-400 mt-1">
+                {suggestion.length}/280
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Variables de entorno
+
+```bash
+# .env.local
+GOOGLE_AI_API_KEY=tu_api_key_de_google_workspace
+NEYNAR_API_KEY=tu_neynar_key
+CASTOR_KV=tu_cloudflare_kv_namespace
+```
+
+## Cron job para análisis periódico
+
+```typescript
+// /app/api/cron/analyze-profiles/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { CastorAI } from '@/lib/ai/castor-ai';
+import { ProfileCache } from '@/lib/cache/profile-cache';
+
+/**
+ * Cron job: Actualizar perfiles de usuarios activos cada 24h
+ * Trigger: Vercel Cron o Cloudflare Workers Cron
+ */
+export async function GET(request: NextRequest) {
+  // Verificar cron secret
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const ai = new CastorAI();
+    const cache = new ProfileCache(
+      // @ts-ignore
+      process.env.CASTOR_KV
+    );
+
+    // Obtener usuarios activos (últimas 24h)
+    const activeUsers = await getActiveUsers();
+
+    const results = [];
+    for (const fid of activeUsers) {
+      try {
+        const profile = await ai.analyzeUserStyle(fid);
+        await cache.set(profile);
+        results.push({ fid, status: 'success' });
+      } catch (error) {
+        results.push({ fid, status: 'error', error });
+      }
+    }
+
+    return NextResponse.json({
+      processed: results.length,
+      results
+    });
+
+  } catch (error) {
+    console.error('Cron job error:', error);
+    return NextResponse.json(
+      { error: 'Cron job failed' },
+      { status: 500 }
+    );
+  }
+}
+
+async function getActiveUsers(): Promise<number[]> {
+  // Implementar lógica para obtener usuarios activos
+  // Por ejemplo, desde tu DB o desde Neynar
+  return [];
+}
+```
+
+## Estimación de costos con este setup
+
+**Usuario promedio (10 sugerencias/día):**
+- Análisis de perfil (1x/día): ~100K tokens input = $0.0075
+- Sugerencias (10x): ~50K tokens input + 3K output = $0.004 + $0.001 = $0.005
+- **Total/día/usuario**: ~$0.0125
+
+**1000 usuarios activos/mes**: ~$375/mes
+
+**Con caché optimizado (evitando re-análisis)**: ~$200-250/mes
+
+¿Quieres que te ayude a integrarlo con el componente de scheduling de Castor o te monto el deployment en Cloudflare Workers?

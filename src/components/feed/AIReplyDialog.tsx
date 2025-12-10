@@ -25,6 +25,7 @@ interface AIReplyDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onPublish?: (text: string, castHash: string) => void
+  maxChars?: number
 }
 
 const TONES = [
@@ -45,6 +46,7 @@ export function AIReplyDialog({
   open, 
   onOpenChange,
   onPublish,
+  maxChars = 1024,
 }: AIReplyDialogProps) {
   const [tone, setTone] = useState('friendly')
   const [language, setLanguage] = useState('English')
@@ -303,12 +305,12 @@ export function AIReplyDialog({
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Escribe o selecciona una sugerencia..."
-              maxLength={1024}
+              maxLength={maxChars}
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:ring-1 focus:ring-primary focus:border-primary"
               rows={3}
             />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{replyText.length}/1024</span>
+              <span>{replyText.length}/{maxChars}</span>
             </div>
           </div>
 

@@ -34,6 +34,11 @@ export const useAccounts = (options: UseAccountsOptions = {}): UseAccountsReturn
       // Sincronizar estado Pro primero
       await fetch('/api/accounts/sync-pro', { method: 'POST' }).catch(() => {})
 
+      // Obtener FID del usuario logueado (su cuenta propia)
+      const meRes = await fetch('/api/me')
+      const meData = meRes.ok ? await meRes.json() : {}
+      const userFid = meData.fid || null
+
       const res = await fetch('/api/accounts')
       if (!res.ok) throw new Error('Error al cargar cuentas')
 
@@ -44,13 +49,24 @@ export const useAccounts = (options: UseAccountsOptions = {}): UseAccountsReturn
         accountsList = accountsList.filter(a => a.signerStatus === 'approved')
       }
 
+      // Ordenar: cuenta del usuario (mismo FID) primero, luego el resto
+      accountsList.sort((a, b) => {
+        const aIsOwn = a.fid === userFid
+        const bIsOwn = b.fid === userFid
+        if (aIsOwn && !bIsOwn) return -1
+        if (!aIsOwn && bIsOwn) return 1
+        return 0
+      })
+
       setAccounts(accountsList)
 
-      // Seleccionar cuenta por defecto
+      // Seleccionar cuenta por defecto: la del usuario (mismo FID)
       if (defaultAccountId && accountsList.some(a => a.id === defaultAccountId)) {
         setSelectedAccountId(defaultAccountId)
-      } else if (accountsList.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(accountsList[0].id)
+      } else if (accountsList.length > 0) {
+        // Buscar la cuenta del usuario (mismo FID que el login)
+        const ownAccount = accountsList.find(a => a.fid === userFid)
+        setSelectedAccountId(ownAccount?.id || accountsList[0].id)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
@@ -59,7 +75,8 @@ export const useAccounts = (options: UseAccountsOptions = {}): UseAccountsReturn
     } finally {
       setIsLoading(false)
     }
-  }, [defaultAccountId, onlyApproved, selectedAccountId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultAccountId, onlyApproved])
 
   useEffect(() => {
     fetchAccounts()

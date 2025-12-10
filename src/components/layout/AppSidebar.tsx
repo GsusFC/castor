@@ -46,7 +46,7 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="p-6">
           <Link href="/dashboard/feed" className="flex items-center gap-2">
-            <span className="text-2xl">🦫</span>
+            <img src="/brand/logo.png" alt="Castor" className="w-8 h-8" />
             <span className="font-semibold text-lg">Castor</span>
           </Link>
         </div>

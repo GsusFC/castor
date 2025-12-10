@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Building2, Trash2, Share2, Users } from 'lucide-react'
+import { User, Building2, Trash2, Share2, Users, Brain } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -153,6 +154,20 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
         >
           {statusLabels[account.signerStatus]}
         </span>
+
+        {/* Botón Contexto - para todas las cuentas gestionadas */}
+        {(isOwner || isShared) && (
+          <Link href={`/dashboard/accounts/${account.id}/context`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Gestionar contexto AI"
+              className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              <Brain className="w-5 h-5 sm:w-4 sm:h-4" />
+            </Button>
+          </Link>
+        )}
         
         {canShare && (
           <Button

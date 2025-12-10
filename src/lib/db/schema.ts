@@ -287,6 +287,194 @@ export const castAnalyticsRelations = relations(castAnalytics, ({ one }) => ({
   }),
 }))
 
+/**
+ * Perfiles de estilo de escritura (para IA personalizada)
+ */
+export const userStyleProfiles = sqliteTable(
+  'user_style_profiles',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    fid: integer('fid').notNull(),
+    // Análisis de estilo
+    tone: text('tone', { enum: ['casual', 'formal', 'technical', 'humorous', 'mixed'] })
+      .notNull()
+      .default('casual'),
+    avgLength: integer('avg_length').notNull().default(150),
+    commonPhrases: text('common_phrases'), // JSON array
+    topics: text('topics'), // JSON array
+    emojiUsage: text('emoji_usage', { enum: ['none', 'light', 'heavy'] })
+      .notNull()
+      .default('light'),
+    languagePreference: text('language_preference', { enum: ['en', 'es', 'mixed'] })
+      .notNull()
+      .default('en'),
+    sampleCasts: text('sample_casts'), // JSON array de ejemplos
+    // Timestamps
+    analyzedAt: integer('analyzed_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    userIdIdx: index('style_profiles_user_idx').on(table.userId),
+    fidIdx: index('style_profiles_fid_idx').on(table.fid),
+  })
+)
+
+export const userStyleProfilesRelations = relations(userStyleProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [userStyleProfiles.userId],
+    references: [users.id],
+  }),
+}))
+
+/**
+ * Miembros de cuentas compartidas
+ */
+export const accountMembers = sqliteTable(
+  'account_members',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['owner', 'admin', 'member'] })
+      .notNull()
+      .default('member'),
+    canEditContext: integer('can_edit_context', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    invitedById: text('invited_by_id')
+      .references(() => users.id, { onDelete: 'set null' }),
+    joinedAt: integer('joined_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    accountUserIdx: index('account_members_account_user_idx').on(table.accountId, table.userId),
+    userIdx: index('account_members_user_idx').on(table.userId),
+  })
+)
+
+export const accountMembersRelations = relations(accountMembers, ({ one }) => ({
+  account: one(accounts, {
+    fields: [accountMembers.accountId],
+    references: [accounts.id],
+  }),
+  user: one(users, {
+    fields: [accountMembers.userId],
+    references: [users.id],
+  }),
+  invitedBy: one(users, {
+    fields: [accountMembers.invitedById],
+    references: [users.id],
+  }),
+}))
+
+/**
+ * Knowledge Base por cuenta (contexto para IA)
+ */
+export const accountKnowledgeBase = sqliteTable(
+  'account_knowledge_base',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' })
+      .unique(),
+    // Voz de marca
+    brandVoice: text('brand_voice'),
+    bio: text('bio'),
+    expertise: text('expertise'), // JSON array
+    // Reglas de contenido
+    alwaysDo: text('always_do'), // JSON array
+    neverDo: text('never_do'), // JSON array
+    hashtags: text('hashtags'), // JSON array
+    defaultTone: text('default_tone', { enum: ['casual', 'professional', 'friendly', 'witty', 'controversial'] })
+      .default('casual'),
+    defaultLanguage: text('default_language', { enum: ['en', 'es', 'fr', 'de', 'pt'] })
+      .default('en'),
+    // Notas internas
+    internalNotes: text('internal_notes'), // JSON array
+    // Timestamps
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedById: text('updated_by_id')
+      .references(() => users.id, { onDelete: 'set null' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    accountIdx: index('kb_account_idx').on(table.accountId),
+  })
+)
+
+export const accountKnowledgeBaseRelations = relations(accountKnowledgeBase, ({ one }) => ({
+  account: one(accounts, {
+    fields: [accountKnowledgeBase.accountId],
+    references: [accounts.id],
+  }),
+  updatedBy: one(users, {
+    fields: [accountKnowledgeBase.updatedById],
+    references: [users.id],
+  }),
+}))
+
+/**
+ * Documentos del Knowledge Base
+ */
+export const accountDocuments = sqliteTable(
+  'account_documents',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    type: text('type', { enum: ['markdown', 'text', 'url', 'pdf'] })
+      .notNull()
+      .default('text'),
+    content: text('content').notNull(),
+    sourceUrl: text('source_url'),
+    addedById: text('added_by_id')
+      .references(() => users.id, { onDelete: 'set null' }),
+    addedAt: integer('added_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    accountIdx: index('docs_account_idx').on(table.accountId),
+  })
+)
+
+export const accountDocumentsRelations = relations(accountDocuments, ({ one }) => ({
+  account: one(accounts, {
+    fields: [accountDocuments.accountId],
+    references: [accounts.id],
+  }),
+  addedBy: one(users, {
+    fields: [accountDocuments.addedById],
+    references: [users.id],
+  }),
+}))
+
 // Types inferidos
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -300,3 +488,11 @@ export type Template = typeof templates.$inferSelect
 export type NewTemplate = typeof templates.$inferInsert
 export type CastAnalytics = typeof castAnalytics.$inferSelect
 export type NewCastAnalytics = typeof castAnalytics.$inferInsert
+export type UserStyleProfile = typeof userStyleProfiles.$inferSelect
+export type NewUserStyleProfile = typeof userStyleProfiles.$inferInsert
+export type AccountMember = typeof accountMembers.$inferSelect
+export type NewAccountMember = typeof accountMembers.$inferInsert
+export type AccountKnowledgeBase = typeof accountKnowledgeBase.$inferSelect
+export type NewAccountKnowledgeBase = typeof accountKnowledgeBase.$inferInsert
+export type AccountDocument = typeof accountDocuments.$inferSelect
+export type NewAccountDocument = typeof accountDocuments.$inferInsert

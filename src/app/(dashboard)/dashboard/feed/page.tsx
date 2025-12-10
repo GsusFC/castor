@@ -6,6 +6,7 @@ import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { RightSidebar } from '@/components/feed/RightSidebar'
+import { ProfileView } from '@/components/profile/ProfileView'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
@@ -98,6 +99,7 @@ export default function FeedPage() {
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
+  const [userIsPro, setUserIsPro] = useState(false)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [headerHidden, setHeaderHidden] = useState(false)
@@ -105,6 +107,7 @@ export default function FeedPage() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
   const lastScrollY = useRef(0)
   const queryClient = useQueryClient()
 
@@ -150,6 +153,7 @@ export default function FeedPage() {
         if (data.fid) {
           setUserFid(data.fid)
           if (data.accountId) setUserAccountId(data.accountId)
+          if (data.isPro) setUserIsPro(data.isPro)
           // Cargar perfil completo
           const profileRes = await fetch(`/api/users/${data.fid}`)
           if (profileRes.ok) {
@@ -266,67 +270,91 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="flex gap-6 lg:gap-8 w-full">
-      {/* Main Feed */}
-      <div className="flex-1 min-w-0">
-      {/* Sticky Tabs Header */}
-      <div className="sticky top-0 z-40 py-3 bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-full max-w-full">
-          {/* Avatar/Profile link - 44px touch target */}
-          <Link
-            href={profile.username ? `/dashboard/user/${profile.username}` : '#'}
-            className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-muted transition-colors flex-shrink-0"
-            title="Mi perfil"
+    <div className="flex gap-8 w-full">
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 max-w-2xl">
+      
+      {/* Show Profile or Feed */}
+      {selectedProfileUsername ? (
+        <ProfileView 
+          username={selectedProfileUsername} 
+          onBack={() => setSelectedProfileUsername(null)}
+          onSelectUser={setSelectedProfileUsername}
+          onQuote={handleQuote}
+          onReply={(c) => {
+            setReplyToCast({
+              hash: c.hash,
+              text: c.text,
+              timestamp: c.timestamp,
+              author: {
+                fid: c.author.fid,
+                username: c.author.username,
+                displayName: c.author.display_name,
+                pfpUrl: c.author.pfp_url || null,
+              },
+            })
+            setComposeOpen(true)
+          }}
+          currentUserFid={userFid || undefined}
+          isPro={userIsPro}
+        />
+      ) : (
+      <>
+      {/* Background cover for scroll content */}
+      <div className="sticky top-0 z-30 h-6 bg-background" />
+      {/* Tabs Header - sticky maintains position */}
+      <div className="sticky top-6 z-40 pb-3 bg-background border-b border-border/50">
+        <div className="flex items-center gap-2">
+          {/* Avatar/Profile button */}
+          <button
+            onClick={() => profile.username && setSelectedProfileUsername(profile.username)}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
           >
             {profile.pfpUrl ? (
-              <img 
-                src={profile.pfpUrl} 
-                alt="Perfil"
-                className="w-8 h-8 rounded-full object-cover"
-              />
+              <img src={profile.pfpUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-5 h-5 text-muted-foreground" />
               </div>
             )}
-          </Link>
+          </button>
 
-          {/* Feed tabs - 44px touch targets */}
-          {(['home', 'following', 'trending', 'notifications'] as FeedTab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab)
-                if (tab !== 'channel') setSelectedChannel(null)
-              }}
-              className={cn(
-                "w-11 h-11 flex items-center justify-center text-lg rounded-lg transition-colors flex-shrink-0",
-                activeTab === tab && activeTab !== 'channel'
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {tab === 'home' && '🏠'}
-              {tab === 'following' && '👥'}
-              {tab === 'trending' && '🔥'}
-              {tab === 'notifications' && '🔔'}
-            </button>
-          ))}
+          {/* Feed tabs */}
+          <div className="flex-1 flex items-center gap-1 bg-muted/50 rounded-full p-1">
+            {([
+              { id: 'home', label: 'Home' },
+              { id: 'following', label: 'Following' },
+              { id: 'trending', label: 'Trending' },
+              { id: 'notifications', label: 'Notifs' },
+            ] as { id: FeedTab; label: string }[]).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  if (tab.id !== 'channel') setSelectedChannel(null)
+                }}
+                className={cn(
+                  "flex-1 h-9 px-3 text-sm font-medium rounded-full transition-colors",
+                  activeTab === tab.id && activeTab !== 'channel'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Canal seleccionado - 44px touch target */}
+          {/* Canal seleccionado */}
           {selectedChannel && (
             <button
               onClick={() => {
                 setSelectedChannel(null)
                 setActiveTab('home')
               }}
-              className="h-11 flex items-center gap-1.5 px-3 text-sm font-medium rounded-lg bg-primary text-primary-foreground flex-shrink-0"
+              className="h-9 px-3 text-sm font-medium rounded-full bg-primary text-primary-foreground"
             >
-              {selectedChannel.image_url && (
-                <img src={selectedChannel.image_url} alt="" className="w-5 h-5 rounded" />
-              )}
-              <span className="truncate max-w-16">{selectedChannel.name}</span>
-              <span className="text-primary-foreground/70">✕</span>
+              #{selectedChannel.name} ✕
             </button>
           )}
         </div>
@@ -379,6 +407,7 @@ export default function FeedPage() {
               onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
               onQuote={handleQuote}
               onDelete={handleDelete}
+              onSelectUser={setSelectedProfileUsername}
               onReply={(c) => {
                 setReplyToCast({
                   hash: c.hash,
@@ -394,6 +423,7 @@ export default function FeedPage() {
                 setComposeOpen(true)
               }}
               currentUserFid={userFid || undefined}
+              isPro={userIsPro}
             />
           ))
         ) : (
@@ -412,11 +442,13 @@ export default function FeedPage() {
           </button>
         )}
       </div>
+      </>
+      )}
       </div>
 
-      {/* Right Sidebar - hidden on mobile/tablet/laptop */}
-      <div className="hidden xl:block w-[320px] shrink-0">
-        <RightSidebar />
+      {/* Right Sidebar - desktop only, sticky */}
+      <div className="hidden lg:block w-80 shrink-0 sticky top-0 h-screen py-6">
+        <RightSidebar onSelectUser={setSelectedProfileUsername} />
       </div>
 
       {/* Mini App Drawer */}
@@ -441,7 +473,6 @@ export default function FeedPage() {
         defaultEmbed={quoteContent}
         defaultReplyTo={replyToCast}
       />
-
     </div>
   )
 }

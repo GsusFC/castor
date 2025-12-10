@@ -166,11 +166,25 @@ export function CastEditorInline({
     }
   }
 
+  // Auto-resize textarea
+  const autoResize = () => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+  }
+
+  useEffect(() => {
+    autoResize()
+  }, [cast.content])
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value
     const cursorPos = e.target.selectionStart
 
     onUpdate({ ...cast, content: newContent })
+    autoResize()
 
     // Mention detection
     const textBeforeCursor = newContent.slice(0, cursorPos)
@@ -263,12 +277,12 @@ export function CastEditorInline({
           value={cast.content}
           onChange={handleChange}
           placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
-          rows={4}
+          rows={3}
           className={cn(
-            "border-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[100px] md:min-h-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none caret-foreground",
+            "border-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none overflow-hidden",
             isOverLimit ? "text-destructive" : "text-transparent"
           )}
-          style={{ caretColor: 'currentColor' }}
+          style={{ caretColor: 'hsl(var(--primary))' }}
           aria-label={isThread ? `Contenido del cast ${index + 1}` : 'Contenido del cast'}
         />
       </div>

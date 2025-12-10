@@ -169,8 +169,8 @@ export function GlobalSearch({ onSelectChannel, onSelectUser, onSelectCast }: Gl
             ))}
           </div>
 
-          {/* Results */}
-          <div className="max-h-80 overflow-y-auto">
+          {/* Results - scroll oculto */}
+          <div className="max-h-64 overflow-y-auto scrollbar-none">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

@@ -154,7 +154,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
       )}
       
       <p className="text-xs text-muted-foreground">
-        Ejemplo: https://warpcast.com/dwr.eth/0x1234...
+        Ejemplo: https://farcaster.xyz/dwr.eth/0x1234...
       </p>
     </div>
   )

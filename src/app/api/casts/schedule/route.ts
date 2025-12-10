@@ -71,11 +71,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar longitud de contenido usando calculateTextLength (considera URLs)
-    const maxChars = account.isPremium ? 1024 : 320
+    // Farcaster: Standard 1024 chars, Pro 10000 chars
+    const maxChars = account.isPremium ? 10000 : 1024
     if (content && calculateTextLength(content) > maxChars) {
       return ApiErrors.validationFailed([{ 
         field: 'content', 
         message: `Content exceeds ${maxChars} characters` 
+      }])
+    }
+
+    // Validar número de embeds
+    // Farcaster: Standard 2 embeds, Pro 4 embeds
+    const maxEmbeds = account.isPremium ? 4 : 2
+    if (embeds && embeds.length > maxEmbeds) {
+      return ApiErrors.validationFailed([{ 
+        field: 'embeds', 
+        message: `Maximum ${maxEmbeds} embeds allowed${account.isPremium ? '' : ' (upgrade to Pro for 4)'}` 
       }])
     }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, castAnalytics } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster/client'
 
@@ -72,6 +72,20 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 })
+    }
+
+    // Registrar en analytics (no bloquea la respuesta)
+    if (result.hash) {
+      db.insert(castAnalytics).values({
+        id: crypto.randomUUID(),
+        castHash: result.hash,
+        accountId: account.id,
+        content: content.slice(0, 500),
+        likes: 0,
+        recasts: 0,
+        replies: 0,
+        publishedAt: new Date(),
+      }).catch(err => console.error('[Analytics] Track error:', err))
     }
 
     return NextResponse.json({

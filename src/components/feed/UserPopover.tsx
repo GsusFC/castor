@@ -75,7 +75,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
     }
   }
 
-  const warpcastUrl = `https://warpcast.com/${username}`
+  const farcasterUrl = `https://farcaster.xyz/${username}`
 
   return (
     <HoverCard openDelay={300} onOpenChange={(open: boolean) => open && fetchProfile()}>
@@ -159,7 +159,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
               {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
             </button>
             <a
-              href={warpcastUrl}
+              href={farcasterUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}

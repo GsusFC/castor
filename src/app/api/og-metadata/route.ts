@@ -101,6 +101,19 @@ export async function POST(request: NextRequest) {
 
     const html = await response.text()
 
+    // Decodificar entidades HTML comunes
+    const decodeHtmlEntities = (str: string | undefined): string | undefined => {
+      if (!str) return str
+      return str
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    }
+
     // Helper para extraer contenido de meta tags
     const getMetaContent = (property: string): string | undefined => {
       // Formato: <meta property="og:title" content="...">
@@ -113,16 +126,18 @@ export async function POST(request: NextRequest) {
         `<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
         'i'
       )
-      return regex1.exec(html)?.[1] || regex2.exec(html)?.[1]
+      const value = regex1.exec(html)?.[1] || regex2.exec(html)?.[1]
+      return decodeHtmlEntities(value)
     }
 
     // Extraer título del tag <title>
     const titleMatch = /<title[^>]*>([^<]*)<\/title>/i.exec(html)
+    const titleFromTag = decodeHtmlEntities(titleMatch?.[1]?.trim())
 
     // Construir metadatos
     const title = getMetaContent('og:title') || 
                   getMetaContent('twitter:title') || 
-                  titleMatch?.[1]?.trim()
+                  titleFromTag
 
     const description = getMetaContent('og:description') || 
                         getMetaContent('twitter:description') || 

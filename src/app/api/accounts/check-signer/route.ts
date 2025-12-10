@@ -57,10 +57,11 @@ export async function POST(request: NextRequest) {
         // Obtener sesión actual
         const session = await getSession()
         
-        // Actualizar cuenta: signer, status, y ownerId si no tiene
+        // Actualizar cuenta: signer, status, isPremium, y ownerId si no tiene
         const updates: Record<string, unknown> = {
           signerUuid,
           signerStatus: 'approved',
+          isPremium: user.isPremium || false, // Sincronizar estado Pro
           updatedAt: new Date(),
         }
         
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
           .set(updates)
           .where(eq(accounts.id, existingAccount.id))
         
-        console.log('[check-signer] Updated existing account:', existingAccount.id, existingAccount.username)
+        console.log('[check-signer] Updated existing account:', existingAccount.id, existingAccount.username, 'isPro:', user.isPremium)
 
         return NextResponse.json({
           status: 'approved',

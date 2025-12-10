@@ -20,6 +20,8 @@ export interface LinkEmbed {
   favicon?: string
   loading?: boolean
   error?: boolean
+  // Flag para saber si fue detectado del texto o añadido manualmente (quote)
+  fromText?: boolean
   // Frame/MiniApp metadata
   isFrame?: boolean
   frameVersion?: string

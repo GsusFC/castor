@@ -7,10 +7,14 @@ import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { LeftSidebar } from '@/components/feed/LeftSidebar'
 import { RightSidebar } from '@/components/feed/RightSidebar'
+import { ComposeModal } from '@/components/compose/ComposeModal'
+import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
 import { Loader2, User } from 'lucide-react'
+import { useNotificationStream } from '@/hooks'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 type FeedTab = 'home' | 'following' | 'trending' | 'notifications' | 'channel'
 
@@ -94,11 +98,26 @@ export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
+  const [userAccountId, setUserAccountId] = useState<string | null>(null)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [headerHidden, setHeaderHidden] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [quoteContent, setQuoteContent] = useState<string>('')
+  const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
   const lastScrollY = useRef(0)
+  const queryClient = useQueryClient()
+
+  // Notificaciones en tiempo real
+  useNotificationStream({
+    onNotification: (notification) => {
+      // Invalidar queries de notificaciones cuando llegue algo nuevo
+      if (notification.type !== 'connected') {
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      }
+    },
+  })
 
   // Detectar cuando el header está oculto
   useEffect(() => {
@@ -131,6 +150,7 @@ export default function FeedPage() {
         const data = await res.json()
         if (data.fid) {
           setUserFid(data.fid)
+          if (data.accountId) setUserAccountId(data.accountId)
           // Cargar perfil completo
           const profileRes = await fetch(`/api/users/${data.fid}`)
           if (profileRes.ok) {
@@ -221,6 +241,28 @@ export default function FeedPage() {
       notificationsQuery.fetchNextPage()
     } else {
       feedQuery.fetchNextPage()
+    }
+  }
+
+  // Handler para Quote - abre composer con URL del cast
+  const handleQuote = (castUrl: string) => {
+    setQuoteContent(castUrl)
+    setComposeOpen(true)
+  }
+
+  // Handler para Delete - elimina el cast y refresca feed
+  const handleDelete = async (castHash: string) => {
+    try {
+      const res = await fetch(`/api/feed/cast/${castHash}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Cast eliminado')
+        queryClient.invalidateQueries({ queryKey: ['feed'] })
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Error al eliminar')
+      }
+    } catch {
+      toast.error('Error al eliminar cast')
     }
   }
 
@@ -348,6 +390,23 @@ export default function FeedPage() {
               key={cast.hash}
               cast={cast}
               onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
+              onQuote={handleQuote}
+              onDelete={handleDelete}
+              onReply={(c) => {
+                setReplyToCast({
+                  hash: c.hash,
+                  text: c.text,
+                  timestamp: c.timestamp,
+                  author: {
+                    fid: c.author.fid,
+                    username: c.author.username,
+                    displayName: c.author.display_name,
+                    pfpUrl: c.author.pfp_url || null,
+                  },
+                })
+                setComposeOpen(true)
+              }}
+              currentUserFid={userFid || undefined}
             />
           ))
         ) : (
@@ -379,6 +438,21 @@ export default function FeedPage() {
         onClose={() => setMiniApp(null)}
         url={miniApp?.url || null}
         title={miniApp?.title || ''}
+      />
+
+      {/* Compose Modal para Quote y Reply */}
+      <ComposeModal
+        open={composeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open)
+          if (!open) {
+            setQuoteContent('')
+            setReplyToCast(null)
+          }
+        }}
+        defaultAccountId={userAccountId}
+        defaultEmbed={quoteContent}
+        defaultReplyTo={replyToCast}
       />
 
     </div>

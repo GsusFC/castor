@@ -3,13 +3,14 @@ import { GoogleGenAI } from '@google/genai'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
-type Tone = 'professional' | 'casual' | 'friendly' | 'witty'
+type Tone = 'professional' | 'casual' | 'friendly' | 'witty' | 'controversial'
 
 const toneDescriptions: Record<Tone, string> = {
   professional: 'profesional y respetuoso',
   casual: 'casual y relajado',
   friendly: 'amigable y cercano',
   witty: 'ingenioso y con humor',
+  controversial: 'polémico y provocador, que genere debate',
 }
 
 export async function POST(request: NextRequest) {
@@ -52,7 +53,7 @@ Devuelve SOLO un JSON con el siguiente formato (sin markdown, sin explicaciones)
 }`
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: prompt,
     })
 

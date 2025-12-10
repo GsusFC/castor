@@ -3,14 +3,26 @@
 import { useState, useRef, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Heart, Repeat2, MessageCircle, Globe, Sparkles, X, Send, Loader2, Share, Image, Film } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, Sparkles, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { GifPicker } from '@/components/compose/GifPicker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { AIReplyDialog } from './AIReplyDialog'
+import { 
+  CastRenderer, 
+  TweetRenderer, 
+  YouTubeRenderer, 
+  LinkRenderer,
+  extractYouTubeId,
+  isFarcasterCastUrl,
+} from '@/components/embeds'
 import { toast } from 'sonner'
+
+import { MorphText } from '@/components/ui/MorphText'
+import { ScrambleText } from '@/components/ui/ScrambleText'
 
 interface CastAuthor {
   fid: number
@@ -85,11 +97,19 @@ interface Cast {
 interface CastCardProps {
   cast: Cast
   onOpenMiniApp?: (url: string, title: string) => void
+  onQuote?: (castUrl: string) => void
+  onDelete?: (castHash: string) => void
+  onReply?: (cast: Cast) => void
+  currentUserFid?: number
 }
 
 export function CastCard({ 
   cast, 
   onOpenMiniApp,
+  onQuote,
+  onDelete,
+  onReply,
+  currentUserFid,
 }: CastCardProps) {
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
@@ -105,10 +125,24 @@ export function CastCard({
   const [replyText, setReplyText] = useState('')
   const [replyMedia, setReplyMedia] = useState<{ preview: string; url?: string; uploading: boolean; isGif?: boolean } | null>(null)
   const [showGifPicker, setShowGifPicker] = useState(false)
+  const [showAIPicker, setShowAIPicker] = useState(false)
+  const [aiReplyTarget, setAiReplyTarget] = useState<Cast | null>(null)
   const [isSendingReply, setIsSendingReply] = useState(false)
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isTranslatingReply, setIsTranslatingReply] = useState(false)
+  const [showRecastMenu, setShowRecastMenu] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showFullText, setShowFullText] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  
+  const isOwnCast = currentUserFid === cast.author.fid
+  const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
+  
+  // Truncar texto largo (> 280 caracteres)
+  const MAX_TEXT_LENGTH = 280
+  const needsTruncation = cast.text.length > MAX_TEXT_LENGTH
+  const displayText = showFullText || !needsTruncation 
+    ? cast.text 
+    : cast.text.slice(0, MAX_TEXT_LENGTH) + '...'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -134,32 +168,9 @@ export function CastCard({
     }
   }, [replyText])
 
-  // Generar respuesta con AI
-  const handleGenerateAIReply = async () => {
-    setIsGeneratingAI(true)
-    try {
-      const res = await fetch('/api/ai/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          originalText: cast.text,
-          authorUsername: cast.author.username,
-          tone: 'friendly',
-          language: 'English',
-        }),
-      })
-      const data = await res.json()
-      if (data.suggestions && data.suggestions.length > 0) {
-        // Usar la primera sugerencia
-        setReplyText(data.suggestions[0])
-      } else if (data.error) {
-        toast.error(data.error)
-      }
-    } catch (error) {
-      toast.error('Error al generar respuesta')
-    } finally {
-      setIsGeneratingAI(false)
-    }
+  // Manejar selección de sugerencia AI
+  const handleAIPublish = (text: string) => {
+    setReplyText(text)
   }
 
   // Traducir respuesta a inglés
@@ -359,6 +370,29 @@ export function CastCard({
     }
   }
 
+  const handleQuote = () => {
+    setShowRecastMenu(false)
+    if (onQuote) {
+      onQuote(castUrl)
+    } else {
+      navigator.clipboard.writeText(castUrl)
+      toast.success('URL copiada. Pégala en el composer para citar.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete || isDeleting) return
+    
+    if (!confirm('¿Estás seguro de que quieres eliminar este cast?')) return
+    
+    setIsDeleting(true)
+    try {
+      onDelete(cast.hash)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleTranslate = async () => {
     if (translation) {
       setShowTranslation(!showTranslation)
@@ -385,7 +419,7 @@ export function CastCard({
   }
 
   const handleShare = async () => {
-    const url = `https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`
+    const url = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
     
     try {
       await navigator.clipboard.writeText(url)
@@ -456,7 +490,7 @@ export function CastCard({
               <>
                 <span>·</span>
                 <a 
-                  href={`https://warpcast.com/~/channel/${cast.channel.id}`}
+                  href={`https://farcaster.xyz/~/channel/${cast.channel.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:text-foreground"
@@ -474,26 +508,76 @@ export function CastCard({
 
       {/* Content */}
       <div className="mt-3 ml-0 sm:ml-13">
-        <p className="whitespace-pre-wrap break-words">{cast.text}</p>
-        
-        {/* Translation - justo debajo del texto */}
-        {showTranslation && translation && (
-          <div className="mt-2 text-sm text-muted-foreground italic">
-            <span className="flex items-center gap-1 text-xs not-italic mb-0.5">
+        <div className="relative">
+          {/* Indicador de traducción flotante */}
+          {showTranslation && (
+            <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded animate-in fade-in zoom-in duration-300">
               <Globe className="w-3 h-3" />
-              Traducción
-            </span>
-            {translation}
-          </div>
-        )}
+              <span>Traducido</span>
+            </div>
+          )}
+          
+          {/* Texto con efecto Morph */}
+          <MorphText 
+            text={showTranslation && translation ? translation : displayText} 
+            className={cn(
+              "text-[16px] leading-relaxed whitespace-pre-wrap break-words transition-colors duration-300",
+              showTranslation && translation 
+                ? "text-primary/90 font-medium" 
+                : "text-foreground"
+            )}
+          />
+          
+          {/* Botón ver más/menos */}
+          {needsTruncation && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowFullText(!showFullText)
+              }}
+              className="text-xs text-primary hover:underline mt-1 flex items-center gap-0.5"
+            >
+              {showFullText ? (
+                <>ver menos <ChevronUp className="w-3 h-3" /></>
+              ) : (
+                <>ver más <ChevronDown className="w-3 h-3" /></>
+              )}
+            </button>
+          )}
+        </div>
         
         {/* Embeds (images, videos, frames, links, quote casts) */}
         {cast.embeds && cast.embeds.length > 0 && (() => {
-          const images = cast.embeds.filter(e => e.url && e.metadata?.content_type?.startsWith('image/'))
-          const videos = cast.embeds.filter(e => e.url && (e.metadata?.content_type?.startsWith('video/') || e.metadata?.video))
-          const frames = cast.embeds.filter(e => e.url && (e.metadata?.frame?.version || e.metadata?.frame?.image))
+          // Helpers para detectar por URL cuando no hay metadata
+          const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url)
+          const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url) || 
+            url.includes('stream.warpcast.com') || url.includes('cloudflarestream.com')
+          
+          const images = cast.embeds.filter(e => e.url && (
+            e.metadata?.content_type?.startsWith('image/') || 
+            (!e.metadata?.content_type && isImageUrl(e.url))
+          ))
+          const videos = cast.embeds.filter(e => e.url && (
+            e.metadata?.content_type?.startsWith('video/') || 
+            e.metadata?.video ||
+            (!e.metadata?.content_type && isVideoUrl(e.url))
+          ))
+          // Frames/Miniapps
+          const frames = cast.embeds.filter(e => e.url && (
+            e.metadata?.frame?.version || 
+            e.metadata?.frame?.image
+          ))
           const quoteCasts = cast.embeds.filter(e => e.cast)
-          // Links con OG metadata (no images, videos, frames ni quotes)
+          // Media grid calculation
+          const mediaCount = images.length + videos.length
+          const getGridClass = (count: number) => {
+            if (count === 1) return "grid-cols-1"
+            if (count === 2) return "grid-cols-2 aspect-[2/1]"
+            if (count === 3) return "grid-cols-2 aspect-[2/1]" // Especial handling for 3 via row-span
+            return "grid-cols-2 aspect-square"
+          }
+
+          // Links (no images, videos, frames ni quotes)
           const processedUrls = new Set([
             ...images.map(e => e.url),
             ...videos.map(e => e.url),
@@ -503,7 +587,24 @@ export function CastCard({
             e.url && 
             !e.cast &&
             !processedUrls.has(e.url) &&
-            e.metadata?.html?.ogTitle
+            !e.metadata?.content_type?.startsWith('image/') &&
+            !e.metadata?.content_type?.startsWith('video/')
+          )
+          
+          // Separar tweets, youtube, farcaster casts y otros links
+          const tweets = links.filter(e => 
+            e.url && (e.url.includes('twitter.com/') || e.url.includes('x.com/')) && e.url.includes('/status/')
+          )
+          const youtubeLinks = links.filter(e =>
+            e.url && (e.url.includes('youtube.com') || e.url.includes('youtu.be'))
+          )
+          const farcasterCastLinks = links.filter(e =>
+            e.url && isFarcasterCastUrl(e.url)
+          )
+          const regularLinks = links.filter(e => 
+            !tweets.some(t => t.url === e.url) &&
+            !youtubeLinks.some(y => y.url === e.url) &&
+            !farcasterCastLinks.some(f => f.url === e.url)
           )
           
           return (
@@ -512,93 +613,135 @@ export function CastCard({
               {quoteCasts.map((embed, i) => embed.cast && (
                 <a
                   key={`quote-${i}`}
-                  href={`https://warpcast.com/${embed.cast.author.username}/${embed.cast.hash.slice(0, 10)}`}
+                  href={`https://farcaster.xyz/${embed.cast.author.username}/${embed.cast.hash.slice(0, 10)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className="block"
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    {embed.cast.author.pfp_url && (
-                      <img 
-                        src={embed.cast.author.pfp_url} 
-                        alt="" 
-                        className="w-5 h-5 rounded-full"
-                      />
-                    )}
-                    <span className="font-medium text-sm">{embed.cast.author.display_name}</span>
-                    <span className="text-muted-foreground text-xs">@{embed.cast.author.username}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-3">{embed.cast.text}</p>
-                  {embed.cast.embeds?.[0]?.url && embed.cast.embeds[0].metadata?.content_type?.startsWith('image/') && (
-                    <img 
-                      src={embed.cast.embeds[0].url} 
-                      alt="" 
-                      className="mt-2 rounded max-h-32 object-cover"
-                    />
-                  )}
+                  <CastRenderer cast={embed.cast} />
                 </a>
               ))}
 
-              {/* Media en fila */}
-              {(images.length > 0 || videos.length > 0 || frames.length > 0) && (
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {/* Imágenes */}
+              {/* Media Grid */}
+              {(images.length > 0 || videos.length > 0) && (
+                <div className={cn("grid gap-1 rounded-xl overflow-hidden", getGridClass(mediaCount))}>
                   {images.map((embed, i) => (
                     <button
                       key={`img-${i}`}
                       onClick={() => embed.url && setLightboxImage(embed.url)}
-                      className="relative h-44 w-44 flex-shrink-0 overflow-hidden rounded-lg bg-muted"
+                      className={cn(
+                        "relative w-full h-full bg-muted overflow-hidden hover:opacity-95 transition-opacity",
+                        mediaCount === 1 ? "aspect-auto max-h-[500px]" : "aspect-square",
+                        mediaCount === 3 && i === 0 ? "row-span-2 aspect-auto" : ""
+                      )}
                     >
                       <img
                         src={embed.url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform"
+                        className="absolute inset-0 w-full h-full object-cover"
                         loading="lazy"
                       />
                     </button>
                   ))}
                   
-                  {/* Videos */}
                   {videos.map((embed, i) => (
-                    <div key={`video-${i}`} className="h-44 w-60 flex-shrink-0 rounded-lg overflow-hidden bg-black">
+                    <div 
+                      key={`video-${i}`} 
+                      className={cn(
+                        "relative w-full h-full bg-black overflow-hidden",
+                        mediaCount === 1 ? "aspect-video" : "aspect-square",
+                        mediaCount === 3 && i === 0 && images.length === 0 ? "row-span-2 aspect-auto" : ""
+                      )}
+                    >
                       <HLSVideo
                         src={embed.url || ''}
                         className="w-full h-full object-cover"
                       />
                     </div>
                   ))}
-                  
-                  {/* Miniapps */}
+                </div>
+              )}
+
+              {/* Frames / Miniapps (Scroll horizontal separado para no romper el grid) */}
+              {frames.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {frames.map((embed, i) => {
                     const frameImage = embed.metadata?.frame?.image || embed.metadata?.html?.ogImage?.[0]?.url
-                    const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Abrir'
+                    const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Abrir Mini App'
+                    const buttons = embed.metadata?.frame?.buttons || []
                     
                     if (!frameImage || !embed.url) return null
                     
                     return (
                       <div
                         key={`frame-${i}`}
-                        className="w-56 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card"
+                        className="w-full max-w-[300px] flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card shadow-sm"
                       >
-                        <img
-                          src={frameImage}
-                          alt={frameTitle}
-                          className="w-full h-36 object-cover"
-                          loading="lazy"
-                        />
-                        <div className="p-2 border-t border-border">
-                          <button 
-                            onClick={() => onOpenMiniApp?.(embed.url!, frameTitle)}
-                            className="w-full py-1.5 px-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium text-xs rounded transition-colors truncate"
-                          >
-                            {frameTitle}
-                          </button>
+                        <div className="relative aspect-[1.91/1] bg-muted">
+                           <img
+                            src={frameImage}
+                            alt={frameTitle}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                            FRAME
+                          </div>
+                        </div>
+                        <div className="p-3 border-t border-border">
+                          <h4 className="font-medium text-sm truncate mb-2">{frameTitle}</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                             {buttons.slice(0, 2).map((btn, idx) => (
+                               <button 
+                                 key={idx}
+                                 className="w-full py-1.5 px-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded transition-colors truncate border border-border/50"
+                               >
+                                 {btn.title || `Action ${idx + 1}`}
+                               </button>
+                             ))}
+                             <button 
+                               onClick={() => onOpenMiniApp?.(embed.url!, frameTitle)}
+                               className={cn(
+                                 "w-full py-1.5 px-2 bg-primary text-primary-foreground text-xs font-medium rounded transition-colors truncate flex items-center justify-center gap-1",
+                                 buttons.length > 0 ? "col-span-2" : "col-span-2"
+                               )}
+                             >
+                               <span>Abrir App</span>
+                               <ExternalLink className="w-3 h-3" />
+                             </button>
+                          </div>
                         </div>
                       </div>
                     )
                   })}
                 </div>
               )}
+              
+              {/* Tweet Embeds */}
+              {tweets.map((embed, i) => {
+                const tweetId = embed.url?.match(/status\/(\d+)/)?.[1]
+                return tweetId ? (
+                  <TweetRenderer key={`tweet-${i}`} tweetId={tweetId} />
+                ) : null
+              })}
+
+              {/* YouTube Embeds */}
+              {youtubeLinks.map((embed, i) => {
+                const videoId = extractYouTubeId(embed.url!)
+                return videoId ? (
+                  <YouTubeRenderer key={`yt-${i}`} videoId={videoId} />
+                ) : null
+              })}
+
+              {/* Farcaster Cast Links */}
+              {farcasterCastLinks.map((embed, i) => (
+                <CastRenderer key={`fc-${i}`} url={embed.url!} />
+              ))}
+
+              {/* Link Previews */}
+              {regularLinks.map((embed, i) => (
+                <LinkRenderer key={`link-${i}`} url={embed.url!} />
+              ))}
             </div>
           )
         })()}
@@ -609,39 +752,67 @@ export function CastCard({
         <button
           onClick={handleLike}
           className={cn(
-            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
             isLiked 
               ? "bg-pink-500/10 text-pink-500 hover:bg-pink-500/20" 
               : "text-muted-foreground hover:text-pink-500 hover:bg-muted"
           )}
         >
-          <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+          <Heart className={cn("w-4 h-4 transition-transform group-active:scale-125", isLiked && "fill-current")} />
           <span>{likesCount}</span>
         </button>
 
-        <button
-          onClick={handleRecast}
-          className={cn(
-            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
-            isRecasted 
-              ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" 
-              : "text-muted-foreground hover:text-green-500 hover:bg-muted"
-          )}
-        >
-          <Repeat2 className={cn("w-4 h-4", isRecasted && "fill-current")} />
-          <span>{recastsCount}</span>
-        </button>
+        <Popover open={showRecastMenu} onOpenChange={setShowRecastMenu}>
+          <PopoverTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+                isRecasted 
+                  ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" 
+                  : "text-muted-foreground hover:text-green-500 hover:bg-muted"
+              )}
+            >
+              <Repeat2 className={cn("w-4 h-4 transition-transform group-active:scale-125", isRecasted && "fill-current")} />
+              <span>{recastsCount}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-40 p-1" align="start">
+            <button
+              onClick={() => { handleRecast(); setShowRecastMenu(false); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+            >
+              <Repeat2 className="w-4 h-4" />
+              <span>Recast</span>
+            </button>
+            <button
+              onClick={handleQuote}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+            >
+              <Quote className="w-4 h-4" />
+              <span>Quote</span>
+            </button>
+          </PopoverContent>
+        </Popover>
 
         <button 
-          onClick={handleToggleReplies}
+          onClick={() => {
+            // Si hay onReply, abrir modal directamente
+            if (onReply) {
+              onReply(cast)
+            } else {
+              // Fallback: expandir para ver respuestas
+              handleToggleReplies()
+            }
+          }}
           className={cn(
-            "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md transition-colors",
             isExpanded 
               ? "bg-blue-500/10 text-blue-500" 
               : "text-muted-foreground hover:text-blue-500 hover:bg-muted"
           )}
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4 transition-transform group-active:scale-125" />
           <span>{loadingReplies ? '...' : cast.replies.count}</span>
         </button>
 
@@ -649,171 +820,65 @@ export function CastCard({
           onClick={handleTranslate}
           disabled={isTranslating}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+            "group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
             showTranslation 
               ? "bg-blue-500/10 text-blue-500" 
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
           title="Traducir al español"
         >
-          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4 transition-transform group-active:scale-110" />}
         </button>
 
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           title="Copiar enlace"
         >
-          <Share className="w-4 h-4" />
+          <Share className="w-4 h-4 transition-transform group-active:scale-110" />
         </button>
+
+        {/* AI Reply */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setAiReplyTarget(cast)
+            setShowAIPicker(true)
+          }}
+          className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+          title="Responder con IA"
+        >
+          <Sparkles className="w-4 h-4 transition-transform group-active:scale-110" />
+        </button>
+
+        {/* Delete (solo para casts propios) */}
+        {isOwnCast && onDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-auto"
+            title="Eliminar cast"
+          >
+            {isDeleting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4 transition-transform group-active:scale-110" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Expanded Section: Composer first, then Replies */}
       {isExpanded && (
         <div className="mt-4 ml-0 sm:ml-13 space-y-4" onClick={(e) => e.stopPropagation()}>
-          {/* Composer - Always first */}
+          {/* Composer placeholder - Opens modal */}
           <div className="pt-4 border-t border-border">
-            <textarea
-              ref={textareaRef}
-              value={replyText}
-              onChange={(e) => {
-                setReplyText(e.target.value)
-                // Auto-resize
-                if (textareaRef.current) {
-                  textareaRef.current.style.height = 'auto'
-                  textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-                }
-              }}
-              placeholder={`Responder a @${cast.author.username}...`}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[5rem] max-h-64 overflow-hidden"
-              rows={2}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  handleSendReply()
-                }
-              }}
-            />
-            
-            {/* Preview de imagen */}
-            {replyMedia && (
-              <div className="mt-2 relative inline-block">
-                <img 
-                  src={replyMedia.preview} 
-                  alt="Preview" 
-                  className={cn(
-                    "h-20 rounded-lg object-cover",
-                    replyMedia.uploading && "opacity-50"
-                  )}
-                />
-                {replyMedia.uploading && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                  </div>
-                )}
-                <button
-                  onClick={() => setReplyMedia(null)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/90"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-            
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleGenerateAIReply}
-                  disabled={isGeneratingAI}
-                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                  title="Generar respuesta con AI"
-                >
-                  {isGeneratingAI ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  )}
-                  <span>AI</span>
-                </button>
-                <button
-                  onClick={handleTranslateReply}
-                  disabled={isTranslatingReply || !replyText.trim()}
-                  className={cn(
-                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
-                    replyText.trim() 
-                      ? "text-muted-foreground hover:text-blue-500 hover:bg-muted"
-                      : "text-muted-foreground/50 cursor-not-allowed"
-                  )}
-                  title="Traducir a inglés"
-                >
-                  {isTranslatingReply ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Globe className="w-3.5 h-3.5" />
-                  )}
-                  <span>EN</span>
-                </button>
-                <div className="w-px h-4 bg-border mx-1" />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={!!replyMedia}
-                  className={cn(
-                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
-                    replyMedia 
-                      ? "text-muted-foreground/50 cursor-not-allowed"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                  title="Añadir imagen"
-                >
-                  <Image className="w-3.5 h-3.5" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-                <Popover open={showGifPicker} onOpenChange={setShowGifPicker}>
-                  <PopoverTrigger asChild>
-                    <button
-                      disabled={!!replyMedia}
-                      className={cn(
-                        "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
-                        replyMedia 
-                          ? "text-muted-foreground/50 cursor-not-allowed"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      )}
-                      title="Añadir GIF"
-                    >
-                      <Film className="w-3.5 h-3.5" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <GifPicker 
-                      onSelect={handleGifSelect} 
-                      onClose={() => setShowGifPicker(false)} 
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <button
-                onClick={handleSendReply}
-                disabled={(!replyText.trim() && !replyMedia?.url) || isSendingReply || replyMedia?.uploading}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
-                  (replyText.trim() || replyMedia?.url) && !replyMedia?.uploading
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                )}
-              >
-                {isSendingReply ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                <span>Responder</span>
-              </button>
-            </div>
+            <button
+              onClick={() => onReply?.(cast)}
+              className="w-full px-3 py-3 text-sm text-left text-muted-foreground rounded-lg border border-border bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-colors"
+            >
+              Responder a @{cast.author.username}...
+            </button>
           </div>
 
           {/* Replies - Scrollable area with max 5 */}
@@ -822,10 +887,10 @@ export function CastCard({
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : replies.length > 0 && (
-            <div className="max-h-64 overflow-y-auto space-y-3 border-l-2 border-border pl-3 sm:pl-4">
+            <div className="max-h-64 overflow-y-auto space-y-4 border-l-2 border-border/50 pl-4 ml-2 scrollbar-thin">
               {replies.slice(0, 5).map((reply) => (
-                <div key={reply.hash} className="text-sm">
-                  <div className="flex items-center gap-2">
+                <div key={reply.hash} className="text-sm group">
+                  <div className="flex items-start gap-2">
                     {reply.author && (
                       <UserPopover
                         fid={reply.author.fid}
@@ -833,37 +898,141 @@ export function CastCard({
                         displayName={reply.author.display_name}
                         pfpUrl={reply.author.pfp_url}
                       >
-                        <div className="flex items-center gap-2">
-                          {reply.author.pfp_url && (
-                            <img 
-                              src={reply.author.pfp_url} 
-                              alt={reply.author.username}
-                              className="w-5 h-5 rounded-full hover:opacity-80"
-                            />
-                          )}
-                          <span className="font-medium hover:underline text-xs">{reply.author.display_name}</span>
-                          <span className="text-muted-foreground text-xs">@{reply.author.username}</span>
-                        </div>
+                        <img 
+                          src={reply.author.pfp_url || `https://avatar.vercel.sh/${reply.author.username}`} 
+                          alt={reply.author.username}
+                          className="w-6 h-6 rounded-full hover:opacity-80 object-cover mt-0.5"
+                        />
                       </UserPopover>
                     )}
-                  </div>
-                  <p className="mt-1 text-muted-foreground text-sm">{reply.text}</p>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3 h-3" />
-                      {reply.reactions?.likes_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Repeat2 className="w-3 h-3" />
-                      {reply.reactions?.recasts_count || 0}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-semibold text-xs hover:underline cursor-pointer">
+                          {reply.author?.display_name}
+                        </span>
+                        <span className="text-muted-foreground text-xs">@{reply.author?.username}</span>
+                        <span className="text-muted-foreground text-[10px] mx-0.5">·</span>
+                        <span className="text-muted-foreground text-[10px]">
+                          {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: false, locale: es })}
+                        </span>
+                      </div>
+                      
+                      <p className="text-[15px] leading-relaxed text-foreground mt-0.5 break-words">{reply.text}</p>
+                      
+                      {/* Imágenes en respuestas */}
+                      {reply.embeds && reply.embeds.length > 0 && (
+                        <div className="mt-2 flex gap-2 overflow-x-auto">
+                          {reply.embeds
+                            .filter((e: any) => e.metadata?.content_type?.startsWith('image/') || e.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                            .map((e: any, idx: number) => (
+                              <img 
+                                key={idx}
+                                src={e.url} 
+                                alt="" 
+                                className="h-24 rounded-lg object-cover border border-border"
+                              />
+                            ))
+                          }
+                        </div>
+                      )}
+
+                      <div className="mt-1.5 flex items-center gap-4 text-xs text-muted-foreground opacity-70 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-pink-500 transition-colors"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            try {
+                              await fetch('/api/feed/reaction', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ castHash: reply.hash, reactionType: 'like' }),
+                              })
+                              toast.success('Like añadido')
+                            } catch {
+                              toast.error('Error al dar like')
+                            }
+                          }}
+                        >
+                          <Heart className="w-4 h-4" />
+                          {reply.reactions?.likes_count || 0}
+                        </button>
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-green-500 transition-colors"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            try {
+                              await fetch('/api/feed/reaction', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ castHash: reply.hash, reactionType: 'recast' }),
+                              })
+                              toast.success('Recast añadido')
+                            } catch {
+                              toast.error('Error al recastear')
+                            }
+                          }}
+                        >
+                          <Repeat2 className="w-4 h-4" />
+                          {reply.reactions?.recasts_count || 0}
+                        </button>
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-blue-500 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Construir un Cast-like object para el modal
+                            onReply?.({
+                              hash: reply.hash,
+                              text: reply.text,
+                              timestamp: reply.timestamp,
+                              author: reply.author,
+                              reactions: reply.reactions || { likes_count: 0, recasts_count: 0 },
+                              replies: { count: 0 },
+                            })
+                          }}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const replyUrl = `https://farcaster.xyz/${reply.author?.username}/${reply.hash.slice(0, 10)}`
+                            navigator.clipboard.writeText(replyUrl)
+                            toast.success('Enlace copiado')
+                          }}
+                        >
+                          <Share className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAiReplyTarget({
+                              hash: reply.hash,
+                              text: reply.text,
+                              timestamp: reply.timestamp,
+                              author: reply.author,
+                              reactions: reply.reactions || { likes_count: 0, recasts_count: 0 },
+                              replies: { count: 0 },
+                            })
+                            setShowAIPicker(true)
+                          }}
+                          title="Responder con IA"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
               {replies.length > 5 && (
-                <p className="text-xs text-muted-foreground text-center py-2">
-                  +{replies.length - 5} respuestas más
-                </p>
+                <button 
+                  className="w-full text-xs text-muted-foreground text-center py-2 hover:text-primary transition-colors"
+                  onClick={() => {/* TODO: Cargar más o ir al detalle */}}
+                >
+                  Ver {replies.length - 5} respuestas más
+                </button>
               )}
             </div>
           )}
@@ -889,6 +1058,19 @@ export function CastCard({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* AI Reply Dialog */}
+      {aiReplyTarget && (
+        <AIReplyDialog
+          cast={aiReplyTarget}
+          open={showAIPicker}
+          onOpenChange={(open) => {
+            setShowAIPicker(open)
+            if (!open) setAiReplyTarget(null)
+          }}
+          onPublish={handleAIPublish}
+        />
       )}
     </div>
   )

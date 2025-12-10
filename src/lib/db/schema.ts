@@ -247,6 +247,46 @@ export const templatesRelations = relations(templates, ({ one }) => ({
   }),
 }))
 
+/**
+ * Analytics de casts publicados
+ */
+export const castAnalytics = sqliteTable(
+  'cast_analytics',
+  {
+    id: text('id').primaryKey(),
+    castHash: text('cast_hash').notNull(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    // Contenido del cast (para mostrar en dashboard)
+    content: text('content'),
+    // Métricas
+    likes: integer('likes').notNull().default(0),
+    recasts: integer('recasts').notNull().default(0),
+    replies: integer('replies').notNull().default(0),
+    // Timestamps
+    publishedAt: integer('published_at', { mode: 'timestamp' }).notNull(),
+    lastUpdatedAt: integer('last_updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    castHashIdx: index('analytics_cast_hash_idx').on(table.castHash),
+    accountIdx: index('analytics_account_idx').on(table.accountId),
+    publishedIdx: index('analytics_published_idx').on(table.publishedAt),
+  })
+)
+
+export const castAnalyticsRelations = relations(castAnalytics, ({ one }) => ({
+  account: one(accounts, {
+    fields: [castAnalytics.accountId],
+    references: [accounts.id],
+  }),
+}))
+
 // Types inferidos
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -258,3 +298,5 @@ export type CastMedia = typeof castMedia.$inferSelect
 export type Thread = typeof threads.$inferSelect
 export type Template = typeof templates.$inferSelect
 export type NewTemplate = typeof templates.$inferInsert
+export type CastAnalytics = typeof castAnalytics.$inferSelect
+export type NewCastAnalytics = typeof castAnalytics.$inferInsert

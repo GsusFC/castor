@@ -11,7 +11,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const { bio, displayName, pfpUrl, url } = await request.json()
+    const { bio, displayName, pfpUrl, url, bannerUrl } = await request.json()
 
     // Obtener cuenta con signer aprobado
     const [account] = await db
@@ -49,6 +49,17 @@ export async function PUT(request: NextRequest) {
     if (url !== undefined) updateData.url = url
 
     const response = await neynar.updateUser(updateData)
+
+    // Banner se actualiza por separado (Pro feature)
+    // Neynar SDK puede no soportarlo aún, pero el protocolo sí
+    if (bannerUrl !== undefined && account.isPremium) {
+      try {
+        // TODO: Implementar cuando Neynar SDK soporte USER_DATA_TYPE_BANNER
+        console.log('[Profile] Banner update requested:', bannerUrl)
+      } catch (bannerError) {
+        console.error('[Profile] Banner update failed:', bannerError)
+      }
+    }
 
     // Actualizar también en nuestra DB si cambió displayName o pfpUrl
     if (displayName || pfpUrl) {

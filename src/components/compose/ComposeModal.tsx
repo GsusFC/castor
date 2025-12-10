@@ -13,7 +13,7 @@ import { ComposeCard } from './ComposeCard'
 import { Channel, ReplyToCast, MediaFile } from './types'
 import { toast } from 'sonner'
 import { calculateTextLength } from '@/lib/url-utils'
-import { getMaxChars } from '@/lib/compose/constants'
+import { getMaxChars, getMaxEmbeds } from '@/lib/compose/constants'
 import { useAccounts, useTemplates, useScheduleForm, useCastThread, Template } from '@/hooks'
 
 interface EditCastData {
@@ -39,7 +39,9 @@ interface ComposeModalProps {
   defaultAccountId?: string | null
   editCast?: EditCastData | null
   defaultContent?: string
+  defaultEmbed?: string // URL para embeber (quote cast)
   defaultChannelId?: string | null
+  defaultReplyTo?: ReplyToCast | null // Cast al que se responde
 }
 
 export function ComposeModal({ 
@@ -48,7 +50,9 @@ export function ComposeModal({
   defaultAccountId, 
   editCast,
   defaultContent,
-  defaultChannelId 
+  defaultEmbed,
+  defaultChannelId,
+  defaultReplyTo,
 }: ComposeModalProps) {
   const router = useRouter()
 
@@ -78,11 +82,15 @@ export function ComposeModal({
   const [editCastId, setEditCastId] = useState<string | null>(null)
 
   // Derivados
-  const maxChars = getMaxChars(selectedAccount?.isPremium ?? false)
-  const hasOverLimit = thread.casts.some(cast => calculateTextLength(cast.content) > maxChars)
+  const isPro = selectedAccount?.isPremium ?? false
+  const maxChars = getMaxChars(isPro)
+  const maxEmbeds = getMaxEmbeds(isPro)
+  const hasOverChars = thread.casts.some(cast => calculateTextLength(cast.content) > maxChars)
+  const hasOverEmbeds = thread.casts.some(cast => (cast.media.length + cast.links.length) > maxEmbeds)
+  const hasOverLimit = hasOverChars || hasOverEmbeds
   const hasContent = thread.casts.some(cast => cast.content.trim().length > 0)
 
-  // Resetear estado cuando se cierra el modal
+  // Resetear estado cuando se cierra el modal, cargar embed cuando se abre
   useEffect(() => {
     if (!open) {
       thread.reset()
@@ -91,26 +99,31 @@ export function ComposeModal({
       setError(null)
       setReplyTo(null)
       setEditCastId(null)
+    } else if (!editCast && (defaultContent || defaultEmbed || defaultReplyTo)) {
+      // Modal se abre - cargar contenido o embed con pequeño delay
+      // para asegurar que el thread está listo
+      const timeoutId = setTimeout(() => {
+        thread.setCasts([{
+          id: crypto.randomUUID(),
+          content: defaultContent || '',
+          media: [],
+          links: defaultEmbed ? [{ url: defaultEmbed }] : [],
+        }])
+      }, 50)
+      
+      if (defaultChannelId) {
+        setSelectedChannel({ id: defaultChannelId, name: defaultChannelId })
+      }
+      
+      // Cargar replyTo si viene de prop
+      if (defaultReplyTo) {
+        setReplyTo(defaultReplyTo)
+      }
+      
+      return () => clearTimeout(timeoutId)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  // Cargar contenido desde template
-  useEffect(() => {
-    if (!open || !defaultContent || editCast) return
-
-    thread.setCasts([{
-      id: crypto.randomUUID(),
-      content: defaultContent,
-      media: [],
-      links: [],
-    }])
-
-    if (defaultChannelId) {
-      setSelectedChannel({ id: defaultChannelId, name: defaultChannelId })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultContent, defaultChannelId])
+  }, [open, defaultContent, defaultEmbed, defaultChannelId, defaultReplyTo])
 
   // Cargar datos del cast en modo edición
   useEffect(() => {

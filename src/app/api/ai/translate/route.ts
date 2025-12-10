@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
+import { translate } from '@vitalets/google-translate-api'
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+// Mapeo de nombres de idiomas a códigos ISO
+const languageMap: Record<string, string> = {
+  'Spanish': 'es',
+  'English': 'en',
+  'French': 'fr',
+  'German': 'de',
+  'Italian': 'it',
+  'Portuguese': 'pt',
+  'Japanese': 'ja',
+  'Korean': 'ko',
+  'Chinese': 'zh',
+  'Russian': 'ru',
+  'Arabic': 'ar',
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,26 +24,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'text is required' }, { status: 400 })
     }
 
-    const prompt = `Traduce el siguiente texto de una red social (Farcaster) al ${targetLanguage}.
-Mantén el tono y estilo del autor original.
-Si hay jerga crypto/tech o emojis, mantén los términos originales cuando sea apropiado.
-Solo devuelve la traducción, sin explicaciones adicionales.
+    // Convertir nombre de idioma a código ISO
+    const langCode = languageMap[targetLanguage] || 'es'
 
-Texto original:
-"${text}"
-
-Traducción:`
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    })
-
-    const translation = response.text?.trim() || ''
+    const result = await translate(text, { to: langCode })
+    const translation = result.text || ''
 
     return NextResponse.json({ translation })
   } catch (error) {
-    console.error('[AI Translate] Error:', error)
+    console.error('[Translate] Error:', error)
     return NextResponse.json(
       { error: 'Failed to translate' },
       { status: 500 }

@@ -2,21 +2,32 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Users, Loader2, ExternalLink, Star, Github, Pencil } from 'lucide-react'
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, MapPin, Users, Loader2, ExternalLink, Star, Github, Pencil, UserPlus, UserMinus } from 'lucide-react'
 import { CastCard } from '@/components/feed/CastCard'
+import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog'
+import { FollowListDialog } from '@/components/profile/FollowListDialog'
+import { ComposeModal } from '@/components/compose/ComposeModal'
+import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 type ProfileTab = 'casts' | 'replies' | 'likes'
+type FollowListType = 'followers' | 'following' | null
 
 export default function UserProfilePage() {
   const params = useParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const username = params.username as string
   const [activeTab, setActiveTab] = useState<ProfileTab>('casts')
   const [editOpen, setEditOpen] = useState(false)
+  const [followListOpen, setFollowListOpen] = useState<FollowListType>(null)
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
+  const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
 
   // Fetch current user to check if viewing own profile
   const meQuery = useQuery({
@@ -55,6 +66,50 @@ export default function UserProfilePage() {
 
   const user = profileQuery.data?.user
   const casts = castsQuery.data?.pages.flatMap((page) => page.casts) || []
+  
+  const isOwnProfile = meQuery.data?.fid && user?.fid === meQuery.data.fid
+  const isFollowing = user?.viewer_context?.following
+
+  // Follow mutation
+  const followMutation = useMutation({
+    mutationFn: async (fid: number) => {
+      const res = await fetch(`/api/social/${fid}/follow`, { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to follow')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Siguiendo')
+      queryClient.invalidateQueries({ queryKey: ['user-profile', username] })
+    },
+    onError: () => {
+      toast.error('Error al seguir')
+    },
+  })
+
+  // Unfollow mutation
+  const unfollowMutation = useMutation({
+    mutationFn: async (fid: number) => {
+      const res = await fetch(`/api/social/${fid}/follow`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to unfollow')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Dejaste de seguir')
+      queryClient.invalidateQueries({ queryKey: ['user-profile', username] })
+    },
+    onError: () => {
+      toast.error('Error al dejar de seguir')
+    },
+  })
+
+  const handleFollowToggle = () => {
+    if (!user?.fid) return
+    if (isFollowing) {
+      unfollowMutation.mutate(user.fid)
+    } else {
+      followMutation.mutate(user.fid)
+    }
+  }
 
   const tabs: { value: ProfileTab; label: string }[] = [
     { value: 'casts', label: 'Casts' },
@@ -101,8 +156,18 @@ export default function UserProfilePage() {
 
       {/* Profile Header */}
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-4">
-        {/* Banner */}
-        <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5" />
+        {/* Banner - Pro feature */}
+        {user.profile?.banner?.url ? (
+          <div className="h-32 md:h-40 overflow-hidden">
+            <img 
+              src={user.profile.banner.url} 
+              alt="Banner" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="h-32 md:h-40 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5" />
+        )}
 
         {/* Avatar & Info */}
         <div className="px-4 pb-4">
@@ -132,7 +197,7 @@ export default function UserProfilePage() {
               <p className="text-muted-foreground">@{user.username}</p>
             </div>
             {/* Edit Profile button (only for own profile) */}
-            {meQuery.data?.fid && user.fid === meQuery.data.fid && (
+            {isOwnProfile ? (
               <button
                 onClick={() => setEditOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
@@ -140,12 +205,33 @@ export default function UserProfilePage() {
                 <Pencil className="w-4 h-4" />
                 Editar
               </button>
+            ) : (
+              /* Follow/Unfollow button (only for other profiles) */
+              <button
+                onClick={handleFollowToggle}
+                disabled={followMutation.isPending || unfollowMutation.isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                  isFollowing
+                    ? "bg-muted hover:bg-destructive/10 hover:text-destructive"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {followMutation.isPending || unfollowMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isFollowing ? (
+                  <UserMinus className="w-4 h-4" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                {isFollowing ? 'Siguiendo' : 'Seguir'}
+              </button>
             )}
             <a
               href={`https://warpcast.com/${user.username}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               Warpcast
@@ -195,14 +281,20 @@ export default function UserProfilePage() {
 
           {/* Stats */}
           <div className="flex flex-wrap gap-4">
-            <div>
+            <button
+              onClick={() => setFollowListOpen('following')}
+              className="hover:underline"
+            >
               <span className="font-semibold">{user.following_count?.toLocaleString() || 0}</span>
               <span className="text-muted-foreground ml-1">Siguiendo</span>
-            </div>
-            <div>
+            </button>
+            <button
+              onClick={() => setFollowListOpen('followers')}
+              className="hover:underline"
+            >
               <span className="font-semibold">{user.follower_count?.toLocaleString() || 0}</span>
               <span className="text-muted-foreground ml-1">Seguidores</span>
-            </div>
+            </button>
             {user.score !== undefined && user.score > 0 && (
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-yellow-500" />
@@ -248,7 +340,26 @@ export default function UserProfilePage() {
         ) : (
           <>
             {casts.map((cast: any) => (
-              <CastCard key={cast.hash} cast={cast} />
+              <CastCard 
+                key={cast.hash} 
+                cast={cast}
+                currentUserFid={meQuery.data?.fid}
+                onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
+                onReply={(c) => {
+                  setReplyToCast({
+                    hash: c.hash,
+                    text: c.text,
+                    timestamp: c.timestamp,
+                    author: {
+                      fid: c.author.fid,
+                      username: c.author.username,
+                      displayName: c.author.display_name,
+                      pfpUrl: c.author.pfp_url || null,
+                    },
+                  })
+                  setComposeOpen(true)
+                }}
+              />
             ))}
             {castsQuery.hasNextPage && (
               <button
@@ -271,10 +382,41 @@ export default function UserProfilePage() {
           displayName: user.display_name || '',
           bio: user.profile?.bio?.text || '',
           pfpUrl: user.pfp_url || '',
+          bannerUrl: user.profile?.banner?.url || '',
         }}
+        isPro={user.pro?.status === 'subscribed'}
         onSave={() => {
           profileQuery.refetch()
         }}
+      />
+
+      {/* Follow List Dialog */}
+      {followListOpen && user?.fid && (
+        <FollowListDialog
+          open={!!followListOpen}
+          onOpenChange={(open) => !open && setFollowListOpen(null)}
+          fid={user.fid}
+          type={followListOpen}
+          username={user.username}
+        />
+      )}
+
+      {/* Compose Modal para Reply */}
+      <ComposeModal
+        open={composeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open)
+          if (!open) setReplyToCast(null)
+        }}
+        defaultReplyTo={replyToCast}
+      />
+
+      {/* Mini App Drawer */}
+      <MiniAppDrawer
+        open={!!miniApp}
+        onClose={() => setMiniApp(null)}
+        url={miniApp?.url || null}
+        title={miniApp?.title || 'Mini App'}
       />
     </div>
   )

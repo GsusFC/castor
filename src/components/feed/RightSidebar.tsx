@@ -104,7 +104,7 @@ export function RightSidebar() {
             {trendingCasts.map((cast) => (
               <li key={cast.hash}>
                 <a
-                  href={`https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`}
+                  href={`https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors"

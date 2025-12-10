@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { LogOut, Plus, LayoutDashboard, Rss } from 'lucide-react'
+import { LogOut, Plus, LayoutDashboard, Rss, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
@@ -108,6 +108,18 @@ export function DashboardHeader() {
                 <Rss className="w-4 h-4" />
                 <span>Feed</span>
               </Link>
+              <Link
+                href="/dashboard/analytics"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  pathname === '/dashboard/analytics'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Analytics</span>
+              </Link>
             </nav>
           </div>
 
@@ -116,6 +128,11 @@ export function DashboardHeader() {
             <GlobalSearch 
               onSelectUser={(user) => router.push(`/dashboard/user/${user.username}`)}
               onSelectChannel={(channel) => router.push(`/dashboard/feed?channel=${channel.id}`)}
+              onSelectCast={(cast) => {
+                // Abrir cast en nueva pestaña
+                const url = `https://farcaster.xyz/~/conversations/${cast.hash}`
+                window.open(url, '_blank')
+              }}
             />
           </div>
 

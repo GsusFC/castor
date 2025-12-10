@@ -3,13 +3,55 @@ import { neynar } from '@/lib/farcaster/client'
 
 /**
  * GET /api/casts/lookup?url=https://warpcast.com/...
- * Obtiene información de un cast por su URL
+ * GET /api/casts/lookup?hash=0x...
+ * GET /api/casts/lookup?identifier=...&type=url|hash
+ * Obtiene información de un cast por su URL o hash
  */
+
+// Convertir URL de farcaster.xyz a warpcast.com
+function normalizeUrl(url: string): string {
+  // farcaster.xyz/username/0x... -> warpcast.com/username/0x...
+  if (url.includes('farcaster.xyz')) {
+    return url.replace('farcaster.xyz', 'warpcast.com')
+  }
+  return url
+}
+
+// Formatear respuesta del cast
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatResponse(castData: any) {
+  return NextResponse.json({
+    cast: {
+      hash: castData.hash,
+      text: castData.text,
+      author: {
+        fid: castData.author.fid,
+        username: castData.author.username,
+        display_name: castData.author.display_name,
+        pfp_url: castData.author.pfp_url,
+      },
+      timestamp: castData.timestamp,
+      embeds: castData.embeds,
+    },
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const url = searchParams.get('url')
+    // Soportar ambos formatos de parámetros
+    let url = searchParams.get('url') || searchParams.get('identifier')
     const hash = searchParams.get('hash')
+    const type = searchParams.get('type') // 'url' o 'hash'
+
+    // Si type es 'hash', tratar identifier como hash
+    if (type === 'hash' && url) {
+      const response = await neynar.lookupCastByHashOrWarpcastUrl({
+        identifier: url,
+        type: 'hash',
+      })
+      return formatResponse(response.cast)
+    }
 
     if (!url && !hash) {
       return NextResponse.json(
@@ -28,9 +70,12 @@ export async function GET(request: NextRequest) {
       })
       castData = response.cast
     } else if (url) {
+      // Normalizar URL (farcaster.xyz -> warpcast.com)
+      const normalizedUrl = normalizeUrl(url)
+      
       // Buscar por URL de Warpcast
       const response = await neynar.lookupCastByHashOrWarpcastUrl({
-        identifier: url,
+        identifier: normalizedUrl,
         type: 'url',
       })
       castData = response.cast
@@ -43,19 +88,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
-      cast: {
-        hash: castData.hash,
-        text: castData.text,
-        author: {
-          fid: castData.author.fid,
-          username: castData.author.username,
-          displayName: castData.author.display_name,
-          pfpUrl: castData.author.pfp_url,
-        },
-        timestamp: castData.timestamp,
-      },
-    })
+    return formatResponse(castData)
   } catch (error) {
     console.error('[API] Error looking up cast:', error)
     return NextResponse.json(

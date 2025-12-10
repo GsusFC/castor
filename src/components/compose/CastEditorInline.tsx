@@ -46,18 +46,92 @@ export function CastEditorInline({
   const charCount = calculateTextLength(cast.content)
   const isOverLimit = charCount > maxChars
 
+  /**
+   * Syntax highlighting para @handles, URLs, $tickers, /channels
+   */
+  const highlightText = (text: string) => {
+    if (!text) return null
+    
+    // Regex para detectar patrones
+    const patterns = [
+      { regex: /@\w+/g, className: 'text-primary' }, // @handles
+      { regex: /\/\w+/g, className: 'text-blue-400' }, // /channels
+      { regex: /\$[A-Za-z]+/g, className: 'text-green-400' }, // $tickers
+      { regex: /https?:\/\/[^\s]+/g, className: 'text-primary/80 underline' }, // URLs
+    ]
+    
+    // Encontrar todos los matches con sus posiciones
+    const matches: { start: number; end: number; className: string }[] = []
+    
+    for (const { regex, className } of patterns) {
+      let match
+      const regexCopy = new RegExp(regex.source, regex.flags)
+      while ((match = regexCopy.exec(text)) !== null) {
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          className,
+        })
+      }
+    }
+    
+    // Ordenar por posición
+    matches.sort((a, b) => a.start - b.start)
+    
+    // Construir elementos
+    const elements: React.ReactNode[] = []
+    let lastIndex = 0
+    
+    for (const match of matches) {
+      // Texto normal antes del match
+      if (match.start > lastIndex) {
+        elements.push(
+          <span key={`text-${lastIndex}`} className="text-foreground">
+            {text.slice(lastIndex, match.start)}
+          </span>
+        )
+      }
+      
+      // Match resaltado
+      elements.push(
+        <span key={`match-${match.start}`} className={match.className}>
+          {text.slice(match.start, match.end)}
+        </span>
+      )
+      
+      lastIndex = match.end
+    }
+    
+    // Texto restante
+    if (lastIndex < text.length) {
+      elements.push(
+        <span key={`text-${lastIndex}`} className="text-foreground">
+          {text.slice(lastIndex)}
+        </span>
+      )
+    }
+    
+    return elements.length > 0 ? elements : <span className="text-foreground">{text}</span>
+  }
+
   // URL detection with debounce
+  // Solo detecta URLs nuevas en el texto, no elimina links añadidos manualmente (quote)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const urls = extractUrls(cast.content)
       const linkUrls = urls.filter(url => !isMediaUrl(url))
       const currentLinkUrls = cast.links.map(l => l.url)
       const newUrls = linkUrls.filter(url => !currentLinkUrls.includes(url))
-      const linksToKeep = cast.links.filter(l => linkUrls.includes(l.url))
+      
+      // Solo eliminar links que fueron detectados del texto y ya no están
+      // Mantener links que no están en el texto (añadidos manualmente, ej: quote)
+      const linksFromText = cast.links.filter(l => l.fromText)
+      const linksManual = cast.links.filter(l => !l.fromText)
+      const linksToKeep = linksFromText.filter(l => linkUrls.includes(l.url))
 
-      if (newUrls.length > 0 || linksToKeep.length !== cast.links.length) {
-        const newLinks: LinkEmbed[] = newUrls.map(url => ({ url, loading: true }))
-        onUpdate({ ...cast, links: [...linksToKeep, ...newLinks] })
+      if (newUrls.length > 0 || linksToKeep.length !== linksFromText.length) {
+        const newLinks: LinkEmbed[] = newUrls.map(url => ({ url, loading: true, fromText: true }))
+        onUpdate({ ...cast, links: [...linksManual, ...linksToKeep, ...newLinks] })
         newUrls.forEach(fetchLinkMetadata)
       }
     }, 500)
@@ -173,38 +247,47 @@ export function CastEditorInline({
         />
       )}
 
-      {/* Textarea */}
-      <Textarea
-        ref={textareaRef}
-        value={cast.content}
-        onChange={handleChange}
-        placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
-        rows={6}
-        className={cn(
-          "border-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[120px] md:min-h-[150px] flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none",
-          isOverLimit && "text-destructive"
-        )}
-        aria-label={isThread ? `Contenido del cast ${index + 1}` : 'Contenido del cast'}
-      />
-
-      {/* Link Previews */}
-      {cast.links.length > 0 && (
-        <div className="space-y-2 mt-3">
-          {cast.links.map((link) => (
-            <LinkPreview key={link.url} link={link} onRemove={() => removeLink(link.url)} />
-          ))}
+      {/* Textarea con syntax highlighting */}
+      <div className="relative flex-1">
+        {/* Overlay para syntax highlighting */}
+        <div 
+          className="absolute inset-0 pointer-events-none text-base leading-relaxed whitespace-pre-wrap break-words p-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          {highlightText(cast.content)}
         </div>
-      )}
+        
+        {/* Textarea real (texto transparente) */}
+        <Textarea
+          ref={textareaRef}
+          value={cast.content}
+          onChange={handleChange}
+          placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
+          rows={4}
+          className={cn(
+            "border-0 p-0 resize-none shadow-none text-base leading-relaxed bg-transparent placeholder:text-muted-foreground min-h-[100px] md:min-h-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none caret-foreground",
+            isOverLimit ? "text-destructive" : "text-transparent"
+          )}
+          style={{ caretColor: 'currentColor' }}
+          aria-label={isThread ? `Contenido del cast ${index + 1}` : 'Contenido del cast'}
+        />
+      </div>
 
-      {/* Media Previews */}
-      {cast.media.length > 0 && (
-        <div className="flex gap-2 mt-3 flex-wrap">
+      {/* Previews compactas - scroll horizontal en móvil */}
+      {(cast.links.length > 0 || cast.media.length > 0) && (
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-thin">
+          {/* Media Previews */}
           {cast.media.map((m) => (
             <MediaPreviewItem
               key={m.preview}
               media={m}
               onRemove={() => removeMedia(m.preview)}
             />
+          ))}
+          
+          {/* Link Previews compactas */}
+          {cast.links.map((link) => (
+            <LinkPreview key={link.url} link={link} onRemove={() => removeLink(link.url)} compact />
           ))}
         </div>
       )}

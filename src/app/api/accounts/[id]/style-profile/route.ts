@@ -21,7 +21,7 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
   let pages = 0
 
   while (allCasts.length < maxCasts && pages < MAX_PAGES) {
-    const url = cursor 
+    const url: string = cursor 
       ? `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${fid}&limit=${CASTS_PER_PAGE}&cursor=${cursor}`
       : `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${fid}&limit=${CASTS_PER_PAGE}`
     

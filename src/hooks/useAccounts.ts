@@ -31,6 +31,9 @@ export const useAccounts = (options: UseAccountsOptions = {}): UseAccountsReturn
     setError(null)
 
     try {
+      // Sincronizar estado Pro primero
+      await fetch('/api/accounts/sync-pro', { method: 'POST' }).catch(() => {})
+
       const res = await fetch('/api/accounts')
       if (!res.ok) throw new Error('Error al cargar cuentas')
 

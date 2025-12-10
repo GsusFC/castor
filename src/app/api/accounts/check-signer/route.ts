@@ -11,9 +11,13 @@ import { getSession } from '@/lib/auth'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { signerUuid } = await request.json()
+    const body = await request.json()
+    const { signerUuid } = body
+    
+    console.log('[check-signer] Received body:', JSON.stringify(body))
 
     if (!signerUuid) {
+      console.log('[check-signer] ERROR: signerUuid is missing from body')
       return NextResponse.json(
         { error: 'signerUuid is required' },
         { status: 400 }

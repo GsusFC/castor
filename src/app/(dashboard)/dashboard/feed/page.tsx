@@ -5,7 +5,6 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
-import { LeftSidebar } from '@/components/feed/LeftSidebar'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
@@ -267,18 +266,13 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr_320px] gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
-      {/* Left Sidebar - hidden on mobile/tablet */}
-      <div className="hidden lg:block">
-        <LeftSidebar onSelectChannel={handleSelectChannel} />
-      </div>
-
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 lg:gap-8 -mt-4 sm:-mt-6 md:-mt-8">
       {/* Main Feed */}
-      <div className="max-w-2xl xl:max-w-3xl w-full mx-auto lg:mx-0">
+      <div className="max-w-2xl w-full mx-auto xl:mx-0">
       {/* Sticky Tabs Header */}
       <div className={cn(
-        "sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 lg:-mx-0 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 lg:px-0",
-        headerHidden ? "top-0" : "top-14 sm:top-16"
+        "sticky z-40 pt-4 sm:pt-6 pb-4 bg-background/80 backdrop-blur-lg border-b border-border/50 transition-all duration-300 -mx-4 sm:-mx-6 lg:mx-0 px-4 sm:px-6 lg:px-0",
+        headerHidden ? "top-0" : "top-14 lg:top-0"
       )}>
         <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
           {/* Avatar/Profile link */}

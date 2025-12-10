@@ -15,7 +15,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { accountId, limit = 50 } = await request.json()
+    let body = {}
+    try {
+      body = await request.json()
+    } catch {
+      // Body vacío es válido
+    }
+    const { accountId, limit = 50 } = body as { accountId?: string; limit?: number }
+    
+    console.log('[Analytics Backfill] Request:', { accountId, limit, userId: session.userId })
 
     // Obtener cuenta
     let account = accountId
@@ -99,7 +107,11 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[Analytics Backfill] Error:', error)
-    return NextResponse.json({ error: 'Failed to backfill analytics' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[Analytics Backfill] Error:', errorMessage, error)
+    return NextResponse.json({ 
+      error: 'Failed to backfill analytics', 
+      details: errorMessage 
+    }, { status: 500 })
   }
 }

@@ -638,16 +638,15 @@ export function CastCard({
                       key={`img-${i}`}
                       onClick={() => embed.url && setLightboxImage(embed.url)}
                       className={cn(
-                        "relative w-full h-full bg-muted overflow-hidden hover:opacity-95 transition-opacity",
-                        mediaCount === 1 ? "aspect-auto max-h-[500px]" : "aspect-square",
-                        mediaCount === 3 && i === 0 ? "row-span-2 aspect-auto" : ""
+                        "relative w-full bg-muted overflow-hidden hover:opacity-95 transition-colors",
+                        mediaCount === 1 ? "aspect-video max-h-[500px]" : "aspect-square",
+                        mediaCount === 3 && i === 0 ? "row-span-2" : ""
                       )}
                     >
                       <img
                         src={embed.url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
+                        className="w-full h-full object-cover"
                       />
                     </button>
                   ))}

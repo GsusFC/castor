@@ -8,6 +8,19 @@ import { neynar } from '@/lib/farcaster/client'
  * Obtiene información de un cast por su URL o hash
  */
 
+// Extraer hash de URL de Farcaster o Warpcast
+function extractHashFromUrl(url: string): string | null {
+  // Formato /~/ca/0x... (short link de farcaster.xyz)
+  const caMatch = url.match(/\/~\/ca\/(0x[a-f0-9]+)/i)
+  if (caMatch) return caMatch[1]
+  
+  // Formato /username/0x...
+  const userMatch = url.match(/\/([^/]+)\/(0x[a-f0-9]+)/i)
+  if (userMatch) return userMatch[2]
+  
+  return null
+}
+
 // Convertir URL de farcaster.xyz a warpcast.com
 function normalizeUrl(url: string): string {
   // farcaster.xyz/username/0x... -> warpcast.com/username/0x...
@@ -70,15 +83,25 @@ export async function GET(request: NextRequest) {
       })
       castData = response.cast
     } else if (url) {
-      // Normalizar URL (farcaster.xyz -> warpcast.com)
-      const normalizedUrl = normalizeUrl(url)
+      // Intentar extraer hash de la URL (soporta /~/ca/ y /username/0x...)
+      const extractedHash = extractHashFromUrl(url)
       
-      // Buscar por URL de Warpcast
-      const response = await neynar.lookupCastByHashOrWarpcastUrl({
-        identifier: normalizedUrl,
-        type: 'url',
-      })
-      castData = response.cast
+      if (extractedHash) {
+        // Buscar por hash extraído
+        const response = await neynar.lookupCastByHashOrWarpcastUrl({
+          identifier: extractedHash,
+          type: 'hash',
+        })
+        castData = response.cast
+      } else {
+        // Normalizar URL (farcaster.xyz -> warpcast.com) y buscar por URL
+        const normalizedUrl = normalizeUrl(url)
+        const response = await neynar.lookupCastByHashOrWarpcastUrl({
+          identifier: normalizedUrl,
+          type: 'url',
+        })
+        castData = response.cast
+      }
     }
 
     if (!castData) {

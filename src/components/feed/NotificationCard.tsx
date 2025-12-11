@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -54,7 +55,7 @@ const badgeColors: Record<string, string> = {
   gray: 'bg-muted text-muted-foreground border-border',
 }
 
-export function NotificationCard({ notification, onClick, onUserClick, onCastClick }: NotificationCardProps) {
+function NotificationCardComponent({ notification, onClick, onUserClick, onCastClick }: NotificationCardProps) {
   const timestamp = notification.most_recent_timestamp ? new Date(notification.most_recent_timestamp) : null
   const timeAgo = timestamp && !isNaN(timestamp.getTime())
     ? formatDistanceToNow(timestamp, { addSuffix: false, locale: es })
@@ -145,3 +146,12 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
     </div>
   )
 }
+
+export const NotificationCard = memo(NotificationCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.notification.type === nextProps.notification.type &&
+    prevProps.notification.most_recent_timestamp === nextProps.notification.most_recent_timestamp &&
+    prevProps.notification.cast?.hash === nextProps.notification.cast?.hash &&
+    prevProps.notification.count === nextProps.notification.count
+  )
+})

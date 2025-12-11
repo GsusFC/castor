@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
@@ -103,7 +103,7 @@ interface CastCardProps {
   isPro?: boolean
 }
 
-export function CastCard({ 
+function CastCardComponent({ 
   cast, 
   onOpenMiniApp,
   onQuote,
@@ -470,6 +470,7 @@ export function CastCard({
             <img 
               src={cast.author.pfp_url} 
               alt={cast.author.username}
+              loading="lazy"
               className="w-10 h-10 rounded-full object-cover hover:opacity-80 transition-opacity"
             />
           ) : (
@@ -505,7 +506,7 @@ export function CastCard({
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
                   {cast.channel.image_url && (
-                    <img src={cast.channel.image_url} alt="" className="w-3.5 h-3.5 rounded-full" />
+                    <img src={cast.channel.image_url} alt="" loading="lazy" className="w-3.5 h-3.5 rounded-full" />
                   )}
                   <span>{cast.channel.name || cast.channel.id}</span>
                 </a>
@@ -646,8 +647,8 @@ export function CastCard({
                       <img
                         src={embed.url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
                         loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
                     </button>
                   ))}
@@ -895,6 +896,7 @@ export function CastCard({
                         <img 
                           src={reply.author.pfp_url || `https://avatar.vercel.sh/${reply.author.username}`} 
                           alt={reply.author.username}
+                          loading="lazy"
                           className="w-6 h-6 rounded-full hover:opacity-80 object-cover mt-0.5"
                         />
                       </UserPopover>
@@ -1052,3 +1054,14 @@ export function CastCard({
     </div>
   )
 }
+
+export const CastCard = memo(CastCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.cast.hash === nextProps.cast.hash &&
+    prevProps.cast.reactions.likes_count === nextProps.cast.reactions.likes_count &&
+    prevProps.cast.reactions.recasts_count === nextProps.cast.reactions.recasts_count &&
+    prevProps.cast.replies.count === nextProps.cast.replies.count &&
+    prevProps.currentUserFid === nextProps.currentUserFid &&
+    prevProps.isPro === nextProps.isPro
+  )
+})

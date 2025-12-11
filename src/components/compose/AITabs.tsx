@@ -37,6 +37,7 @@ interface AITabsProps {
   onClearReply?: () => void
   isPro?: boolean
   maxChars?: number
+  accountId?: string
 }
 
 const TONES = [
@@ -63,6 +64,7 @@ export function AITabs({
   onClearReply,
   isPro = false,
   maxChars = 320,
+  accountId,
 }: AITabsProps) {
   const [activeTab, setActiveTab] = useState<AIMode>(null)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -113,6 +115,7 @@ export function AITabs({
           targetTone: selectedTone,
           targetLanguage,
           isPro,
+          accountId,
         }),
       })
 
@@ -130,7 +133,7 @@ export function AITabs({
     } finally {
       setIsLoading(false)
     }
-  }, [activeTab, currentDraft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro])
+  }, [activeTab, currentDraft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro, accountId])
 
   const handleSelectSuggestion = (text: string) => {
     onSelectText(text)

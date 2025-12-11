@@ -3,13 +3,13 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-// Esta página redirige a /dashboard/accounts con el modal abierto
+// Esta página redirige a /accounts con el modal abierto
 // Se mantiene por compatibilidad con URLs existentes
 export default function ConnectAccountPage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace('/dashboard/accounts?connect=true')
+    router.replace('/accounts?connect=true')
   }, [router])
   
   return (

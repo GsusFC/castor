@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CalendarView } from '@/components/calendar/CalendarView'
-import { AddAccountButton } from './accounts/add-account-button'
+import { AddAccountButton } from '../accounts/add-account-button'
 import { toast } from 'sonner'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { ComposeModal } from '@/components/compose/ComposeModal'
@@ -161,7 +161,7 @@ export function UnifiedDashboard({
       if (castToEdit) {
         handleEditCast(castToEdit)
         // Limpiar el parámetro de la URL
-        router.replace('/dashboard', { scroll: false })
+        router.replace('/studio', { scroll: false })
       }
     }
   }, [searchParams, casts, handleEditCast, router])
@@ -335,7 +335,7 @@ export function UnifiedDashboard({
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-muted-foreground">Accounts</h2>
           <Link 
-            href="/dashboard/accounts" 
+            href="/accounts" 
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Manage
@@ -498,7 +498,7 @@ export function UnifiedDashboard({
                   <div 
                     key={draft.id} 
                     className="group flex items-center gap-2 p-2 rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => router.push(`/dashboard?edit=${draft.id}`)}
+                    onClick={() => router.push(`/studio?edit=${draft.id}`)}
                   >
                     <p className="text-sm text-foreground truncate flex-1">
                       {draft.content || <span className="italic text-muted-foreground">No content</span>}

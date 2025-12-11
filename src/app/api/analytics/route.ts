@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, castAnalytics } from '@/lib/db'
+import { eq, or, and, gte, desc, sql, inArray } from 'drizzle-orm'
 
 /**
  * GET /api/analytics
@@ -15,23 +16,90 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const days = parseInt(searchParams.get('days') || '30')
+    const accountIdFilter = searchParams.get('accountId')
 
-    // Obtener todas las cuentas
-    const userAccounts = await db.query.accounts.findMany()
+    // Obtener solo las cuentas del usuario (propias o compartidas)
+    const userAccounts = await db.query.accounts.findMany({
+      where: or(
+        eq(accounts.ownerId, session.userId),
+        eq(accounts.isShared, true)
+      ),
+    })
 
-    // Por ahora devolver estructura básica sin analytics (la tabla puede no existir)
-    const accountsWithStats = userAccounts.map(account => ({
-      id: account.id,
-      fid: account.fid,
-      username: account.username,
-      displayName: account.displayName,
-      pfpUrl: account.pfpUrl,
-      stats: { casts: 0, likes: 0, recasts: 0, replies: 0 },
-    }))
+    const accountIds = userAccounts.map(a => a.id)
+    if (accountIds.length === 0) {
+      return NextResponse.json({
+        totals: { casts: 0, likes: 0, recasts: 0, replies: 0 },
+        topCasts: [],
+        accounts: [],
+        period: { days },
+      })
+    }
+
+    // Filtrar por fecha
+    const dateFrom = new Date()
+    dateFrom.setDate(dateFrom.getDate() - days)
+
+    // Construir filtro
+    const baseFilter = accountIdFilter
+      ? and(eq(castAnalytics.accountId, accountIdFilter), gte(castAnalytics.publishedAt, dateFrom))
+      : and(inArray(castAnalytics.accountId, accountIds), gte(castAnalytics.publishedAt, dateFrom))
+
+    // Obtener todos los casts del período
+    const casts = await db.query.castAnalytics.findMany({
+      where: baseFilter,
+      orderBy: [desc(castAnalytics.publishedAt)],
+    })
+
+    // Calcular totales
+    const totals = casts.reduce(
+      (acc, cast) => ({
+        casts: acc.casts + 1,
+        likes: acc.likes + cast.likes,
+        recasts: acc.recasts + cast.recasts,
+        replies: acc.replies + cast.replies,
+      }),
+      { casts: 0, likes: 0, recasts: 0, replies: 0 }
+    )
+
+    // Top casts por engagement (likes + recasts + replies)
+    const topCasts = [...casts]
+      .sort((a, b) => (b.likes + b.recasts + b.replies) - (a.likes + a.recasts + a.replies))
+      .slice(0, 10)
+      .map(cast => ({
+        id: cast.id,
+        castHash: cast.castHash,
+        content: cast.content,
+        likes: cast.likes,
+        recasts: cast.recasts,
+        replies: cast.replies,
+        publishedAt: cast.publishedAt,
+      }))
+
+    // Stats por cuenta
+    const accountsWithStats = userAccounts.map(account => {
+      const accountCasts = casts.filter(c => c.accountId === account.id)
+      return {
+        id: account.id,
+        fid: account.fid,
+        username: account.username,
+        displayName: account.displayName,
+        pfpUrl: account.pfpUrl,
+        stats: accountCasts.reduce(
+          (acc, cast) => ({
+            casts: acc.casts + 1,
+            likes: acc.likes + cast.likes,
+            recasts: acc.recasts + cast.recasts,
+            replies: acc.replies + cast.replies,
+          }),
+          { casts: 0, likes: 0, recasts: 0, replies: 0 }
+        ),
+      }
+    })
 
     return NextResponse.json({
-      totals: { casts: 0, likes: 0, recasts: 0, replies: 0 },
-      topCasts: [],
+      totals,
+      topCasts,
       accounts: accountsWithStats,
       period: { days },
     })

@@ -6,5 +6,5 @@ interface EditPageProps {
 
 export default async function EditPage({ params }: EditPageProps) {
   const { id } = await params
-  redirect(`/dashboard?edit=${id}`)
+  redirect(`/studio?edit=${id}`)
 }

@@ -72,7 +72,7 @@ export function FollowListDialog({
               {users.map((user: UserItem) => (
                 <Link
                   key={user.fid}
-                  href={`/dashboard/user/${user.username}`}
+                  href={`/user/${user.username}`}
                   onClick={() => onOpenChange(false)}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 >

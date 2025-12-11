@@ -475,6 +475,45 @@ export const accountDocumentsRelations = relations(accountDocuments, ({ one }) =
   }),
 }))
 
+/**
+ * Canales del usuario (favoritos y recientes)
+ */
+export const userChannels = sqliteTable(
+  'user_channels',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channelId: text('channel_id').notNull(),
+    channelName: text('channel_name').notNull(),
+    channelImageUrl: text('channel_image_url'),
+    isFavorite: integer('is_favorite', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    useCount: integer('use_count').notNull().default(0),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    userIdx: index('user_channels_user_idx').on(table.userId),
+    channelIdx: index('user_channels_channel_idx').on(table.channelId),
+    userChannelUnique: index('user_channels_unique').on(table.userId, table.channelId),
+  })
+)
+
+export const userChannelsRelations = relations(userChannels, ({ one }) => ({
+  user: one(users, {
+    fields: [userChannels.userId],
+    references: [users.id],
+  }),
+}))
+
 // Types inferidos
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -496,3 +535,28 @@ export type AccountKnowledgeBase = typeof accountKnowledgeBase.$inferSelect
 export type NewAccountKnowledgeBase = typeof accountKnowledgeBase.$inferInsert
 export type AccountDocument = typeof accountDocuments.$inferSelect
 export type NewAccountDocument = typeof accountDocuments.$inferInsert
+export type UserChannel = typeof userChannels.$inferSelect
+export type NewUserChannel = typeof userChannels.$inferInsert
+
+/**
+ * Cache de insights de analytics por cuenta
+ */
+export const analyticsInsightsCache = sqliteTable(
+  'analytics_insights_cache',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    insights: text('insights').notNull(), // JSON stringified
+    stats: text('stats').notNull(), // JSON stringified
+    generatedAt: integer('generated_at', { mode: 'timestamp' }).notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    index('analytics_insights_cache_account_idx').on(table.accountId),
+  ]
+)
+
+export type AnalyticsInsightsCache = typeof analyticsInsightsCache.$inferSelect
+export type NewAnalyticsInsightsCache = typeof analyticsInsightsCache.$inferInsert

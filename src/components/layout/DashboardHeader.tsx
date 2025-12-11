@@ -21,7 +21,7 @@ export function DashboardHeader() {
   const pathname = usePathname()
   const { selectedAccountId } = useSelectedAccount()
   
-  const isFeed = pathname?.includes('/feed')
+  const isFeed = pathname === '/'
 
   // Hide on scroll down, show on scroll up
   useEffect(() => {
@@ -55,7 +55,7 @@ export function DashboardHeader() {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
       if (!res.ok) throw new Error('Error signing out')
       // Force full page reload to clear all client state
-      window.location.href = '/'
+      window.location.href = '/landing'
     } catch (err) {
       toast.error('Error signing out')
       setIsLoggingOut(false)
@@ -72,7 +72,7 @@ export function DashboardHeader() {
           {/* Logo + Nav */}
           <div className="flex items-center gap-4">
             <Link 
-              href="/dashboard" 
+              href="/" 
               className="flex items-center gap-2 group min-h-[44px] touch-target"
             >
               <img 
@@ -85,19 +85,7 @@ export function DashboardHeader() {
             {/* Nav Tabs - hidden on mobile */}
             <nav className="hidden sm:flex items-center bg-muted/50 rounded-lg p-1">
               <Link
-                href="/dashboard"
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  !isFeed
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                href="/dashboard/feed"
+                href="/"
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                   isFeed
@@ -109,10 +97,22 @@ export function DashboardHeader() {
                 <span>Feed</span>
               </Link>
               <Link
-                href="/dashboard/analytics"
+                href="/studio"
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  pathname === '/dashboard/analytics'
+                  pathname === '/studio'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Studio</span>
+              </Link>
+              <Link
+                href="/analytics"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  pathname === '/analytics'
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
@@ -126,8 +126,8 @@ export function DashboardHeader() {
           {/* Search - hidden on mobile */}
           <div className="hidden md:block flex-1 max-w-md mx-4">
             <GlobalSearch 
-              onSelectUser={(user) => router.push(`/dashboard/user/${user.username}`)}
-              onSelectChannel={(channel) => router.push(`/dashboard/feed?channel=${channel.id}`)}
+              onSelectUser={(user) => router.push(`/user/${user.username}`)}
+              onSelectChannel={(channel) => router.push(`/?channel=${channel.id}`)}
               onSelectCast={(cast) => {
                 // Abrir cast en nueva pestaña
                 const url = `https://farcaster.xyz/~/conversations/${cast.hash}`

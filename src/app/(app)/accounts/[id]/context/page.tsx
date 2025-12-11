@@ -42,7 +42,7 @@ export default async function AccountContextPage({ params }: PageProps) {
   const canView = isOwner || !!membership || account.isShared
 
   if (!canView) {
-    redirect('/dashboard/accounts')
+    redirect('/accounts')
   }
 
   // Obtener perfil de estilo automático de Neynar (si existe)
@@ -84,7 +84,7 @@ export default async function AccountContextPage({ params }: PageProps) {
       <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50 mb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href="/dashboard/accounts"
+            href="/accounts"
             className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

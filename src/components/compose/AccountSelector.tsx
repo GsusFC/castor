@@ -39,7 +39,7 @@ export function AccountSelector({
           <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No hay cuentas conectadas</p>
           <Button variant="link" asChild className="mt-1">
-            <Link href="/dashboard/accounts/connect">
+            <Link href="/accounts?connect=true">
               Añadir cuenta
             </Link>
           </Button>

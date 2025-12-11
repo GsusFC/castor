@@ -46,15 +46,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener casts del usuario desde Neynar
-    const response = await neynar.fetchFeed({
-      feedType: 'filter',
-      filterType: 'fids',
-      fid: account.fid,
-      fids: account.fid.toString(),
-      limit: Math.min(limit, 100),
-    })
-
-    const casts = response.casts || []
+    console.log('[Analytics Backfill] Fetching casts for FID:', account.fid)
+    
+    const response = await fetch(
+      `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${account.fid}&limit=${Math.min(limit, 100)}&include_replies=false`,
+      {
+        headers: {
+          'x-api-key': process.env.NEYNAR_API_KEY || '',
+        },
+      }
+    )
+    
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error('[Analytics Backfill] Neynar error:', errText)
+      throw new Error(`Neynar API error: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    const casts = data.casts || []
+    console.log('[Analytics Backfill] Found', casts.length, 'casts')
     let imported = 0
     let skipped = 0
 

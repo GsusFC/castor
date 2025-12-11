@@ -17,7 +17,7 @@ export function SignInButton() {
       })
 
       if (res.ok) {
-        window.location.href = '/dashboard'
+        window.location.href = '/'
       }
     } catch (err) {
       console.error('Auth error:', err)

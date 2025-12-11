@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { db, userStyleProfiles } from '@/lib/db'
+import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
@@ -28,6 +28,17 @@ export interface StyleProfile {
   analyzedAt: Date
 }
 
+export interface AccountContext {
+  brandVoice?: string
+  bio?: string
+  expertise?: string[]
+  alwaysDo?: string[]
+  neverDo?: string[]
+  hashtags?: string[]
+  defaultTone?: string
+  defaultLanguage?: string
+}
+
 export interface SuggestionContext {
   replyingTo?: {
     text: string
@@ -42,6 +53,7 @@ export interface SuggestionContext {
   topic?: string
   targetTone?: string
   targetLanguage?: string
+  accountContext?: AccountContext
 }
 
 export type AIMode = 'write' | 'improve' | 'translate'
@@ -195,6 +207,33 @@ Responde SOLO con JSON válido (sin markdown):
   }
 
   /**
+   * Obtiene el knowledge base de una cuenta
+   */
+  async getAccountContext(accountId: string): Promise<AccountContext | null> {
+    try {
+      const kb = await db.query.accountKnowledgeBase.findFirst({
+        where: eq(accountKnowledgeBase.accountId, accountId),
+      })
+
+      if (!kb) return null
+
+      return {
+        brandVoice: kb.brandVoice || undefined,
+        bio: kb.bio || undefined,
+        expertise: kb.expertise ? JSON.parse(kb.expertise) : undefined,
+        alwaysDo: kb.alwaysDo ? JSON.parse(kb.alwaysDo) : undefined,
+        neverDo: kb.neverDo ? JSON.parse(kb.neverDo) : undefined,
+        hashtags: kb.hashtags ? JSON.parse(kb.hashtags) : undefined,
+        defaultTone: kb.defaultTone || undefined,
+        defaultLanguage: kb.defaultLanguage || undefined,
+      }
+    } catch (error) {
+      console.error('Error getting account context:', error)
+      return null
+    }
+  }
+
+  /**
    * Genera sugerencias según el modo
    */
   async generateSuggestions(
@@ -203,7 +242,7 @@ Responde SOLO con JSON válido (sin markdown):
     context: SuggestionContext,
     maxChars: number = 320
   ): Promise<string[]> {
-    const systemContext = this.buildSystemContext(profile, maxChars)
+    const systemContext = this.buildSystemContext(profile, maxChars, context.accountContext)
     let userPrompt: string
 
     switch (mode) {
@@ -240,8 +279,8 @@ Responde SOLO con JSON válido (sin markdown):
 
   // === Private helpers ===
 
-  private buildSystemContext(profile: StyleProfile, maxChars: number): string {
-    return `Eres el asistente de escritura para un usuario de Farcaster.
+  private buildSystemContext(profile: StyleProfile, maxChars: number, accountContext?: AccountContext): string {
+    let context = `Eres el asistente de escritura para un usuario de Farcaster.
 
 PERFIL DEL USUARIO:
 - Tono natural: ${profile.tone}
@@ -249,15 +288,43 @@ PERFIL DEL USUARIO:
 - Frases típicas: ${profile.commonPhrases.join(', ')}
 - Temas frecuentes: ${profile.topics.join(', ')}
 - Uso de emojis: ${profile.emojiUsage}
-- Idioma preferido: ${profile.languagePreference}
+- Idioma preferido: ${profile.languagePreference}`
 
-EJEMPLOS DE CÓMO ESCRIBE:
+    // Añadir contexto de la cuenta si existe
+    if (accountContext) {
+      if (accountContext.brandVoice) {
+        context += `\n\nVOZ DE MARCA:\n${accountContext.brandVoice}`
+      }
+      if (accountContext.bio) {
+        context += `\n\nBIO:\n${accountContext.bio}`
+      }
+      if (accountContext.expertise?.length) {
+        context += `\n\nÁREAS DE EXPERTISE:\n- ${accountContext.expertise.join('\n- ')}`
+      }
+      if (accountContext.alwaysDo?.length) {
+        context += `\n\nSIEMPRE HACER:\n- ${accountContext.alwaysDo.join('\n- ')}`
+      }
+      if (accountContext.neverDo?.length) {
+        context += `\n\nNUNCA HACER:\n- ${accountContext.neverDo.join('\n- ')}`
+      }
+      if (accountContext.hashtags?.length) {
+        context += `\n\nHASHTAGS PREFERIDOS: ${accountContext.hashtags.join(', ')}`
+      }
+    }
+
+    context += `\n\nEJEMPLOS DE CÓMO ESCRIBE:
 ${profile.sampleCasts.slice(0, 5).map((cast, i) => `${i + 1}. "${cast}"`).join('\n')}
 
 REGLAS:
 - Máximo ${maxChars} caracteres por sugerencia
 - Mantén el tono y estilo natural del usuario
 - Usa su vocabulario y expresiones típicas`
+
+    if (accountContext?.neverDo?.length) {
+      context += `\n- IMPORTANTE: Nunca hagas lo siguiente: ${accountContext.neverDo.join(', ')}`
+    }
+
+    return context
   }
 
   private buildWritePrompt(context: SuggestionContext, maxChars: number): string {

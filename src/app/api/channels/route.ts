@@ -35,12 +35,28 @@ export async function GET(request: NextRequest) {
           description: channel.description,
         }))
     } else if (fid) {
-      // Obtener canales que sigue el usuario
-      const response = await neynar.fetchUserChannels({ fid: Number(fid), limit: 50 })
+      // Obtener canales que sigue el usuario con paginación
+      let cursor: string | undefined
+      let allRawChannels: unknown[] = []
+      
+      // Máximo 3 páginas de 100 canales = 300 canales
+      for (let page = 0; page < 3; page++) {
+        const response = await neynar.fetchUserChannels({ 
+          fid: Number(fid), 
+          limit: 100,
+          cursor,
+        })
+        
+        const pageChannels = response.channels || []
+        allRawChannels = [...allRawChannels, ...pageChannels]
+        
+        // Si no hay más páginas, salir
+        cursor = response.next?.cursor ?? undefined
+        if (!cursor || pageChannels.length < 100) break
+      }
       
       // La respuesta puede tener diferentes estructuras según la API
-      const rawChannels = response.channels || []
-      const mappedChannels: (Channel | null)[] = rawChannels.map((item: unknown) => {
+      const mappedChannels: (Channel | null)[] = allRawChannels.map((item: unknown) => {
         // Puede ser directamente el canal o un objeto con .channel
         const ch = (item as { channel?: NeynarChannel })?.channel || (item as NeynarChannel)
         if (!ch?.id || !ch?.name) return null

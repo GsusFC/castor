@@ -63,10 +63,10 @@ export function RightSidebar({ onSelectUser }: RightSidebarProps) {
           if (onSelectUser) {
             onSelectUser(user.username)
           } else {
-            router.push(`/dashboard/user/${user.username}`)
+            router.push(`/user/${user.username}`)
           }
         }}
-        onSelectChannel={(channel) => router.push(`/dashboard/feed?channel=${channel.id}`)}
+        onSelectChannel={(channel) => router.push(`/?channel=${channel.id}`)}
         onSelectCast={(cast) => {
           const url = `https://farcaster.xyz/~/conversations/${cast.hash}`
           window.open(url, '_blank')

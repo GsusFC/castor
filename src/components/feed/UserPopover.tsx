@@ -81,7 +81,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
     <HoverCard openDelay={300} onOpenChange={(open: boolean) => open && fetchProfile()}>
       <HoverCardTrigger asChild>
         <Link 
-          href={`/dashboard/user/${username}`}
+          href={`/user/${username}`}
           className="cursor-pointer"
           onClick={(e) => e.stopPropagation()}
         >
@@ -135,7 +135,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Link
-              href={`/dashboard/user/${username}`}
+              href={`/user/${username}`}
               onClick={(e) => e.stopPropagation()}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >

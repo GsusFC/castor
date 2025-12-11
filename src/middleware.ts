@@ -6,7 +6,7 @@ const AUTH_COOKIE = 'castor_session'
 
 // Rutas completamente públicas (no requieren autenticación)
 const publicPaths = [
-  '/',
+  '/landing',
   '/login',
 ]
 
@@ -50,13 +50,18 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
   // Si el usuario está en la landing y tiene sesión válida, redirigir al feed
-  if (pathname === '/' && token) {
+  if (pathname === '/landing' && token) {
     try {
       await jwtVerify(token, getSecretKey())
-      return NextResponse.redirect(new URL('/dashboard/feed', request.url))
+      return NextResponse.redirect(new URL('/', request.url))
     } catch {
       // Token inválido, continuar a la landing
     }
+  }
+
+  // Si el usuario NO tiene sesión y accede a /, redirigir a landing
+  if (pathname === '/' && !token) {
+    return NextResponse.redirect(new URL('/landing', request.url))
   }
 
   // Permitir rutas completamente públicas
@@ -88,8 +93,8 @@ export async function middleware(request: NextRequest) {
         { status: 401 }
       )
     }
-    // Para páginas, redirigir a login
-    return NextResponse.redirect(new URL('/', request.url))
+    // Para páginas, redirigir a landing
+    return NextResponse.redirect(new URL('/landing', request.url))
   }
 
   try {
@@ -103,7 +108,7 @@ export async function middleware(request: NextRequest) {
         { status: 401 }
       )
     }
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/landing', request.url))
   }
 }
 

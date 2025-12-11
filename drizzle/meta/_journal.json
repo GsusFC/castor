@@ -57,6 +57,13 @@
       "when": 1765404974435,
       "tag": "0007_lonely_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1765451455568,
+      "tag": "0008_colorful_red_ghost",
+      "breakpoints": true
     }
   ]
 }

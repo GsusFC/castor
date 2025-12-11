@@ -31,7 +31,7 @@ export default function HomePage() {
         throw new Error('Verification failed')
       }
 
-      router.push('/dashboard')
+      router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       setIsLoading(false)

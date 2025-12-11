@@ -259,7 +259,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error('Error generating style profile:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: `Internal server error: ${errorMessage}` }, { status: 500 })
   }
 }
 

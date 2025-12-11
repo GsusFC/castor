@@ -157,7 +157,7 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
 
         {/* Botón Contexto - para todas las cuentas gestionadas */}
         {(isOwner || isShared) && (
-          <Link href={`/dashboard/accounts/${account.id}/context`}>
+          <Link href={`/accounts/${account.id}/context`}>
             <Button
               variant="ghost"
               size="icon"

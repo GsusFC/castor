@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       targetTone,
       targetLanguage,
       isPro = false,
+      accountId,
     } = body as {
       mode: AIMode
       draft?: string
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       targetTone?: string
       targetLanguage?: string
       isPro?: boolean
+      accountId?: string
     }
 
     if (!mode || !['write', 'improve', 'translate'].includes(mode)) {
@@ -89,6 +91,21 @@ export async function POST(request: NextRequest) {
     // Determinar límite de caracteres
     const maxChars = getMaxChars(isPro)
 
+    // Obtener contexto de la cuenta si se proporciona accountId
+    let accountContext: SuggestionContext['accountContext']
+    if (accountId) {
+      console.log('[AI Assistant] Getting account context for:', accountId)
+      const ctx = await castorAI.getAccountContext(accountId)
+      if (ctx) {
+        accountContext = ctx
+        console.log('[AI Assistant] Account context loaded:', {
+          hasBrandVoice: !!accountContext.brandVoice,
+          hasAlwaysDo: !!accountContext.alwaysDo?.length,
+          hasNeverDo: !!accountContext.neverDo?.length,
+        })
+      }
+    }
+
     // Construir contexto
     const context: SuggestionContext = {
       currentDraft: draft,
@@ -97,6 +114,7 @@ export async function POST(request: NextRequest) {
       topic,
       targetTone,
       targetLanguage,
+      accountContext,
     }
 
     // Generar sugerencias

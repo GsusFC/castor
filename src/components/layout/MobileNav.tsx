@@ -75,7 +75,7 @@ export function MobileNav() {
 
   const handleEditDraft = (draftId: string) => {
     setDraftsOpen(false)
-    router.push(`/dashboard?edit=${draftId}`)
+    router.push(`/studio?edit=${draftId}`)
   }
 
   const handleUseTemplate = (template: Template) => {
@@ -113,7 +113,7 @@ export function MobileNav() {
   }
 
   // Detectar si estamos en la sección de feed
-  const isFeedSection = pathname?.startsWith('/dashboard/feed') || pathname?.startsWith('/dashboard/user')
+  const isFeedSection = pathname === '/' || pathname?.startsWith('/user')
 
   // Filtrar por cuenta seleccionada
   const filteredDrafts = selectedAccountId
@@ -143,11 +143,11 @@ export function MobileNav() {
             <>
               {/* En Feed: Home, Search, Accounts */}
               <Link
-                href="/dashboard"
+                href="/studio"
                 className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
               >
                 <Home className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Home</span>
+                <span className="text-[10px] font-medium">Studio</span>
               </Link>
 
               <button
@@ -159,10 +159,10 @@ export function MobileNav() {
               </button>
 
               <Link
-                href="/dashboard/accounts"
+                href="/accounts"
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors",
-                  pathname === '/dashboard/accounts'
+                  pathname === '/accounts'
                     ? "text-primary"
                     : "text-muted-foreground"
                 )}
@@ -175,7 +175,7 @@ export function MobileNav() {
             <>
               {/* En Dashboard: Feed, Drafts, Templates */}
               <Link
-                href="/dashboard/feed"
+                href="/"
                 className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
               >
                 <Rss className="w-5 h-5" />
@@ -305,7 +305,7 @@ export function MobileNav() {
             <GlobalSearch 
               onSelectUser={(username) => {
                 setSearchOpen(false)
-                router.push(`/dashboard/user/${username}`)
+                router.push(`/user/${username}`)
               }}
             />
           </div>

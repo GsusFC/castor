@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
@@ -110,6 +110,7 @@ export default function FeedPage() {
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
   const lastScrollY = useRef(0)
   const queryClient = useQueryClient()
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   // Notificaciones en tiempo real
   useNotificationStream({
@@ -239,13 +240,35 @@ export default function FeedPage() {
     ? notificationsQuery.hasNextPage
     : feedQuery.hasNextPage
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (activeTab === 'notifications') {
-      notificationsQuery.fetchNextPage()
+      if (!notificationsQuery.isFetchingNextPage) {
+        notificationsQuery.fetchNextPage()
+      }
     } else {
-      feedQuery.fetchNextPage()
+      if (!feedQuery.isFetchingNextPage) {
+        feedQuery.fetchNextPage()
+      }
     }
-  }
+  }, [activeTab, feedQuery, notificationsQuery])
+
+  // Infinite scroll con IntersectionObserver
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [hasMore, isLoading, loadMore])
 
   // Handler para Quote - abre composer con URL del cast
   const handleQuote = (castUrl: string) => {
@@ -432,15 +455,14 @@ export default function FeedPage() {
           </p>
         )}
 
-        {/* Load More */}
-        {hasMore && !isLoading && (
-          <button
-            onClick={loadMore}
-            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Cargar más...
-          </button>
-        )}
+        {/* Load More - Infinite Scroll Trigger */}
+        <div ref={loadMoreRef} className="py-4">
+          {(feedQuery.isFetchingNextPage || notificationsQuery.isFetchingNextPage) && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
       </div>
       </>
       )}

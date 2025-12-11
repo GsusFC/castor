@@ -14,7 +14,7 @@ export function AccountsClient() {
     if (searchParams.get('connect') === 'true') {
       setConnectOpen(true)
       // Limpiar el query param
-      router.replace('/dashboard/accounts', { scroll: false })
+      router.replace('/accounts', { scroll: false })
     }
   }, [searchParams, router])
 

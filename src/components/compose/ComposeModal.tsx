@@ -427,7 +427,7 @@ export function ComposeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden flex flex-col fixed inset-0 translate-x-0 translate-y-0 rounded-none h-full md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-auto md:max-h-[90vh] md:rounded-lg [&>button]:hidden">
+      <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden flex flex-col fixed inset-0 translate-x-0 translate-y-0 rounded-none h-full md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-auto md:max-h-[90vh] md:rounded-lg [&>button]:hidden !animate-none md:!animate-in">
         <DialogTitle className="sr-only">
           {isEditMode ? 'Editar Cast' : 'Nuevo Cast'}
         </DialogTitle>

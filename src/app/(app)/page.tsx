@@ -1,27 +1,21 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
-import dynamic from 'next/dynamic'
-import Link from 'next/link'
-import { Loader2, User } from 'lucide-react'
-import { toast } from 'sonner'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
+import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ProfileView } from '@/components/profile/ProfileView'
 import { ConversationView } from '@/components/feed/ConversationView'
-import { cn } from '@/lib/utils'
-import { useNotificationStream } from '@/hooks'
+import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
-
-const ComposeModal = dynamic(() => import('@/components/compose/ComposeModal').then(mod => mod.ComposeModal), {
-  ssr: false,
-})
-
-const MiniAppDrawer = dynamic(() => import('@/components/feed/MiniAppDrawer').then(mod => mod.MiniAppDrawer), {
-  ssr: false,
-})
+import { cn } from '@/lib/utils'
+import { Loader2, User } from 'lucide-react'
+import { useNotificationStream } from '@/hooks'
+import Link from 'next/link'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 type FeedTab = 'home' | 'following' | 'trending' | 'notifications' | 'channel'
 

@@ -553,9 +553,9 @@ export const analyticsInsightsCache = sqliteTable(
     generatedAt: integer('generated_at', { mode: 'timestamp' }).notNull(),
     expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
   },
-  (table) => [
-    index('analytics_insights_cache_account_idx').on(table.accountId),
-  ]
+  (table) => ({
+    accountIdx: index('analytics_insights_cache_account_idx').on(table.accountId),
+  })
 )
 
 export type AnalyticsInsightsCache = typeof analyticsInsightsCache.$inferSelect

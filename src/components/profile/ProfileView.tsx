@@ -218,7 +218,7 @@ export function ProfileView({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border mb-4">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm flex border-b border-border mb-4 transition-all">
         {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
           <button
             key={tab}

@@ -125,75 +125,95 @@ export function ProfileView({
         Volver al feed
       </button>
 
-      {/* Cover Image */}
-      {coverImage && (
-        <div className="relative h-32 mb-4 -mx-4 overflow-hidden rounded-lg">
-          <img 
-            src={coverImage} 
-            alt="Cover" 
-            className="w-full h-full object-cover"
-          />
+      {/* Header Area */}
+      <div className="relative mb-6">
+        {/* Cover Image */}
+        <div className="h-32 sm:h-48 w-full bg-muted overflow-hidden rounded-lg">
+          {coverImage && (
+            <img 
+              src={coverImage} 
+              alt="Cover" 
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
-      )}
 
-      {/* Profile Header */}
-      <div className="flex items-start gap-4 mb-4">
-        {profile.pfp_url ? (
-          <img 
-            src={profile.pfp_url} 
-            alt={profile.username}
-            className="w-16 h-16 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <span className="text-xl font-bold">{profile.display_name?.[0]}</span>
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-lg font-bold truncate">{profile.display_name}</h1>
-              {profile.power_badge && <PowerBadge size={18} />}
+        {/* Avatar & Actions Row */}
+        <div className="px-2 sm:px-4">
+          <div className="relative flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
+            {/* Avatar with border */}
+            <div className="relative">
+              {profile.pfp_url ? (
+                <img 
+                  src={profile.pfp_url} 
+                  alt={profile.username}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-background bg-background"
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-background flex items-center justify-center">
+                  <span className="text-2xl font-bold">{profile.display_name?.[0]}</span>
+                </div>
+              )}
             </div>
-            {/* Actions - aligned right */}
-            <div className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm">
+
+            {/* Actions */}
+            <div className="flex gap-2 mb-1">
+              <Button variant="outline" size="sm" className="rounded-full font-medium h-9 px-4">
                 Seguir
               </Button>
               <Button 
                 variant="ghost" 
                 size="sm"
+                className="rounded-full h-9 w-9 p-0 hover:bg-muted"
                 onClick={() => window.open(`https://warpcast.com/${profile.username}`, '_blank')}
+                title="Ver en Farcaster"
               >
-                <ExternalLink className="w-4 h-4 mr-1" />
-                Farcaster
+                <ExternalLink className="w-4 h-4" />
               </Button>
             </div>
           </div>
-          <p className="text-muted-foreground text-sm">@{profile.username}</p>
-        </div>
-      </div>
 
-      {/* Bio */}
-      {bio && <p className="text-sm mb-3">{bio}</p>}
+          {/* User Info */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
+                  {profile.display_name}
+                </h1>
+                {profile.power_badge && <PowerBadge size={22} />}
+              </div>
+              <p className="text-muted-foreground text-[15px]">@{profile.username}</p>
+            </div>
 
-      {/* Location */}
-      {location && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          <MapPin className="w-4 h-4" />
-          <span>{location}</span>
-        </div>
-      )}
+            {/* Bio */}
+            {bio && (
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap max-w-2xl text-foreground/90">
+                {bio}
+              </p>
+            )}
 
-      {/* Stats */}
-      <div className="flex items-center gap-4 text-sm mb-6">
-        <div>
-          <span className="font-semibold">{profile.following_count?.toLocaleString()}</span>
-          <span className="text-muted-foreground ml-1">Siguiendo</span>
-        </div>
-        <div>
-          <span className="font-semibold">{profile.follower_count?.toLocaleString()}</span>
-          <span className="text-muted-foreground ml-1">Seguidores</span>
+            {/* Meta Info (Location, etc) */}
+            {location && (
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-muted-foreground/70" />
+                  <span>{location}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="flex items-center gap-5 pt-1">
+              <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
+                <span className="font-bold text-foreground">{profile.following_count?.toLocaleString()}</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Siguiendo</span>
+              </button>
+              <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
+                <span className="font-bold text-foreground">{profile.follower_count?.toLocaleString()}</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Seguidores</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -42,6 +42,8 @@ interface Notification {
 interface NotificationCardProps {
   notification: Notification
   onClick?: () => void
+  onUserClick?: (username: string) => void
+  onCastClick?: (castHash: string) => void
 }
 
 const badgeColors: Record<string, string> = {
@@ -52,7 +54,7 @@ const badgeColors: Record<string, string> = {
   gray: 'bg-muted text-muted-foreground border-border',
 }
 
-export function NotificationCard({ notification, onClick }: NotificationCardProps) {
+export function NotificationCard({ notification, onClick, onUserClick, onCastClick }: NotificationCardProps) {
   const timestamp = notification.most_recent_timestamp ? new Date(notification.most_recent_timestamp) : null
   const timeAgo = timestamp && !isNaN(timestamp.getTime())
     ? formatDistanceToNow(timestamp, { addSuffix: false, locale: es })
@@ -79,8 +81,22 @@ export function NotificationCard({ notification, onClick }: NotificationCardProp
   const totalCount = notification.count || 1
   const otherCount = totalCount > 1 ? totalCount - 1 : 0
   
-  // Solo replies y mentions son clickeables para responder
-  const isReplyable = ['reply', 'mention'].includes(notification.type)
+  // Solo reply abre el composer para responder directamente
+  const isReplyable = notification.type === 'reply'
+  const hasCast = !!notification.cast?.hash
+
+  const handleClick = () => {
+    if (isReplyable && onClick) {
+      // Reply -> abre composer para responder
+      onClick()
+    } else if (hasCast && notification.cast && onCastClick) {
+      // Mention, like, recast con cast -> ir al cast
+      onCastClick(notification.cast.hash)
+    } else if (mainActor?.username && onUserClick) {
+      // Follow (sin cast) -> ir al perfil
+      onUserClick(mainActor.username)
+    }
+  }
 
   return (
     <div className="flex items-start gap-2">
@@ -92,13 +108,10 @@ export function NotificationCard({ notification, onClick }: NotificationCardProp
         {badge.icon}
       </span>
 
-      {/* Card */}
+      {/* Card - siempre clickeable */}
       <div
-        onClick={isReplyable ? onClick : undefined}
-        className={cn(
-          "flex-1 p-3 border border-border rounded-lg bg-card transition-colors text-left",
-          isReplyable && "hover:bg-muted/30 cursor-pointer"
-        )}
+        onClick={handleClick}
+        className="flex-1 p-3 border border-border rounded-lg bg-card hover:bg-muted/30 cursor-pointer transition-colors text-left"
       >
         <div className="flex items-center gap-2">
           {mainActor?.pfp_url && (

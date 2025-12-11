@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
@@ -433,10 +431,20 @@ export function CastCard({
     }
   }
 
-  const timeAgo = formatDistanceToNow(new Date(cast.timestamp), { 
-    addSuffix: false,
-    locale: es,
-  })
+  const getShortTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const date = new Date(timestamp)
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+    
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    return `${diffDays}d`
+  }
+  
+  const timeAgo = getShortTimeAgo(cast.timestamp)
 
   return (
     <div 
@@ -474,48 +482,36 @@ export function CastCard({
         </button>
         
         <div className="flex-1 min-w-0">
-          {/* Nombre + PRO */}
-          <div className="flex items-center gap-1.5">
+          {/* name [pro?] [in canal?] tiempo */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onSelectUser?.(cast.author.username)
               }}
-              className="font-semibold truncate hover:underline cursor-pointer"
+              className="text-[15px] font-semibold hover:underline cursor-pointer"
             >
-              {cast.author.display_name}
+              {cast.author.display_name || cast.author.username}
             </button>
             {(cast.author.power_badge || cast.author.pro?.status === 'subscribed') && <PowerBadge size={16} />}
-          </div>
-          {/* @username · tiempo · canal */}
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <button 
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelectUser?.(cast.author.username)
-              }}
-              className="hover:underline cursor-pointer"
-            >
-              @{cast.author.username}
-            </button>
-            <span>·</span>
-            <span>{timeAgo}</span>
             {cast.channel && (
               <>
-                <span>·</span>
+                <span className="text-muted-foreground text-sm">in</span>
                 <a 
                   href={`https://farcaster.xyz/~/channel/${cast.channel.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
                   {cast.channel.image_url && (
-                    <img src={cast.channel.image_url} alt="" className="w-3.5 h-3.5 rounded" />
+                    <img src={cast.channel.image_url} alt="" className="w-3.5 h-3.5 rounded-full" />
                   )}
-                  <span>/{cast.channel.id}</span>
+                  <span>{cast.channel.name || cast.channel.id}</span>
                 </a>
               </>
             )}
+            <span className="text-muted-foreground text-sm">{timeAgo}</span>
           </div>
         </div>
       </div>
@@ -535,7 +531,7 @@ export function CastCard({
           <MorphText 
             text={showTranslation && translation ? translation : displayText} 
             className={cn(
-              "text-[16px] leading-relaxed whitespace-pre-wrap break-words transition-colors duration-300",
+              "text-[15px] leading-relaxed whitespace-pre-wrap break-words transition-colors duration-300",
               showTranslation && translation 
                 ? "text-primary/90 font-medium" 
                 : "text-foreground"
@@ -911,7 +907,7 @@ export function CastCard({
                         <span className="text-muted-foreground text-xs">@{reply.author?.username}</span>
                         <span className="text-muted-foreground text-[10px] mx-0.5">·</span>
                         <span className="text-muted-foreground text-[10px]">
-                          {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: false, locale: es })}
+                          {getShortTimeAgo(reply.timestamp)}
                         </span>
                       </div>
                       

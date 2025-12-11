@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, User, Hash, MessageSquare, Loader2 } from 'lucide-react'
+import { Search, X, User, Hash, MessageSquare, Loader2, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useUserChannels } from '@/hooks/useUserChannels'
 
 interface SearchResult {
   casts: {
@@ -48,6 +49,7 @@ export function GlobalSearch({ onSelectChannel, onSelectUser, onSelectCast }: Gl
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<SearchTab>('all')
+  const { favorites, toggleFavorite } = useUserChannels()
   const [results, setResults] = useState<SearchResult>({ casts: [], users: [], channels: [] })
   const [isLoading, setIsLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -226,31 +228,47 @@ export function GlobalSearch({ onSelectChannel, onSelectUser, onSelectCast }: Gl
                         Canales
                       </div>
                     )}
-                    {results.channels.map((channel) => (
-                      <button
-                        key={channel.id}
-                        onClick={() => {
-                          onSelectChannel?.(channel)
-                          setIsOpen(false)
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors text-left"
-                      >
-                        {channel.image_url ? (
-                          <img src={channel.image_url} alt="" className="w-8 h-8 rounded" />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
-                            <Hash className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-sm truncate">/{channel.name}</span>
-                          {channel.description && (
-                            <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
-                          )}
+                    {results.channels.map((channel) => {
+                      const isFav = favorites.some(f => f.id === channel.id)
+                      return (
+                        <div
+                          key={channel.id}
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors"
+                        >
+                          <button
+                            onClick={() => {
+                              onSelectChannel?.(channel)
+                              setIsOpen(false)
+                            }}
+                            className="flex-1 flex items-center gap-3 text-left"
+                          >
+                            {channel.image_url ? (
+                              <img src={channel.image_url} alt="" className="w-8 h-8 rounded" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                                <Hash className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-sm truncate">/{channel.name}</span>
+                              {channel.description && (
+                                <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{channel.follower_count} seg.</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleFavorite({ id: channel.id, name: channel.name, imageUrl: channel.image_url })
+                            }}
+                            className="p-1.5 hover:bg-muted rounded transition-colors"
+                          >
+                            <Star className={cn("w-4 h-4", isFav ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground")} />
+                          </button>
                         </div>
-                        <span className="text-xs text-muted-foreground">{channel.follower_count} seg.</span>
-                      </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
 

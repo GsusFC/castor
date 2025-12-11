@@ -7,6 +7,7 @@ import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ProfileView } from '@/components/profile/ProfileView'
+import { ConversationView } from '@/components/feed/ConversationView'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
@@ -87,11 +88,11 @@ interface Cast {
 
 const NOTIFICATION_FILTERS: { value: NotificationFilter; label: string }[] = [
   { value: 'all', label: 'All' },
-  { value: 'reply', label: '💬' },
-  { value: 'mention', label: '@' },
-  { value: 'like', label: '❤️' },
-  { value: 'recast', label: '🔄' },
-  { value: 'follow', label: '👤' },
+  { value: 'reply', label: 'Replies' },
+  { value: 'mention', label: 'Mentions' },
+  { value: 'like', label: 'Likes' },
+  { value: 'recast', label: 'Recasts' },
+  { value: 'follow', label: 'Follows' },
 ]
 
 export default function FeedPage() {
@@ -108,6 +109,7 @@ export default function FeedPage() {
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
+  const [selectedCastHash, setSelectedCastHash] = useState<string | null>(null)
   const lastScrollY = useRef(0)
   const queryClient = useQueryClient()
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -297,8 +299,31 @@ export default function FeedPage() {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 max-w-2xl">
       
-      {/* Show Profile or Feed */}
-      {selectedProfileUsername ? (
+      {/* Show Conversation, Profile or Feed */}
+      {selectedCastHash ? (
+        <ConversationView
+          castHash={selectedCastHash}
+          onBack={() => setSelectedCastHash(null)}
+          onSelectUser={setSelectedProfileUsername}
+          onSelectCast={setSelectedCastHash}
+          onReply={(c) => {
+            setReplyToCast({
+              hash: c.hash,
+              text: '',
+              timestamp: new Date().toISOString(),
+              author: {
+                fid: c.author.fid,
+                username: c.author.username,
+                displayName: c.author.username,
+                pfpUrl: null,
+              },
+            })
+            setComposeOpen(true)
+          }}
+          onOpenComposer={() => setComposeOpen(true)}
+          userPfp={profile.pfpUrl}
+        />
+      ) : selectedProfileUsername ? (
         <ProfileView 
           username={selectedProfileUsername} 
           onBack={() => setSelectedProfileUsername(null)}
@@ -331,12 +356,12 @@ export default function FeedPage() {
           {/* Avatar/Profile button */}
           <button
             onClick={() => profile.username && setSelectedProfileUsername(profile.username)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
           >
             {profile.pfpUrl ? (
-              <img src={profile.pfpUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+              <img src={profile.pfpUrl} alt="" className="w-10 h-10 shrink-0 rounded-full object-cover" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+              <div className="w-10 h-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
                 <User className="w-5 h-5 text-muted-foreground" />
               </div>
             )}
@@ -385,7 +410,7 @@ export default function FeedPage() {
 
       {/* Notification Filters */}
       {activeTab === 'notifications' && (
-        <div className="flex items-center gap-1 mt-4 mb-4 overflow-x-auto pb-2">
+        <div className="flex items-center justify-center gap-1 mt-4 mb-4 overflow-x-auto pb-2">
           {NOTIFICATION_FILTERS.map((filter) => (
             <button
               key={filter.value}
@@ -415,6 +440,11 @@ export default function FeedPage() {
               <NotificationCard 
                 key={`${notification.type}-${notification.most_recent_timestamp}-${i}`} 
                 notification={notification as any}
+                onUserClick={(username) => setSelectedProfileUsername(username)}
+                onCastClick={(castHash) => {
+                  // Mostrar conversación inline
+                  setSelectedCastHash(castHash)
+                }}
               />
             ))
           ) : (

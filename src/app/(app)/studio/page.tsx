@@ -1,6 +1,6 @@
 import { db, accounts as accountsTable, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq, or, inArray } from 'drizzle-orm'
+import { and, eq, exists, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { UnifiedDashboard } from './UnifiedDashboard'
@@ -14,23 +14,17 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  const memberships = await db.query.accountMembers.findMany({
-    where: eq(accountMembers.userId, session.userId),
-    columns: {
-      accountId: true,
-    },
-  })
-
-  const memberAccountIds = memberships.map(m => m.accountId)
-
   // Obtener cuentas del usuario
   const accounts = await db.query.accounts.findMany({
-    where: memberAccountIds.length > 0
-      ? or(
-          eq(accountsTable.ownerId, session.userId),
-          inArray(accountsTable.id, memberAccountIds)
-        )
-      : eq(accountsTable.ownerId, session.userId),
+    where: or(
+      eq(accountsTable.ownerId, session.userId),
+      exists(
+        db
+          .select({ id: accountMembers.id })
+          .from(accountMembers)
+          .where(and(eq(accountMembers.userId, session.userId), eq(accountMembers.accountId, accountsTable.id)))
+      )
+    ),
     with: {
       owner: {
         columns: {
@@ -47,30 +41,31 @@ export default async function DashboardPage() {
   // Obtener IDs de las cuentas del usuario
   const accountIds = accounts.map(a => a.id)
 
-  // Obtener solo los casts de las cuentas del usuario
-  const allCasts = accountIds.length > 0 
-    ? await db.query.scheduledCasts.findMany({
-        where: (casts, { inArray }) => inArray(casts.accountId, accountIds),
-        with: { 
-          account: true,
-          media: true,
-          createdBy: {
-            columns: {
-              id: true,
-              username: true,
-              displayName: true,
-              pfpUrl: true,
+  const [allCasts, allTemplates] = await Promise.all([
+    // Obtener solo los casts de las cuentas del usuario
+    accountIds.length > 0
+      ? db.query.scheduledCasts.findMany({
+          where: (casts, { inArray }) => inArray(casts.accountId, accountIds),
+          with: { 
+            account: true,
+            media: true,
+            createdBy: {
+              columns: {
+                id: true,
+                username: true,
+                displayName: true,
+                pfpUrl: true,
+              },
             },
           },
-        },
-        orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
-      })
-    : []
-
-  // Obtener templates solo de las cuentas del usuario
-  const allTemplates = accountIds.length > 0
-    ? await db.select().from(templates).where(inArray(templates.accountId, accountIds))
-    : []
+          orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
+        })
+      : Promise.resolve([]),
+    // Obtener templates solo de las cuentas del usuario
+    accountIds.length > 0
+      ? db.select().from(templates).where(inArray(templates.accountId, accountIds))
+      : Promise.resolve([]),
+  ])
 
   // Serializar datos para el cliente
   const serializedAccounts = accounts.map(account => ({

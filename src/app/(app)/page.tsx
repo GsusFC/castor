@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
@@ -98,7 +97,6 @@ const NOTIFICATION_FILTERS: { value: NotificationFilter; label: string }[] = [
 ]
 
 export default function FeedPage() {
-  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
@@ -110,8 +108,12 @@ export default function FeedPage() {
   const [headerHidden, setHeaderHidden] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
 
+  const [channelIdFromUrl, setChannelIdFromUrl] = useState<string | null>(null)
+
   // Leer canal de URL (?channel=xxx)
-  const channelIdFromUrl = searchParams.get('channel')
+  useEffect(() => {
+    setChannelIdFromUrl(new URLSearchParams(window.location.search).get('channel'))
+  }, [])
   
   useEffect(() => {
     if (!channelIdFromUrl) {
@@ -435,6 +437,8 @@ export default function FeedPage() {
                     queryClient.prefetchInfiniteQuery({
                       queryKey: ['feed', tab.id, userFid, null],
                       queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
+                      getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
+                      initialPageParam: undefined as string | undefined,
                       staleTime: 30 * 1000,
                     })
                   }

@@ -103,6 +103,7 @@ export function ContextEditor({
   const [documents, setDocuments] = useState(initialDocuments)
 
   const [membersState, setMembersState] = useState(members)
+  const membersBaselineRef = useRef(new Map<string, ContextEditorProps['members'][number]>())
   const [inviteUsername, setInviteUsername] = useState('')
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member')
   const [inviteCanEditContext, setInviteCanEditContext] = useState(false)
@@ -114,6 +115,11 @@ export function ContextEditor({
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
   const [showInviteSuggestions, setShowInviteSuggestions] = useState(false)
   const inviteSearchAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    setMembersState(members)
+    membersBaselineRef.current = new Map(members.map((m) => [m.id, m]))
+  }, [members])
 
   useEffect(() => {
     if (!canManageMembers) return
@@ -165,11 +171,11 @@ export function ContextEditor({
     if (!canManageMembers) return
 
     const member = membersState.find((m) => m.id === memberId)
-    const original = members.find((m) => m.id === memberId)
-    if (!member || !original) return
+    if (!member) return
 
-    const roleChanged = member.role !== original.role
-    const canEditChanged = member.canEditContext !== original.canEditContext
+    const original = membersBaselineRef.current.get(memberId)
+    const roleChanged = original ? member.role !== original.role : true
+    const canEditChanged = original ? member.canEditContext !== original.canEditContext : true
     if (!roleChanged && !canEditChanged) return
 
     setSavingMemberId(memberId)
@@ -190,6 +196,7 @@ export function ContextEditor({
 
       if (data?.member) {
         setMembersState((prev) => prev.map((m) => (m.id === memberId ? data.member : m)))
+        membersBaselineRef.current.set(memberId, data.member)
       }
     } catch (error) {
       console.error('Error updating member:', error)
@@ -222,6 +229,7 @@ export function ContextEditor({
 
       if (data?.member) {
         setMembersState((prev) => [data.member, ...prev])
+        membersBaselineRef.current.set(data.member.id, data.member)
       }
 
       setInviteUsername('')
@@ -248,6 +256,7 @@ export function ContextEditor({
       }
 
       setMembersState((prev) => prev.filter((m) => m.id !== memberId))
+      membersBaselineRef.current.delete(memberId)
     } catch (error) {
       console.error('Error removing member:', error)
     } finally {
@@ -520,7 +529,7 @@ export function ContextEditor({
           <div className="flex-1">
             <label className="text-sm text-muted-foreground mb-1 block">Tono</label>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild id={`account-${accountId}-default-tone-trigger`}>
                 <Button variant="outline" className="w-full justify-start" disabled={!canEdit}>
                   {TONES.find(t => t.value === defaultTone)?.label}
                 </Button>
@@ -537,7 +546,7 @@ export function ContextEditor({
           <div className="flex-1">
             <label className="text-sm text-muted-foreground mb-1 block">Idioma</label>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild id={`account-${accountId}-default-language-trigger`}>
                 <Button variant="outline" className="w-full justify-start" disabled={!canEdit}>
                   {LANGUAGES.find(l => l.value === defaultLanguage)?.label}
                 </Button>
@@ -823,7 +832,7 @@ export function ContextEditor({
 
               <div className="flex gap-2">
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild id={`account-${accountId}-invite-role-trigger`}>
                     <Button variant="outline" disabled={isInviting} className="flex-1 justify-start">
                       {inviteRole === 'admin' ? 'Admin' : 'Member'}
                     </Button>
@@ -879,7 +888,7 @@ export function ContextEditor({
                 {canManageMembers && (
                   <div className="flex items-center gap-2">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild id={`account-${accountId}-member-${member.id}-role-trigger`}>
                         <Button variant="outline" size="sm" className="h-8">
                           {member.role === 'admin' ? 'Admin' : 'Member'}
                         </Button>

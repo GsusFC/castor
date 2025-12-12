@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, exists } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
 import { getSession, canAccess } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
@@ -23,31 +23,48 @@ export async function GET(request: NextRequest) {
       return ApiErrors.validationFailed([{ field: 'accountId', message: 'accountId is required' }])
     }
 
-    // Verificar que el usuario tiene acceso a esta cuenta
-    const account = await db.query.accounts.findFirst({
-      where: eq(accounts.id, accountId),
-    })
+    const rows = await db
+      .select({
+        ownerId: accounts.ownerId,
+        isMember: exists(
+          db
+            .select({ id: accountMembers.id })
+            .from(accountMembers)
+            .where(and(eq(accountMembers.userId, session.userId), eq(accountMembers.accountId, accounts.id)))
+        ),
+        templateId: templates.id,
+        templateAccountId: templates.accountId,
+        templateName: templates.name,
+        templateContent: templates.content,
+        templateChannelId: templates.channelId,
+        templateCreatedAt: templates.createdAt,
+        templateUpdatedAt: templates.updatedAt,
+      })
+      .from(accounts)
+      .leftJoin(templates, eq(templates.accountId, accounts.id))
+      .where(eq(accounts.id, accountId))
+      .orderBy(templates.createdAt)
 
-    if (!account) {
+    if (rows.length === 0) {
       return ApiErrors.notFound('Account')
     }
 
-    const membership = await db.query.accountMembers.findFirst({
-      where: and(
-        eq(accountMembers.accountId, accountId),
-        eq(accountMembers.userId, session.userId)
-      ),
-    })
-
-    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+    const { ownerId, isMember } = rows[0]
+    if (!canAccess(session, { ownerId, isMember: Boolean(isMember) })) {
       return ApiErrors.forbidden('No access to this account')
     }
 
-    const accountTemplates = await db
-      .select()
-      .from(templates)
-      .where(eq(templates.accountId, accountId))
-      .orderBy(templates.createdAt)
+    const accountTemplates = rows
+      .filter((r) => r.templateId !== null)
+      .map((r) => ({
+        id: r.templateId as string,
+        accountId: r.templateAccountId as string,
+        name: r.templateName as string,
+        content: r.templateContent as string,
+        channelId: r.templateChannelId as string | null,
+        createdAt: r.templateCreatedAt as Date,
+        updatedAt: r.templateUpdatedAt as Date,
+      }))
 
     return success({ templates: accountTemplates })
   } catch (error) {
@@ -75,22 +92,24 @@ export async function POST(request: NextRequest) {
     const { accountId, name, content, channelId } = validation.data
 
     // Verificar que el usuario tiene acceso a esta cuenta
-    const account = await db.query.accounts.findFirst({
-      where: eq(accounts.id, accountId),
-    })
+    const [accountAccess] = await db
+      .select({
+        ownerId: accounts.ownerId,
+        isMember: exists(
+          db
+            .select({ id: accountMembers.id })
+            .from(accountMembers)
+            .where(and(eq(accountMembers.userId, session.userId), eq(accountMembers.accountId, accounts.id)))
+        ),
+      })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
 
-    if (!account) {
+    if (!accountAccess) {
       return ApiErrors.notFound('Account')
     }
 
-    const membership = await db.query.accountMembers.findFirst({
-      where: and(
-        eq(accountMembers.accountId, accountId),
-        eq(accountMembers.userId, session.userId)
-      ),
-    })
-
-    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+    if (!canAccess(session, { ownerId: accountAccess.ownerId, isMember: Boolean(accountAccess.isMember) })) {
       return ApiErrors.forbidden('No access to this account')
     }
 
@@ -108,7 +127,15 @@ export async function POST(request: NextRequest) {
     })
 
     const [newTemplate] = await db
-      .select()
+      .select({
+        id: templates.id,
+        accountId: templates.accountId,
+        name: templates.name,
+        content: templates.content,
+        channelId: templates.channelId,
+        createdAt: templates.createdAt,
+        updatedAt: templates.updatedAt,
+      })
       .from(templates)
       .where(eq(templates.id, id))
 

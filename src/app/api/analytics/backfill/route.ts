@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, castAnalytics, accounts } from '@/lib/db'
-import { eq } from 'drizzle-orm'
-import { neynar } from '@/lib/farcaster/client'
+import { db, castAnalytics, accounts, accountMembers } from '@/lib/db'
+import { eq, and, or, inArray } from 'drizzle-orm'
 
 /**
  * POST /api/analytics/backfill
@@ -25,20 +24,32 @@ export async function POST(request: NextRequest) {
     
     console.log('[Analytics Backfill] Request:', { accountId, limit, userId: session.userId })
 
-    // Obtener cuenta
+    const memberships = await db.query.accountMembers.findMany({
+      where: eq(accountMembers.userId, session.userId),
+      columns: {
+        accountId: true,
+      },
+    })
+
+    const memberAccountIds = memberships.map(m => m.accountId)
+
+    // Construir set de cuentas accesibles
+    const accessibleAccounts = await db.query.accounts.findMany({
+      where: memberAccountIds.length > 0
+        ? or(
+            eq(accounts.ownerId, session.userId),
+            inArray(accounts.id, memberAccountIds)
+          )
+        : eq(accounts.ownerId, session.userId),
+      orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],
+    })
+
     let account = accountId
-      ? await db.query.accounts.findFirst({
-          where: eq(accounts.id, accountId),
-        })
-      : await db.query.accounts.findFirst({
-          where: eq(accounts.ownerId, session.userId),
-        })
-    
-    // Fallback: si no hay por ownerId, buscar cualquier cuenta aprobada
-    if (!account && !accountId) {
-      account = await db.query.accounts.findFirst({
-        where: eq(accounts.signerStatus, 'approved'),
-      })
+      ? accessibleAccounts.find(a => a.id === accountId) ?? null
+      : null
+
+    if (!account) {
+      account = accessibleAccounts.find(a => a.ownerId === session.userId) ?? accessibleAccounts[0] ?? null
     }
 
     if (!account) {

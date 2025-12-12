@@ -48,11 +48,8 @@ export const accounts = sqliteTable(
     isPremium: integer('is_premium', { mode: 'boolean' })
       .notNull()
       .default(false),
-    // Ownership y sharing
+    // Ownership
     ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
-    isShared: integer('is_shared', { mode: 'boolean' })
-      .notNull()
-      .default(false),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),

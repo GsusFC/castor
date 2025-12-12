@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, accounts, castAnalytics } from '@/lib/db'
+import { db, accounts, castAnalytics, accountMembers } from '@/lib/db'
 import { eq, or, and, gte, desc, sql, inArray } from 'drizzle-orm'
 
 /**
@@ -18,12 +18,23 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30')
     const accountIdFilter = searchParams.get('accountId')
 
-    // Obtener solo las cuentas del usuario (propias o compartidas)
+    const memberships = await db.query.accountMembers.findMany({
+      where: eq(accountMembers.userId, session.userId),
+      columns: {
+        accountId: true,
+      },
+    })
+
+    const memberAccountIds = memberships.map(m => m.accountId)
+
+    // Obtener solo las cuentas del usuario (propias o donde es miembro)
     const userAccounts = await db.query.accounts.findMany({
-      where: or(
-        eq(accounts.ownerId, session.userId),
-        eq(accounts.isShared, true)
-      ),
+      where: memberAccountIds.length > 0
+        ? or(
+            eq(accounts.ownerId, session.userId),
+            inArray(accounts.id, memberAccountIds)
+          )
+        : eq(accounts.ownerId, session.userId),
     })
 
     const accountIds = userAccounts.map(a => a.id)

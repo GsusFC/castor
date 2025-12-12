@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Building2, Trash2, Share2, Users, Brain } from 'lucide-react'
+import { User, Building2, Trash2, Brain } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
@@ -23,7 +23,6 @@ interface Account {
   type: 'personal' | 'business'
   signerStatus: 'pending' | 'approved' | 'revoked'
   ownerId: string | null
-  isShared: boolean
   owner?: AccountOwner | null
 }
 
@@ -35,13 +34,10 @@ interface AccountCardProps {
 
 export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isSharing, setIsSharing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [isShared, setIsShared] = useState(account.isShared)
   const router = useRouter()
   
   const isOwner = account.ownerId === currentUserId
-  const canShare = isAdmin // Solo admins pueden compartir
 
   const statusColors = {
     pending: 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400',
@@ -76,30 +72,6 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
     }
   }
 
-  const handleToggleShare = async () => {
-    setIsSharing(true)
-    try {
-      const res = await fetch(`/api/accounts/${account.id}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isShared: !isShared }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Error al compartir')
-      }
-
-      setIsShared(!isShared)
-      toast.success(isShared ? 'Cuenta dejada de compartir' : 'Cuenta compartida con el equipo')
-      router.refresh()
-    } catch (error) {
-      console.error('Error sharing account:', error)
-      toast.error('Error al cambiar estado compartido')
-    } finally {
-      setIsSharing(false)
-    }
-  }
-
   return (
     <Card className="p-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -123,12 +95,6 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
               </span>
               {account.type === 'business' && (
                 <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              )}
-              {isShared && (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 text-xs rounded-full flex-shrink-0">
-                  <Users className="w-3 h-3" />
-                  <span className="hidden sm:inline">Compartida</span>
-                </span>
               )}
               {isOwner && (
                 <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full flex-shrink-0">
@@ -156,31 +122,16 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
         </span>
 
         {/* Botón Contexto - para todas las cuentas gestionadas */}
-        {(isOwner || isShared) && (
-          <Link href={`/accounts/${account.id}/context`}>
-            <Button
-              variant="ghost"
-              size="icon"
-              title="Gestionar contexto AI"
-              className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-primary hover:bg-primary/10"
-            >
-              <Brain className="w-5 h-5 sm:w-4 sm:h-4" />
-            </Button>
-          </Link>
-        )}
-        
-        {canShare && (
+        <Link href={`/accounts/${account.id}/context`}>
           <Button
-            variant={isShared ? "secondary" : "ghost"}
+            variant="ghost"
             size="icon"
-            onClick={handleToggleShare}
-            disabled={isSharing}
-            title={isShared ? 'Dejar de compartir' : 'Compartir con el equipo'}
-            className={`h-10 w-10 sm:h-9 sm:w-9 touch-target ${isShared ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400" : "text-muted-foreground"}`}
+            title="Gestionar contexto AI"
+            className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-primary hover:bg-primary/10"
           >
-            <Share2 className="w-5 h-5 sm:w-4 sm:h-4" />
+            <Brain className="w-5 h-5 sm:w-4 sm:h-4" />
           </Button>
-        )}
+        </Link>
         
         {showConfirm ? (
           <div className="flex items-center gap-2">

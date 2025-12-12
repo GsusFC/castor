@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, accounts, castAnalytics, analyticsInsightsCache } from '@/lib/db'
+import { db, accounts, castAnalytics, analyticsInsightsCache, accountMembers } from '@/lib/db'
 import { eq, or, and, desc, inArray, gt } from 'drizzle-orm'
 import { GoogleGenAI } from '@google/genai'
 import { nanoid } from 'nanoid'
@@ -30,19 +30,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Account ID required' }, { status: 400 })
     }
 
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
     // Verificar que el usuario tiene acceso a la cuenta
     const account = await db.query.accounts.findFirst({
-      where: and(
-        eq(accounts.id, accountId),
-        or(
-          eq(accounts.ownerId, session.userId),
-          eq(accounts.isShared, true)
-        )
-      ),
+      where: eq(accounts.id, accountId),
     })
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    const hasAccess = session.role === 'admin' || account.ownerId === session.userId || !!membership
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Buscar cache existente (si no se fuerza refresh)

@@ -7,9 +7,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  globalSetup: './e2e/global-setup.ts',
   
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:3002',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -21,13 +22,18 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      use: { ...devices['iPhone 14'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
     },
   ],
 
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3000',
+    command: 'PORT=3002 DATABASE_URL=file:.e2e.db SESSION_SECRET=castor-dev-secret-key-min-32-chars! pnpm dev',
+    url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

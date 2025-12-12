@@ -115,15 +115,17 @@ export function ProfileView({
   }
 
   return (
-    <div className="max-w-2xl">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Volver al feed
-      </button>
+    <div className="max-w-2xl relative">
+      {/* Sticky Header with Back button */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-3 -mx-4 px-4 mb-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="font-medium">{profile.display_name}</span>
+        </button>
+      </div>
 
       {/* Header Area */}
       <div className="relative mb-6">
@@ -217,8 +219,8 @@ export function ProfileView({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm flex border-b border-border mb-4 transition-all">
+      {/* Tabs - sticky below header */}
+      <div className="sticky top-12 z-10 bg-background/95 backdrop-blur-sm flex border-b border-border mb-4 -mx-4 px-4">
         {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
           <button
             key={tab}

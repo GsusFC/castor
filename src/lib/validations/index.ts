@@ -69,14 +69,6 @@ export const updateTemplateSchema = z.object({
 })
 
 // ============================================
-// Account Schemas
-// ============================================
-
-export const shareAccountSchema = z.object({
-  isShared: z.boolean(),
-})
-
-// ============================================
 // Validation Helper
 // ============================================
 

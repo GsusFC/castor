@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
-import { db, accounts, castAnalytics } from '@/lib/db'
-import { eq } from 'drizzle-orm'
+import { getSession, canAccess } from '@/lib/auth'
+import { db, accounts, castAnalytics, accountMembers } from '@/lib/db'
+import { eq, and } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster/client'
 
 export async function POST(request: NextRequest) {
@@ -35,6 +35,19 @@ export async function POST(request: NextRequest) {
       account = await db.query.accounts.findFirst({
         where: eq(accounts.id, accountId),
       })
+
+      if (account) {
+        const membership = await db.query.accountMembers.findFirst({
+          where: and(
+            eq(accountMembers.accountId, account.id),
+            eq(accountMembers.userId, session.userId)
+          ),
+        })
+
+        if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
     } else {
       // Buscar el primer account aprobado del usuario
       const userAccounts = await db.query.accounts.findMany({

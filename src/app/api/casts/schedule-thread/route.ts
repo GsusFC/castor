@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { scheduledCasts, threads, castMedia, accounts } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
-import { getSession } from '@/lib/auth'
+import { scheduledCasts, threads, castMedia, accounts, accountMembers } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
+import { getSession, canAccess } from '@/lib/auth'
 
 function generateId() {
   return crypto.randomUUID()
@@ -15,6 +15,12 @@ interface CastInput {
 
 export async function POST(request: NextRequest) {
   try {
+    // Obtener usuario actual
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { accountId, channelId, scheduledAt, casts } = body as {
       accountId: string
@@ -45,8 +51,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
 
-    // Obtener usuario actual
-    const session = await getSession()
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
+    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     
     const threadId = generateId()
 
@@ -73,7 +87,7 @@ export async function POST(request: NextRequest) {
         status: 'scheduled',
         threadId,
         threadOrder: i,
-        createdById: session?.userId || null,
+        createdById: session.userId,
       })
 
       // Guardar media si hay embeds

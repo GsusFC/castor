@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, accounts, scheduledCasts, templates } from '@/lib/db'
 import { eq } from 'drizzle-orm'
-import { getSession, canModify } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 
 export async function DELETE(
@@ -27,7 +27,8 @@ export async function DELETE(
     }
 
     // Verificar permisos (solo owner o admin pueden eliminar)
-    if (!canModify(session, { ownerId: account.ownerId, isShared: false })) {
+    const canDelete = session.role === 'admin' || account.ownerId === session.userId
+    if (!canDelete) {
       return ApiErrors.forbidden('Only the account owner can delete it')
     }
 

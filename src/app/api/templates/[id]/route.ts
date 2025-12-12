@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { getSession, canAccess, canModify } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, updateTemplateSchema } from '@/lib/validations'
@@ -26,7 +26,14 @@ async function getTemplateWithAuth(id: string, session: NonNullable<Awaited<Retu
     return { error: ApiErrors.notFound('Account') }
   }
 
-  const hasAccess = canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })
+  const membership = await db.query.accountMembers.findFirst({
+    where: and(
+      eq(accountMembers.accountId, account.id),
+      eq(accountMembers.userId, session.userId)
+    ),
+  })
+
+  const hasAccess = canAccess(session, { ownerId: account.ownerId, isMember: !!membership })
   if (!hasAccess) {
     return { error: ApiErrors.forbidden('No access to this template') }
   }

@@ -171,8 +171,7 @@ export function withAdmin<T = unknown>(handler: ApiHandler<T>) {
 
 interface PermissionContext {
   ownerId: string | null
-  isShared: boolean
-  createdById?: string | null
+  isMember: boolean
 }
 
 /**
@@ -185,11 +184,8 @@ export function canAccess(session: AuthUser, resource: PermissionContext): boole
   // Owner tiene acceso
   if (resource.ownerId === session.userId) return true
   
-  // Recursos compartidos son accesibles
-  if (resource.isShared) return true
-  
-  // Creator tiene acceso
-  if (resource.createdById === session.userId) return true
+  // Miembros explícitos via accountMembers
+  if (resource.isMember) return true
   
   return false
 }
@@ -203,9 +199,8 @@ export function canModify(session: AuthUser, resource: PermissionContext): boole
   
   // Owner puede modificar
   if (resource.ownerId === session.userId) return true
-  
-  // En recursos compartidos, el creator puede modificar
-  if (resource.isShared && resource.createdById === session.userId) return true
+
+  if (resource.isMember) return true
   
   return false
 }

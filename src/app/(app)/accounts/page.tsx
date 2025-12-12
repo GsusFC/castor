@@ -1,11 +1,11 @@
 import { User, Users, Shield, Star } from 'lucide-react'
 import Link from 'next/link'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, accountMembers } from '@/lib/db'
 import { AddAccountButton } from './add-account-button'
 import { AccountCard } from './AccountCard'
 import { AccountsClient } from './AccountsClient'
 import { getSession } from '@/lib/auth'
-import { eq, or } from 'drizzle-orm'
+import { eq, or, inArray } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -18,12 +18,23 @@ export default async function AccountsPage() {
     redirect('/login')
   }
 
-  // Obtener cuentas propias + compartidas
+  const memberships = await db.query.accountMembers.findMany({
+    where: eq(accountMembers.userId, session.userId),
+    columns: {
+      accountId: true,
+    },
+  })
+
+  const memberAccountIds = memberships.map(m => m.accountId)
+
+  // Obtener cuentas propias + donde es miembro
   const accountsList = await db.query.accounts.findMany({
-    where: or(
-      eq(accounts.ownerId, session.userId),
-      eq(accounts.isShared, true)
-    ),
+    where: memberAccountIds.length > 0
+      ? or(
+          eq(accounts.ownerId, session.userId),
+          inArray(accounts.id, memberAccountIds)
+        )
+      : eq(accounts.ownerId, session.userId),
     with: {
       owner: {
         columns: {

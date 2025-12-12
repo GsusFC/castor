@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, castAnalytics, accounts } from '@/lib/db'
+import { db, castAnalytics, accounts, accountMembers } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { neynar } from '@/lib/farcaster/client'
 
@@ -21,16 +21,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'castHash and accountId required' }, { status: 400 })
     }
 
-    // Verificar que la cuenta pertenece al usuario
     const account = await db.query.accounts.findFirst({
-      where: and(
-        eq(accounts.id, accountId),
-        eq(accounts.ownerId, session.userId)
-      ),
+      where: eq(accounts.id, accountId),
     })
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
+    const hasAccess = session.role === 'admin' || account.ownerId === session.userId || !!membership
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Obtener métricas actuales del cast

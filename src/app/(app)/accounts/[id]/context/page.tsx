@@ -39,7 +39,7 @@ export default async function AccountContextPage({ params }: PageProps) {
   })
 
   const canEdit = isOwner || membership?.canEditContext || membership?.role === 'admin'
-  const canView = isOwner || !!membership || account.isShared
+  const canView = isOwner || !!membership
 
   if (!canView) {
     redirect('/accounts')
@@ -61,8 +61,8 @@ export default async function AccountContextPage({ params }: PageProps) {
     orderBy: (docs, { desc }) => [desc(docs.addedAt)],
   })
 
-  // Obtener miembros si es compartida
-  const members = account.isShared 
+  const canViewMembers = isOwner || membership?.role === 'admin'
+  const members = canViewMembers
     ? await db.query.accountMembers.findMany({
         where: eq(accountMembers.accountId, id),
         with: {
@@ -96,7 +96,7 @@ export default async function AccountContextPage({ params }: PageProps) {
             <div>
               <h1 className="text-xl font-semibold">Contexto de @{account.username}</h1>
               <p className="text-sm text-muted-foreground">
-                {account.isShared 
+                {members.length > 0 
                   ? `${members.length} miembros · ${documents.length} documentos`
                   : `${documents.length} documentos`
                 }
@@ -113,7 +113,7 @@ export default async function AccountContextPage({ params }: PageProps) {
         documents={documents}
         members={members}
         canEdit={canEdit}
-        isShared={account.isShared}
+        canManageMembers={canViewMembers}
         styleProfile={styleProfile}
       />
     </div>

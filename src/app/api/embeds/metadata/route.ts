@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { assertUrlIsSafe } from '@/lib/ssrf'
 
 interface UrlMetadata {
   url: string
@@ -6,6 +7,43 @@ interface UrlMetadata {
   description?: string
   image?: string
   favicon?: string
+}
+
+const MAX_HTML_BYTES = 1024 * 1024 // 1MB
+const FETCH_TIMEOUT_MS = 5000
+const MAX_REDIRECTS = 2
+
+async function fetchWithRedirects(url: URL): Promise<Response> {
+  let current = url
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    await assertUrlIsSafe(current)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
+    const response = await fetch(current.toString(), {
+      signal: controller.signal,
+      redirect: 'manual',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CastorBot/1.0)',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+    }).finally(() => clearTimeout(timeoutId))
+
+    // Handle redirects manually
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location')
+      if (!location) return response
+
+      const nextUrl = new URL(location, current)
+      current = nextUrl
+      continue
+    }
+
+    return response
+  }
+
+  throw new Error('Too many redirects')
 }
 
 function extractMetaContent(html: string, property: string): string | undefined {
@@ -93,28 +131,18 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Solo procesar URLs HTTP/HTTPS
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(url)
+  } catch {
     return NextResponse.json(
-      { error: 'Only HTTP/HTTPS URLs are supported', metadata: null },
+      { error: 'Invalid URL', metadata: null },
       { status: 400 }
     )
   }
 
   try {
-    // Fetch the URL with timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CastorBot/1.0)',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-    })
-
-    clearTimeout(timeoutId)
+    const response = await fetchWithRedirects(parsedUrl)
 
     if (!response.ok) {
       return NextResponse.json(
@@ -123,14 +151,58 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const html = await response.text()
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.toLowerCase().includes('text/html')) {
+      return NextResponse.json(
+        { error: 'URL did not return HTML', metadata: null },
+        { status: 400 }
+      )
+    }
+
+    const contentLengthHeader = response.headers.get('content-length')
+    if (contentLengthHeader) {
+      const len = Number(contentLengthHeader)
+      if (Number.isFinite(len) && len > MAX_HTML_BYTES) {
+        return NextResponse.json(
+          { error: 'Response too large', metadata: null },
+          { status: 400 }
+        )
+      }
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      return NextResponse.json(
+        { error: 'Failed to read response', metadata: null },
+        { status: 500 }
+      )
+    }
+
+    const chunks: Uint8Array[] = []
+    let received = 0
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value) continue
+
+      received += value.byteLength
+      if (received > MAX_HTML_BYTES) {
+        return NextResponse.json(
+          { error: 'Response too large', metadata: null },
+          { status: 400 }
+        )
+      }
+      chunks.push(value)
+    }
+
+    const html = new TextDecoder('utf-8').decode(Buffer.concat(chunks))
 
     const metadata: UrlMetadata = {
-      url,
+      url: parsedUrl.toString(),
       title: extractTitle(html),
       description: extractMetaContent(html, 'description'),
       image: extractMetaContent(html, 'image'),
-      favicon: extractFavicon(html, url),
+      favicon: extractFavicon(html, parsedUrl.toString()),
     }
 
     return NextResponse.json(

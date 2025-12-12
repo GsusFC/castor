@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
+import { ChannelHeader } from '@/components/feed/ChannelHeader'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ProfileView } from '@/components/profile/ProfileView'
 import { ConversationView } from '@/components/feed/ConversationView'
@@ -96,15 +98,56 @@ const NOTIFICATION_FILTERS: { value: NotificationFilter; label: string }[] = [
 ]
 
 export default function FeedPage() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
+  const [userSignerUuid, setUserSignerUuid] = useState<string | null>(null)
   const [userIsPro, setUserIsPro] = useState(false)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [headerHidden, setHeaderHidden] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
+
+  // Leer canal de URL (?channel=xxx)
+  const channelIdFromUrl = searchParams.get('channel')
+  
+  useEffect(() => {
+    if (!channelIdFromUrl) {
+      // Si no hay channel en URL, limpiar selección
+      setSelectedChannel(prev => {
+        if (prev) setActiveTab('home')
+        return null
+      })
+      return
+    }
+    
+    // Si el canal ya está seleccionado, no hacer nada
+    setSelectedChannel(prev => {
+      if (prev?.id === channelIdFromUrl) return prev
+      
+      // Fetch channel info async
+      fetch(`/api/channels/${channelIdFromUrl}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.channel) {
+            setSelectedChannel({
+              id: data.channel.id,
+              name: data.channel.name,
+              image_url: data.channel.image_url,
+            })
+          }
+        })
+        .catch(() => {
+          setSelectedChannel({ id: channelIdFromUrl, name: channelIdFromUrl })
+        })
+      
+      setActiveTab('channel')
+      // Retornar placeholder mientras carga
+      return { id: channelIdFromUrl, name: channelIdFromUrl }
+    })
+  }, [channelIdFromUrl])
   const [composeOpen, setComposeOpen] = useState(false)
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
@@ -156,6 +199,7 @@ export default function FeedPage() {
         if (data.fid) {
           setUserFid(data.fid)
           if (data.accountId) setUserAccountId(data.accountId)
+          if (data.signerUuid) setUserSignerUuid(data.signerUuid)
           if (data.isPro) setUserIsPro(data.isPro)
           // Cargar perfil completo
           const profileRes = await fetch(`/api/users/${data.fid}`)
@@ -381,6 +425,20 @@ export default function FeedPage() {
                   setActiveTab(tab.id)
                   if (tab.id !== 'channel') setSelectedChannel(null)
                 }}
+                onMouseEnter={() => {
+                  // Prefetch feed data on hover
+                  if (tab.id !== 'notifications' && tab.id !== activeTab) {
+                    const params = new URLSearchParams({ type: tab.id, limit: '20' })
+                    if (userFid && (tab.id === 'following' || tab.id === 'home')) {
+                      params.set('fid', userFid.toString())
+                    }
+                    queryClient.prefetchInfiniteQuery({
+                      queryKey: ['feed', tab.id, userFid, null],
+                      queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
+                      staleTime: 30 * 1000,
+                    })
+                  }
+                }}
                 className={cn(
                   "flex-1 h-9 px-3 text-sm font-medium rounded-full transition-colors",
                   activeTab === tab.id && activeTab !== 'channel'
@@ -428,8 +486,21 @@ export default function FeedPage() {
         </div>
       )}
 
+      {/* Channel Header */}
+      {activeTab === 'channel' && selectedChannel && (
+        <ChannelHeader 
+          channelId={selectedChannel.id} 
+          onBack={() => {
+            setSelectedChannel(null)
+            setActiveTab('home')
+            window.history.pushState({}, '', '/')
+          }}
+          signerUuid={userSignerUuid || undefined}
+        />
+      )}
+
       {/* Content */}
-      <div className={cn("space-y-4", activeTab !== 'notifications' && "mt-4")}>
+      <div className={cn("space-y-4", activeTab !== 'notifications' && activeTab !== 'channel' && "mt-4")}>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

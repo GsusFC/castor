@@ -34,7 +34,6 @@ interface Account {
   signerStatus: string
   type: string
   isPremium: boolean
-  isShared: boolean
   ownerId: string | null
   owner: AccountOwner | null
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, accountMembers } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { eq, or } from 'drizzle-orm'
+import { eq, or, inArray } from 'drizzle-orm'
 
 /**
  * GET /api/accounts
@@ -20,12 +20,23 @@ export async function GET() {
       )
     }
 
-    // Obtener cuentas propias + compartidas
+    const memberships = await db.query.accountMembers.findMany({
+      where: eq(accountMembers.userId, session.userId),
+      columns: {
+        accountId: true,
+      },
+    })
+
+    const memberAccountIds = memberships.map(m => m.accountId)
+
+    // Obtener cuentas propias + donde es miembro
     const userAccounts = await db.query.accounts.findMany({
-      where: or(
-        eq(accounts.ownerId, session.userId),
-        eq(accounts.isShared, true)
-      ),
+      where: memberAccountIds.length > 0
+        ? or(
+            eq(accounts.ownerId, session.userId),
+            inArray(accounts.id, memberAccountIds)
+          )
+        : eq(accounts.ownerId, session.userId),
       with: {
         owner: {
           columns: {

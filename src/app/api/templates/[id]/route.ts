@@ -1,44 +1,38 @@
 import { NextRequest } from 'next/server'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
-import { getSession, canAccess, canModify } from '@/lib/auth'
+import { eq, and, exists } from 'drizzle-orm'
+import { getSession, canAccess } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, updateTemplateSchema } from '@/lib/validations'
 
 // Helper para obtener template con verificación de permisos
 async function getTemplateWithAuth(id: string, session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
-  const [template] = await db
-    .select()
+  const [row] = await db
+    .select({
+      template: templates,
+      ownerId: accounts.ownerId,
+      isMember: exists(
+        db
+          .select({ id: accountMembers.id })
+          .from(accountMembers)
+          .where(and(eq(accountMembers.userId, session.userId), eq(accountMembers.accountId, accounts.id)))
+      ),
+    })
     .from(templates)
+    .innerJoin(accounts, eq(accounts.id, templates.accountId))
     .where(eq(templates.id, id))
 
-  if (!template) {
+  if (!row) {
     return { error: ApiErrors.notFound('Template') }
   }
 
-  // Obtener la cuenta asociada para verificar permisos
-  const account = await db.query.accounts.findFirst({
-    where: eq(accounts.id, template.accountId),
-  })
-
-  if (!account) {
-    return { error: ApiErrors.notFound('Account') }
-  }
-
-  const membership = await db.query.accountMembers.findFirst({
-    where: and(
-      eq(accountMembers.accountId, account.id),
-      eq(accountMembers.userId, session.userId)
-    ),
-  })
-
-  const hasAccess = canAccess(session, { ownerId: account.ownerId, isMember: !!membership })
+  const hasAccess = canAccess(session, { ownerId: row.ownerId, isMember: Boolean(row.isMember) })
   if (!hasAccess) {
     return { error: ApiErrors.forbidden('No access to this template') }
   }
 
-  return { template, account }
+  return { template: row.template }
 }
 
 // GET /api/templates/[id] - Obtener un template específico

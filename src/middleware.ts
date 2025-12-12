@@ -25,6 +25,7 @@ const readOnlyPublicApis = [
   '/api/feed',       // Feed es público para lectura
   '/api/users/',     // Perfiles de usuario son públicos
   '/api/search',     // Búsqueda es pública
+  '/api/leaderboard',
 ]
 
 // APIs que requieren auth pero POST es público (para AI)

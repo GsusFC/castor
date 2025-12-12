@@ -8,6 +8,16 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     css: false,
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+    ],
+    exclude: [
+      '**/node_modules/**',
+      '**/.pnpm/**',
+      'e2e/**',
+      '**/e2e/**',
+    ],
     coverage: {
       provider: 'v8',
     },

@@ -1,4 +1,4 @@
-import { db, accounts as accountsTable } from '@/lib/db'
+import { db, accounts as accountsTable, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
 import { eq, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
@@ -14,12 +14,23 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
+  const memberships = await db.query.accountMembers.findMany({
+    where: eq(accountMembers.userId, session.userId),
+    columns: {
+      accountId: true,
+    },
+  })
+
+  const memberAccountIds = memberships.map(m => m.accountId)
+
   // Obtener cuentas del usuario
   const accounts = await db.query.accounts.findMany({
-    where: or(
-      eq(accountsTable.ownerId, session.userId),
-      eq(accountsTable.isShared, true)
-    ),
+    where: memberAccountIds.length > 0
+      ? or(
+          eq(accountsTable.ownerId, session.userId),
+          inArray(accountsTable.id, memberAccountIds)
+        )
+      : eq(accountsTable.ownerId, session.userId),
     with: {
       owner: {
         columns: {
@@ -71,7 +82,6 @@ export default async function DashboardPage() {
     signerStatus: account.signerStatus,
     type: account.type,
     isPremium: account.isPremium,
-    isShared: account.isShared,
     ownerId: account.ownerId,
     owner: account.owner,
   }))

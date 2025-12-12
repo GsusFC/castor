@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { WebVitalsProvider } from '@/components/providers/WebVitalsProvider'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -66,7 +67,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider>
-          {children}
+          <WebVitalsProvider>
+            {children}
+          </WebVitalsProvider>
           <Toaster position="bottom-right" richColors />
         </ThemeProvider>
       </body>

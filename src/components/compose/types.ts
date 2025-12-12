@@ -45,7 +45,6 @@ export interface Account {
   pfpUrl: string | null
   isPremium?: boolean
   signerStatus?: string
-  isShared?: boolean
   ownerId?: string | null
 }
 

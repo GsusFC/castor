@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       ),
     })
 
-    if (!isOwner && !membership && !account.isShared) {
+    if (session.role !== 'admin' && !isOwner && !membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

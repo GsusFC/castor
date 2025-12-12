@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { db, accounts } from '@/lib/db'
+import { db, accounts, accountMembers } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
 import { getSession, canAccess } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
@@ -32,7 +32,14 @@ export async function GET(request: NextRequest) {
       return ApiErrors.notFound('Account')
     }
 
-    if (!canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })) {
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
+    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
       return ApiErrors.forbidden('No access to this account')
     }
 
@@ -76,7 +83,14 @@ export async function POST(request: NextRequest) {
       return ApiErrors.notFound('Account')
     }
 
-    if (!canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })) {
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
+    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
       return ApiErrors.forbidden('No access to this account')
     }
 

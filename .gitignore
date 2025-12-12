@@ -10,6 +10,9 @@ build
 # Database
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+backups/
 
 # Environment
 .env

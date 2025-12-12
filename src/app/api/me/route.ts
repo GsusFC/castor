@@ -23,6 +23,7 @@ export async function GET() {
       displayName: session.displayName,
       pfpUrl: session.pfpUrl,
       accountId: account?.id || null,
+      signerUuid: account?.signerUuid || null,
       isPro: account?.isPremium || false,
     })
   } catch (error) {

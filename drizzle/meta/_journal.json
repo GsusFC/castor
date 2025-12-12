@@ -64,6 +64,13 @@
       "when": 1765451455568,
       "tag": "0008_colorful_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1765522513137,
+      "tag": "0009_broken_firebird",
+      "breakpoints": true
     }
   ]
 }

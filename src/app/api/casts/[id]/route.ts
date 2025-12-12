@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { db, scheduledCasts, castMedia } from '@/lib/db'
+import { db, scheduledCasts, castMedia, accountMembers } from '@/lib/db'
 import { getSession, canAccess } from '@/lib/auth'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, updateCastSchema } from '@/lib/validations'
@@ -24,10 +24,16 @@ async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnTy
     return { error: ApiErrors.notFound('Account') }
   }
 
+  const membership = await db.query.accountMembers.findFirst({
+    where: and(
+      eq(accountMembers.accountId, cast.accountId),
+      eq(accountMembers.userId, session.userId)
+    ),
+  })
+
   const hasAccess = canAccess(session, {
     ownerId: cast.account.ownerId,
-    isShared: cast.account.isShared,
-    createdById: cast.createdById,
+    isMember: !!membership,
   })
 
   if (!hasAccess) {

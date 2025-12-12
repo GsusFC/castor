@@ -53,7 +53,6 @@ describe('UnifiedDashboard', () => {
         signerStatus: 'approved',
         type: 'personal',
         isPremium: false,
-        isShared: false,
         ownerId: null,
         owner: null,
       },

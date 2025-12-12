@@ -88,11 +88,16 @@ export async function GET(request: NextRequest) {
       
       if (extractedHash) {
         // Buscar por hash extraído
-        const response = await neynar.lookupCastByHashOrWarpcastUrl({
-          identifier: extractedHash,
-          type: 'hash',
-        })
-        castData = response.cast
+        try {
+          const response = await neynar.lookupCastByHashOrWarpcastUrl({
+            identifier: extractedHash,
+            type: 'hash',
+          })
+          castData = response.cast
+        } catch {
+          // Cast no encontrado con ese hash
+          return NextResponse.json({ error: 'Cast not found' }, { status: 404 })
+        }
       } else {
         // Normalizar URL (farcaster.xyz -> warpcast.com) y buscar por URL
         const normalizedUrl = normalizeUrl(url)

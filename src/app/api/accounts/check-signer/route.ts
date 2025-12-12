@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
         type: 'personal' as const,
         isPremium: user.isPremium || false,
         ownerId: session?.userId || null,
-        isShared: false,
       }
 
       await db.insert(accounts).values(newAccount)

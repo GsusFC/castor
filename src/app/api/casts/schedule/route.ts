@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { db, scheduledCasts, accounts, castMedia } from '@/lib/db'
-import { eq } from 'drizzle-orm'
+import { db, scheduledCasts, accounts, castMedia, accountMembers } from '@/lib/db'
+import { eq, and } from 'drizzle-orm'
 import { generateId } from '@/lib/utils'
 import { getSession, canAccess } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
@@ -57,8 +57,15 @@ export async function POST(request: NextRequest) {
       return ApiErrors.notFound('Account')
     }
 
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+    })
+
     // Verificar permisos
-    if (!canAccess(session, { ownerId: account.ownerId, isShared: account.isShared })) {
+    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
       return ApiErrors.forbidden('No access to this account')
     }
 

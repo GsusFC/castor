@@ -56,10 +56,18 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
     expect(res.status).toBe(404)
   })
 
+  it('returns 409 when account is personal (DELETE)', async () => {
+    getSessionMock.mockResolvedValueOnce({ userId: 'u1', role: 'admin' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u1', type: 'personal' })
+
+    const res = await DELETE({} as any, { params: Promise.resolve({ id: 'acc-1', memberId: 'm1' }) })
+    expect(res.status).toBe(409)
+  })
+
   it('returns 403 when requester cannot manage', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u1', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce({ role: 'member' }) // requesterMembership
 
@@ -70,7 +78,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('returns 404 when member not found', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce(null) // member
@@ -82,7 +90,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('returns 400 when trying to remove account owner', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce({ id: 'm1', userId: 'u-owner', role: 'owner' }) // member
@@ -94,7 +102,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('returns 200 when removed', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce({ id: 'm1', userId: 'u2', role: 'member' }) // member
@@ -126,10 +134,19 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
     expect(res.status).toBe(404)
   })
 
+  it('PATCH returns 409 when account is personal', async () => {
+    getSessionMock.mockResolvedValueOnce({ userId: 'u1', role: 'admin' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u1', type: 'personal' })
+
+    const req = { json: async () => ({ role: 'admin' }) } as any
+    const res = await PATCH(req, { params: Promise.resolve({ id: 'acc-1', memberId: 'm1' }) })
+    expect(res.status).toBe(409)
+  })
+
   it('PATCH returns 403 when requester cannot manage', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u1', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst.mockResolvedValueOnce({ role: 'member' })
 
     const req = { json: async () => ({ role: 'admin' }) } as any
@@ -140,7 +157,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('PATCH returns 404 when member not found', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce(null) // member
@@ -153,7 +170,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('PATCH returns 400 when trying to modify account owner', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce({ id: 'm1', userId: 'u-owner', role: 'owner', canEditContext: true }) // member
@@ -166,7 +183,7 @@ describe('/api/accounts/[id]/members/[memberId]', () => {
   it('PATCH returns 200 and updated member', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
-    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner' })
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' })
     dbMock.query.accountMembers.findFirst
       .mockResolvedValueOnce(null) // requesterMembership
       .mockResolvedValueOnce({ id: 'm1', userId: 'u2', role: 'member', canEditContext: false }) // member

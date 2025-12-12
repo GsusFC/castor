@@ -20,11 +20,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       where: eq(accounts.id, accountId),
       columns: {
         ownerId: true,
+        type: true,
       },
     })
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    if (account.type === 'personal') {
+      return NextResponse.json({ error: 'Personal accounts cannot have members' }, { status: 409 })
     }
 
     const requesterMembership = await db.query.accountMembers.findFirst({
@@ -117,11 +122,16 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       where: eq(accounts.id, accountId),
       columns: {
         ownerId: true,
+        type: true,
       },
     })
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    if (account.type === 'personal') {
+      return NextResponse.json({ error: 'Personal accounts cannot have members' }, { status: 409 })
     }
 
     const requesterMembership = await db.query.accountMembers.findFirst({

@@ -60,6 +60,17 @@ describe('/api/accounts/[id]/members', () => {
     expect(res.status).toBe(403)
   })
 
+  it('GET returns 409 when account is personal', async () => {
+    getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
+
+    dbMock.query.accounts.findFirst
+      .mockResolvedValueOnce({ ownerId: 'u-owner' }) // canViewMembers
+      .mockResolvedValueOnce({ type: 'personal' }) // account type check
+
+    const res = await GET({} as any, { params: Promise.resolve({ id: 'acc-1' }) })
+    expect(res.status).toBe(409)
+  })
+
   it('POST returns 401 when not authenticated', async () => {
     getSessionMock.mockResolvedValueOnce(null)
 
@@ -93,12 +104,32 @@ describe('/api/accounts/[id]/members', () => {
     expect(String(body.error)).toContain('User not found')
   })
 
+  it('POST returns 409 when account is personal', async () => {
+    getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
+
+    dbMock.query.accounts.findFirst
+      .mockResolvedValueOnce({ ownerId: 'u-owner' }) // canManageMembers
+      .mockResolvedValueOnce({ ownerId: 'u-owner', type: 'personal' }) // account type check
+
+    dbMock.query.users.findFirst.mockResolvedValueOnce({
+      id: 'u2',
+      username: 'alice',
+      displayName: null,
+      pfpUrl: null,
+    })
+
+    const req = { json: async () => ({ username: 'alice' }) } as any
+    const res = await POST(req, { params: Promise.resolve({ id: 'acc-1' }) })
+
+    expect(res.status).toBe(409)
+  })
+
   it('POST returns 409 when user is already a member', async () => {
     getSessionMock.mockResolvedValueOnce({ userId: 'u-owner', role: 'member' })
 
     dbMock.query.accounts.findFirst
       .mockResolvedValueOnce({ ownerId: 'u-owner' }) // canManageMembers
-      .mockResolvedValueOnce({ ownerId: 'u-owner' }) // account exists check
+      .mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' }) // account exists check
 
     dbMock.query.users.findFirst.mockResolvedValueOnce({
       id: 'u2',
@@ -121,7 +152,7 @@ describe('/api/accounts/[id]/members', () => {
 
     dbMock.query.accounts.findFirst
       .mockResolvedValueOnce({ ownerId: 'u-owner' }) // canManageMembers
-      .mockResolvedValueOnce({ ownerId: 'u-owner' }) // account exists check
+      .mockResolvedValueOnce({ ownerId: 'u-owner', type: 'business' }) // account exists check
 
     dbMock.query.users.findFirst.mockResolvedValueOnce({
       id: 'u2',

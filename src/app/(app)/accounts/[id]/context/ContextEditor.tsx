@@ -752,7 +752,7 @@ export function ContextEditor({
       </section>
 
       {/* Members */}
-      {(members.length > 0 || canManageMembers) && (
+      {account.type === 'business' && (members.length > 0 || canManageMembers) && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

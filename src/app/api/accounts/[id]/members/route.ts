@@ -91,6 +91,21 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const account = await db.query.accounts.findFirst({
+      where: eq(accounts.id, accountId),
+      columns: {
+        type: true,
+      },
+    })
+
+    if (!account) {
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    if (account.type === 'personal') {
+      return NextResponse.json({ error: 'Personal accounts cannot have members' }, { status: 409 })
+    }
+
     const members = await db.query.accountMembers.findMany({
       where: eq(accountMembers.accountId, accountId),
       with: {
@@ -166,11 +181,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: eq(accounts.id, accountId),
       columns: {
         ownerId: true,
+        type: true,
       },
     })
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    }
+
+    if (account.type === 'personal') {
+      return NextResponse.json({ error: 'Personal accounts cannot have members' }, { status: 409 })
     }
 
     if (account.ownerId === user.id) {

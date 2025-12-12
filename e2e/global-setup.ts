@@ -63,7 +63,7 @@ export default async function globalSetup() {
       null,
       'e2e-signer-uuid',
       'approved',
-      'personal',
+      'business',
       0,
       'e2e-user-owner',
       now,

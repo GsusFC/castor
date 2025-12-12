@@ -5,7 +5,7 @@ import { AddAccountButton } from './add-account-button'
 import { AccountCard } from './AccountCard'
 import { AccountsClient } from './AccountsClient'
 import { getSession } from '@/lib/auth'
-import { eq, or, inArray } from 'drizzle-orm'
+import { and, eq, exists, or } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -18,23 +18,17 @@ export default async function AccountsPage() {
     redirect('/login')
   }
 
-  const memberships = await db.query.accountMembers.findMany({
-    where: eq(accountMembers.userId, session.userId),
-    columns: {
-      accountId: true,
-    },
-  })
-
-  const memberAccountIds = memberships.map(m => m.accountId)
-
   // Obtener cuentas propias + donde es miembro
   const accountsList = await db.query.accounts.findMany({
-    where: memberAccountIds.length > 0
-      ? or(
-          eq(accounts.ownerId, session.userId),
-          inArray(accounts.id, memberAccountIds)
-        )
-      : eq(accounts.ownerId, session.userId),
+    where: or(
+      eq(accounts.ownerId, session.userId),
+      exists(
+        db
+          .select({ id: accountMembers.id })
+          .from(accountMembers)
+          .where(and(eq(accountMembers.userId, session.userId), eq(accountMembers.accountId, accounts.id)))
+      )
+    ),
     with: {
       owner: {
         columns: {

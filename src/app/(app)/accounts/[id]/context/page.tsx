@@ -20,10 +20,17 @@ export default async function AccountContextPage({ params }: PageProps) {
     redirect('/login')
   }
 
-  // Obtener cuenta
-  const account = await db.query.accounts.findFirst({
-    where: eq(accounts.id, id),
-  })
+  const [account, membership] = await Promise.all([
+    db.query.accounts.findFirst({
+      where: eq(accounts.id, id),
+    }),
+    db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, id),
+        eq(accountMembers.userId, session.userId)
+      ),
+    }),
+  ])
 
   if (!account) {
     notFound()
@@ -31,12 +38,6 @@ export default async function AccountContextPage({ params }: PageProps) {
 
   // Verificar permisos: owner o miembro con canEditContext
   const isOwner = account.ownerId === session.userId
-  const membership = await db.query.accountMembers.findFirst({
-    where: and(
-      eq(accountMembers.accountId, id),
-      eq(accountMembers.userId, session.userId)
-    ),
-  })
 
   const canEdit = isOwner || membership?.canEditContext || membership?.role === 'admin'
   const canView = isOwner || !!membership
@@ -45,38 +46,35 @@ export default async function AccountContextPage({ params }: PageProps) {
     redirect('/accounts')
   }
 
-  // Obtener perfil de estilo automático de Neynar (si existe)
-  const styleProfile = await db.query.userStyleProfiles.findFirst({
-    where: eq(userStyleProfiles.fid, account.fid),
-  })
-
-  // Obtener knowledge base
-  const knowledgeBase = await db.query.accountKnowledgeBase.findFirst({
-    where: eq(accountKnowledgeBase.accountId, id),
-  })
-
-  // Obtener documentos
-  const documents = await db.query.accountDocuments.findMany({
-    where: eq(accountDocuments.accountId, id),
-    orderBy: (docs, { desc }) => [desc(docs.addedAt)],
-  })
-
   const canViewMembers = isOwner || membership?.role === 'admin'
-  const members = canViewMembers
-    ? await db.query.accountMembers.findMany({
-        where: eq(accountMembers.accountId, id),
-        with: {
-          user: {
-            columns: {
-              id: true,
-              username: true,
-              displayName: true,
-              pfpUrl: true,
+
+  const [styleProfile, knowledgeBase, documents, members] = await Promise.all([
+    db.query.userStyleProfiles.findFirst({
+      where: eq(userStyleProfiles.fid, account.fid),
+    }),
+    db.query.accountKnowledgeBase.findFirst({
+      where: eq(accountKnowledgeBase.accountId, id),
+    }),
+    db.query.accountDocuments.findMany({
+      where: eq(accountDocuments.accountId, id),
+      orderBy: (docs, { desc }) => [desc(docs.addedAt)],
+    }),
+    canViewMembers
+      ? db.query.accountMembers.findMany({
+          where: eq(accountMembers.accountId, id),
+          with: {
+            user: {
+              columns: {
+                id: true,
+                username: true,
+                displayName: true,
+                pfpUrl: true,
+              },
             },
           },
-        },
-      })
-    : []
+        })
+      : Promise.resolve([]),
+  ])
 
   return (
     <div className="max-w-4xl mx-auto">

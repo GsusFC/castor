@@ -1,24 +1,21 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
-import { NotificationCard } from '@/components/feed/NotificationCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { ChannelHeader } from '@/components/feed/ChannelHeader'
 import { RightSidebar } from '@/components/feed/RightSidebar'
-import { ProfileView } from '@/components/profile/ProfileView'
 import { ConversationView } from '@/components/feed/ConversationView'
+import { ProfileView } from '@/components/profile/ProfileView'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
 import { Loader2, User } from 'lucide-react'
-import { useNotificationStream } from '@/hooks'
-import Link from 'next/link'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 
-type FeedTab = 'home' | 'following' | 'trending' | 'notifications' | 'channel'
+type FeedTab = 'home' | 'following' | 'trending' | 'channel'
 
 interface SelectedChannel {
   id: string
@@ -30,7 +27,6 @@ interface UserProfile {
   pfpUrl?: string
   username?: string
 }
-type NotificationFilter = 'all' | 'reply' | 'mention' | 'like' | 'recast' | 'follow'
 
 interface Cast {
   hash: string
@@ -87,33 +83,38 @@ interface Cast {
   }
 }
 
-const NOTIFICATION_FILTERS: { value: NotificationFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'reply', label: 'Replies' },
-  { value: 'mention', label: 'Mentions' },
-  { value: 'like', label: 'Likes' },
-  { value: 'recast', label: 'Recasts' },
-  { value: 'follow', label: 'Follows' },
-]
-
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
-  const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
   const [userSignerUuid, setUserSignerUuid] = useState<string | null>(null)
   const [userIsPro, setUserIsPro] = useState(false)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
-  const [headerHidden, setHeaderHidden] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
 
   const [channelIdFromUrl, setChannelIdFromUrl] = useState<string | null>(null)
+  const [castHashFromUrl, setCastHashFromUrl] = useState<string | null>(null)
+  const [usernameFromUrl, setUsernameFromUrl] = useState<string | null>(null)
 
   // Leer canal de URL (?channel=xxx)
   useEffect(() => {
-    setChannelIdFromUrl(new URLSearchParams(window.location.search).get('channel'))
+    const params = new URLSearchParams(window.location.search)
+    setChannelIdFromUrl(params.get('channel'))
+    setCastHashFromUrl(params.get('cast'))
+    setUsernameFromUrl(params.get('user'))
   }, [])
+
+  useEffect(() => {
+    if (!castHashFromUrl) return
+    setSelectedConversationHash(castHashFromUrl)
+  }, [castHashFromUrl])
+
+  useEffect(() => {
+    if (!usernameFromUrl) return
+    setSelectedConversationHash(null)
+    setSelectedProfileUsername(usernameFromUrl)
+  }, [usernameFromUrl])
   
   useEffect(() => {
     if (!channelIdFromUrl) {
@@ -154,42 +155,52 @@ export default function FeedPage() {
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
-  const [selectedCastHash, setSelectedCastHash] = useState<string | null>(null)
-  const lastScrollY = useRef(0)
+  const [selectedConversationHash, setSelectedConversationHash] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  // Notificaciones en tiempo real
-  useNotificationStream({
-    onNotification: (notification) => {
-      // Invalidar queries de notificaciones cuando llegue algo nuevo
-      if (notification.type !== 'connected') {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      }
-    },
-  })
+  const FeedCastSkeleton = () => (
+    <div className="p-4 border border-border rounded-xl bg-card animate-pulse">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-muted/60 shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="h-3 w-36 rounded bg-muted/60" />
+          <div className="h-3 w-24 rounded bg-muted/50" />
+        </div>
+      </div>
+      <div className="mt-3 space-y-2">
+        <div className="h-3 w-full rounded bg-muted/60" />
+        <div className="h-3 w-11/12 rounded bg-muted/50" />
+        <div className="h-3 w-3/4 rounded bg-muted/50" />
+      </div>
+      <div className="mt-3 h-40 rounded-xl bg-muted/40" />
+    </div>
+  )
 
-  // Detectar cuando el header está oculto
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      const scrollingDown = currentScrollY > lastScrollY.current
-      
-      if (currentScrollY > 100 && scrollingDown) {
-        setHeaderHidden(true)
-      } else if (currentScrollY < lastScrollY.current) {
-        setHeaderHidden(false)
-      }
-      
-      if (currentScrollY < 50) {
-        setHeaderHidden(false)
-      }
-      
-      lastScrollY.current = currentScrollY
+    const handleOpenCast = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { castHash?: string } | undefined
+      const castHash = detail?.castHash
+      if (!castHash) return
+      setSelectedProfileUsername(null)
+      setSelectedConversationHash(castHash)
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    const handleOpenUser = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { username?: string } | undefined
+      const username = detail?.username
+      if (!username) return
+      setSelectedConversationHash(null)
+      setSelectedProfileUsername(username)
+    }
+
+    window.addEventListener('castor:feed:open-cast', handleOpenCast)
+    window.addEventListener('castor:feed:open-user', handleOpenUser)
+
+    return () => {
+      window.removeEventListener('castor:feed:open-cast', handleOpenCast)
+      window.removeEventListener('castor:feed:open-user', handleOpenUser)
+    }
   }, [])
 
   // Obtener FID y perfil del usuario logueado
@@ -232,7 +243,7 @@ export default function FeedPage() {
     queryKey: ['feed', activeTab, userFid, selectedChannel?.id],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
-        type: activeTab === 'notifications' ? 'trending' : activeTab,
+        type: activeTab,
         limit: '10',
       })
       if (pageParam) params.set('cursor', pageParam)
@@ -248,23 +259,6 @@ export default function FeedPage() {
     },
     getNextPageParam: (lastPage) => lastPage.next?.cursor,
     initialPageParam: undefined as string | undefined,
-    enabled: activeTab !== 'notifications',
-  })
-
-  // Notifications query
-  const notificationsQuery = useInfiniteQuery({
-    queryKey: ['notifications', userFid, notificationFilter],
-    queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams({ limit: '25' })
-      if (pageParam) params.set('cursor', pageParam)
-      if (userFid) params.set('fid', userFid.toString())
-
-      const res = await fetch(`/api/feed/notifications?${params}`)
-      return res.json()
-    },
-    getNextPageParam: (lastPage) => lastPage.next?.cursor,
-    initialPageParam: undefined as string | undefined,
-    enabled: activeTab === 'notifications' && !!userFid,
   })
 
   // Flatten and dedupe casts by hash
@@ -274,49 +268,39 @@ export default function FeedPage() {
       cast?.hash && self.findIndex((c: Cast) => c?.hash === cast.hash) === index
   )
   
-  // Flatten and filter notifications
-  const allNotifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) || []
-  const notifications = notificationFilter === 'all' 
-    ? allNotifications 
-    : allNotifications.filter((n: { type: string }) => n.type === notificationFilter)
+  const isLoading = feedQuery.isLoading
+  const isFetchingNextPage = feedQuery.isFetchingNextPage
+  const hasMore = feedQuery.hasNextPage
 
-  const isLoading = activeTab === 'notifications' 
-    ? notificationsQuery.isLoading 
-    : feedQuery.isLoading
+  const loadMoreLockRef = useRef(false)
 
-  const hasMore = activeTab === 'notifications'
-    ? notificationsQuery.hasNextPage
-    : feedQuery.hasNextPage
+  useEffect(() => {
+    if (isFetchingNextPage) return
+    loadMoreLockRef.current = false
+  }, [isFetchingNextPage])
 
   const loadMore = useCallback(() => {
-    if (activeTab === 'notifications') {
-      if (!notificationsQuery.isFetchingNextPage) {
-        notificationsQuery.fetchNextPage()
-      }
-    } else {
-      if (!feedQuery.isFetchingNextPage) {
-        feedQuery.fetchNextPage()
-      }
-    }
-  }, [activeTab, feedQuery, notificationsQuery])
+    if (!hasMore || isLoading || isFetchingNextPage) return
+    if (loadMoreLockRef.current) return
+    loadMoreLockRef.current = true
+
+    feedQuery.fetchNextPage()
+  }, [feedQuery, hasMore, isFetchingNextPage, isLoading])
 
   // Infinite scroll con IntersectionObserver
   useEffect(() => {
     const target = loadMoreRef.current
     if (!target) return
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-          loadMore()
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    )
+    const observer = new IntersectionObserver((entries) => {
+      const first = entries[0]
+      if (!first?.isIntersecting) return
+      loadMore()
+    }, { threshold: 0.1, rootMargin: '100px' })
 
     observer.observe(target)
     return () => observer.disconnect()
-  }, [hasMore, isLoading, loadMore])
+  }, [loadMore])
 
   // Handler para Quote - abre composer con URL del cast
   const handleQuote = (castUrl: string) => {
@@ -346,22 +330,31 @@ export default function FeedPage() {
       <div className="flex-1 min-w-0 max-w-2xl">
       
       {/* Show Conversation, Profile or Feed */}
-      {selectedCastHash ? (
+      {selectedConversationHash ? (
         <ConversationView
-          castHash={selectedCastHash}
-          onBack={() => setSelectedCastHash(null)}
-          onSelectUser={setSelectedProfileUsername}
-          onSelectCast={setSelectedCastHash}
-          onReply={(c) => {
+          castHash={selectedConversationHash}
+          onBack={() => {
+            setSelectedConversationHash(null)
+          }}
+          onSelectUser={(username) => {
+            setSelectedConversationHash(null)
+            setSelectedProfileUsername(username)
+          }}
+          onSelectCast={(hash) => setSelectedConversationHash(hash)}
+          onQuote={handleQuote}
+          onReply={(c: any) => {
+            const author = c?.author
+            if (!c?.hash || !c?.text || !c?.timestamp || !author?.fid || !author?.username) return
+
             setReplyToCast({
               hash: c.hash,
-              text: '',
-              timestamp: new Date().toISOString(),
+              text: c.text,
+              timestamp: c.timestamp,
               author: {
-                fid: c.author.fid,
-                username: c.author.username,
-                displayName: c.author.username,
-                pfpUrl: null,
+                fid: author.fid,
+                username: author.username,
+                displayName: author.display_name ?? null,
+                pfpUrl: author.pfp_url ?? null,
               },
             })
             setComposeOpen(true)
@@ -374,6 +367,9 @@ export default function FeedPage() {
           username={selectedProfileUsername} 
           onBack={() => setSelectedProfileUsername(null)}
           onSelectUser={setSelectedProfileUsername}
+          onOpenCast={(castHash: string) => {
+            setSelectedConversationHash(castHash)
+          }}
           onQuote={handleQuote}
           onReply={(c) => {
             setReplyToCast({
@@ -419,7 +415,6 @@ export default function FeedPage() {
               { id: 'home', label: 'Home' },
               { id: 'following', label: 'Following' },
               { id: 'trending', label: 'Trending' },
-              { id: 'notifications', label: 'Notifs' },
             ] as { id: FeedTab; label: string }[]).map((tab) => (
               <button
                 key={tab.id}
@@ -429,7 +424,7 @@ export default function FeedPage() {
                 }}
                 onMouseEnter={() => {
                   // Prefetch feed data on hover
-                  if (tab.id !== 'notifications' && tab.id !== activeTab) {
+                  if (tab.id !== activeTab) {
                     const params = new URLSearchParams({ type: tab.id, limit: '20' })
                     if (userFid && (tab.id === 'following' || tab.id === 'home')) {
                       params.set('fid', userFid.toString())
@@ -444,7 +439,7 @@ export default function FeedPage() {
                   }
                 }}
                 className={cn(
-                  "flex-1 h-9 px-3 text-sm font-medium rounded-full transition-colors",
+                  "relative flex-1 h-9 px-3 text-sm font-medium rounded-full transition-colors",
                   activeTab === tab.id && activeTab !== 'channel'
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -470,26 +465,6 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Notification Filters */}
-      {activeTab === 'notifications' && (
-        <div className="flex items-center justify-center gap-1 mt-4 mb-4 overflow-x-auto pb-2">
-          {NOTIFICATION_FILTERS.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setNotificationFilter(filter.value)}
-              className={cn(
-                "px-3 py-1.5 text-sm rounded-md whitespace-nowrap transition-colors",
-                notificationFilter === filter.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Channel Header */}
       {activeTab === 'channel' && selectedChannel && (
         <ChannelHeader 
@@ -504,34 +479,17 @@ export default function FeedPage() {
       )}
 
       {/* Content */}
-      <div className={cn("space-y-4", activeTab !== 'notifications' && activeTab !== 'channel' && "mt-4")}>
+      <div className={cn("space-y-4", activeTab !== 'channel' && "mt-4")}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : activeTab === 'notifications' ? (
-          notifications.length > 0 ? (
-            notifications.map((notification: { type: string; most_recent_timestamp?: string }, i: number) => (
-              <NotificationCard 
-                key={`${notification.type}-${notification.most_recent_timestamp}-${i}`} 
-                notification={notification as any}
-                onUserClick={(username) => setSelectedProfileUsername(username)}
-                onCastClick={(castHash) => {
-                  // Mostrar conversación inline
-                  setSelectedCastHash(castHash)
-                }}
-              />
-            ))
-          ) : (
-            <p className="text-center text-muted-foreground py-12">
-              No hay notificaciones
-            </p>
-          )
+          Array.from({ length: 6 }).map((_, i) => <FeedCastSkeleton key={`cast-skel-${i}`} />)
         ) : casts.length > 0 ? (
           casts.map((cast: Cast) => (
             <CastCard
               key={cast.hash}
               cast={cast}
+              onOpenCast={(castHash) => {
+                setSelectedConversationHash(castHash)
+              }}
               onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
               onQuote={handleQuote}
               onDelete={handleDelete}
@@ -562,7 +520,7 @@ export default function FeedPage() {
 
         {/* Load More - Infinite Scroll Trigger */}
         <div ref={loadMoreRef} className="py-4">
-          {(feedQuery.isFetchingNextPage || notificationsQuery.isFetchingNextPage) && (
+          {feedQuery.isFetchingNextPage && (
             <div className="flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
@@ -575,7 +533,12 @@ export default function FeedPage() {
 
       {/* Right Sidebar - desktop only, sticky */}
       <div className="hidden lg:block w-80 shrink-0 sticky top-0 h-screen py-6">
-        <RightSidebar onSelectUser={setSelectedProfileUsername} />
+        <RightSidebar
+          onSelectUser={setSelectedProfileUsername}
+          onSelectCast={(castHash: string) => {
+            setSelectedConversationHash(castHash)
+          }}
+        />
       </div>
 
       {/* Mini App Drawer */}

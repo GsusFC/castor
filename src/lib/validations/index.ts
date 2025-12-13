@@ -20,6 +20,7 @@ export const paginationSchema = z.object({
 export const scheduleCastSchema = z.object({
   accountId: z.string().min(1, 'accountId is required'),
   content: z.string().max(MAX_CHARS_PRO, 'Content too long'),
+  idempotencyKey: z.string().min(8, 'idempotencyKey is too short').max(128, 'idempotencyKey is too long').optional(),
   scheduledAt: z.string().datetime().optional(),
   channelId: z.string().nullable().optional(),
   parentHash: z.string().nullable().optional(),
@@ -39,6 +40,41 @@ export const scheduleCastSchema = z.object({
   (data) => data.isDraft || data.scheduledAt,
   { message: 'scheduledAt is required for scheduled casts', path: ['scheduledAt'] }
 )
+
+export const publishCastSchema = z.object({
+  accountId: z.string().min(1, 'accountId is required'),
+  content: z.string().max(MAX_CHARS_PRO, 'Content too long').optional().default(''),
+  idempotencyKey: z.string().min(8, 'idempotencyKey is too short').max(128, 'idempotencyKey is too long').optional(),
+  channelId: z.string().nullable().optional(),
+  parentHash: z.string().nullable().optional(),
+  embeds: z.array(z.object({
+    url: z.string().url('Invalid embed URL'),
+  })).max(MAX_EMBEDS_PRO, 'Maximum embeds exceeded').optional(),
+}).refine(
+  (data) => data.content.trim().length > 0 || (data.embeds && data.embeds.length > 0),
+  { message: 'content or embeds is required', path: ['content'] }
+)
+
+export const scheduleThreadSchema = z.object({
+  accountId: z.string().min(1, 'accountId is required'),
+  channelId: z.string().nullable().optional(),
+  scheduledAt: z.string().datetime(),
+  idempotencyKey: z.string().min(8, 'idempotencyKey is too short').max(128, 'idempotencyKey is too long').optional(),
+  casts: z.array(z.object({
+    content: z
+      .string()
+      .max(MAX_CHARS_PRO, 'Content too long')
+      .refine((v) => v.trim().length > 0, { message: 'content is required' }),
+    embeds: z.array(z.object({
+      url: z.string().url('Invalid embed URL'),
+      type: z.enum(['image', 'video']).optional(),
+      cloudflareId: z.string().optional(),
+      livepeerAssetId: z.string().optional(),
+      livepeerPlaybackId: z.string().optional(),
+      videoStatus: z.enum(['pending', 'processing', 'ready', 'error']).optional(),
+    })).max(MAX_EMBEDS_PRO, 'Maximum embeds exceeded').optional(),
+  })).min(1, 'casts array is required'),
+})
 
 export const updateCastSchema = z.object({
   content: z.string().max(MAX_CHARS_PRO).optional(),

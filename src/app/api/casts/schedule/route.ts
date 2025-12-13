@@ -7,6 +7,8 @@ import { success, ApiErrors } from '@/lib/api/response'
 import { validate, scheduleCastSchema } from '@/lib/validations'
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
 import { calculateTextLength } from '@/lib/url-utils'
+import { withLock } from '@/lib/lock'
+import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
 
 /**
  * POST /api/casts/schedule
@@ -20,13 +22,6 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session) {
       return ApiErrors.unauthorized()
-    }
-
-    // Rate limiting
-    const rateLimit = await checkRateLimit(`schedule:${session.userId}`, 'api')
-    if (!rateLimit.success) {
-      console.warn('[Schedule] Rate limit exceeded:', session.userId)
-      return ApiErrors.rateLimited()
     }
 
     const body = await request.json()
@@ -44,7 +39,25 @@ export async function POST(request: NextRequest) {
       return validation.error
     }
 
-    const { accountId, content, scheduledAt, channelId, embeds, isDraft, parentHash } = validation.data
+    const { accountId, content, scheduledAt, channelId, embeds, isDraft, parentHash, idempotencyKey } = validation.data
+
+    const idemKey = idempotencyKey
+      ? `schedule:${session.userId}:${accountId}:${idempotencyKey}`
+      : null
+
+    if (idemKey) {
+      const cached = await getIdempotencyResponse(idemKey)
+      if (cached) {
+        return success(cached.data, cached.status)
+      }
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`schedule:${session.userId}`, 'api')
+    if (!rateLimit.success) {
+      console.warn('[Schedule] Rate limit exceeded:', session.userId, ip)
+      return ApiErrors.rateLimited()
+    }
     
     console.log('[Schedule API] Parsed embeds:', embeds)
 
@@ -110,97 +123,133 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear el cast en transacción
-    const castId = generateId()
-    
-    await db.transaction(async (tx) => {
-      // Insertar cast
-      await tx.insert(scheduledCasts).values({
-        id: castId,
-        accountId,
-        content: (content || '').trim(),
-        scheduledAt: scheduledDate || new Date(),
-        channelId: channelId || null,
-        parentHash: parentHash || null,
-        status: isDraft ? 'draft' as const : 'scheduled' as const,
-        createdById: session.userId,
+    const scheduleFn = async () => {
+      const castId = generateId()
+
+      await db.transaction(async (tx) => {
+        // Insertar cast
+        await tx.insert(scheduledCasts).values({
+          id: castId,
+          accountId,
+          content: (content || '').trim(),
+          scheduledAt: scheduledDate || new Date(),
+          channelId: channelId || null,
+          parentHash: parentHash || null,
+          status: isDraft ? 'draft' as const : 'scheduled' as const,
+          createdById: session.userId,
+        })
+
+        // Insertar media si hay embeds
+        // Solo guardar embeds que sean media real (imágenes/videos subidos), no links
+        if (embeds && embeds.length > 0) {
+          const mediaEmbeds = embeds.filter(embed => {
+            // Es media real si:
+            // 1. Tiene cloudflareId (subido a Cloudflare)
+            // 2. Tiene livepeerAssetId (subido a Livepeer)
+            // 3. Es una URL de Cloudflare o Livepeer
+            // 4. Tiene extensión de imagen/video
+            // 5. Tiene type explícito de video
+            const url = embed.url || ''
+            const isCloudflare = embed.cloudflareId || 
+              url.includes('cloudflare') || 
+              url.includes('imagedelivery.net')
+            const isLivepeer = embed.livepeerAssetId ||
+              url.includes('livepeer') ||
+              url.includes('lp-playback')
+            const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
+            const isExplicitVideo = embed.type === 'video'
+            return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo
+          })
+          
+          if (mediaEmbeds.length > 0) {
+            const mediaValues = mediaEmbeds.map((embed, index) => {
+              // Determinar tipo: usar el proporcionado o inferir de la URL
+              const isVideo = embed.type === 'video' || 
+                embed.url.match(/\.(mp4|mov|webm|m3u8)$/i) ||
+                embed.url.includes('cloudflarestream.com') ||
+                embed.url.includes('lp-playback')
+              
+              const mediaRecord: {
+                id: string
+                castId: string
+                url: string
+                type: 'image' | 'video'
+                order: number
+                cloudflareId?: string
+                livepeerAssetId?: string
+                livepeerPlaybackId?: string
+                videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
+              } = {
+                id: generateId(),
+                castId,
+                url: embed.url,
+                type: isVideo ? 'video' : 'image',
+                order: index,
+              }
+              
+              // Solo añadir campos de video si tienen valor
+              if (embed.cloudflareId) {
+                mediaRecord.cloudflareId = embed.cloudflareId
+              }
+              if (embed.livepeerAssetId) {
+                mediaRecord.livepeerAssetId = embed.livepeerAssetId
+              }
+              if (embed.livepeerPlaybackId) {
+                mediaRecord.livepeerPlaybackId = embed.livepeerPlaybackId
+              }
+              if (embed.videoStatus) {
+                mediaRecord.videoStatus = embed.videoStatus
+              }
+              
+              return mediaRecord
+            })
+            await tx.insert(castMedia).values(mediaValues)
+          }
+        }
       })
 
-      // Insertar media si hay embeds
-      // Solo guardar embeds que sean media real (imágenes/videos subidos), no links
-      if (embeds && embeds.length > 0) {
-        const mediaEmbeds = embeds.filter(embed => {
-          // Es media real si:
-          // 1. Tiene cloudflareId (subido a Cloudflare)
-          // 2. Tiene livepeerAssetId (subido a Livepeer)
-          // 3. Es una URL de Cloudflare o Livepeer
-          // 4. Tiene extensión de imagen/video
-          // 5. Tiene type explícito de video
-          const url = embed.url || ''
-          const isCloudflare = embed.cloudflareId || 
-            url.includes('cloudflare') || 
-            url.includes('imagedelivery.net')
-          const isLivepeer = embed.livepeerAssetId ||
-            url.includes('livepeer') ||
-            url.includes('lp-playback')
-          const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
-          const isExplicitVideo = embed.type === 'video'
-          return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo
-        })
-        
-        if (mediaEmbeds.length > 0) {
-          const mediaValues = mediaEmbeds.map((embed, index) => {
-            // Determinar tipo: usar el proporcionado o inferir de la URL
-            const isVideo = embed.type === 'video' || 
-              embed.url.match(/\.(mp4|mov|webm|m3u8)$/i) ||
-              embed.url.includes('cloudflarestream.com') ||
-              embed.url.includes('lp-playback')
-            
-            const mediaRecord: {
-              id: string
-              castId: string
-              url: string
-              type: 'image' | 'video'
-              order: number
-              cloudflareId?: string
-              livepeerAssetId?: string
-              livepeerPlaybackId?: string
-              videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
-            } = {
-              id: generateId(),
-              castId,
-              url: embed.url,
-              type: isVideo ? 'video' : 'image',
-              order: index,
-            }
-            
-            // Solo añadir campos de video si tienen valor
-            if (embed.cloudflareId) {
-              mediaRecord.cloudflareId = embed.cloudflareId
-            }
-            if (embed.livepeerAssetId) {
-              mediaRecord.livepeerAssetId = embed.livepeerAssetId
-            }
-            if (embed.livepeerPlaybackId) {
-              mediaRecord.livepeerPlaybackId = embed.livepeerPlaybackId
-            }
-            if (embed.videoStatus) {
-              mediaRecord.videoStatus = embed.videoStatus
-            }
-            
-            return mediaRecord
-          })
-          await tx.insert(castMedia).values(mediaValues)
+      console.log('[Schedule] Cast created:', castId)
+
+      const payload = {
+        castId,
+        status: isDraft ? 'draft' : 'scheduled',
+        scheduledAt: scheduledDate?.toISOString(),
+      }
+
+      if (idemKey) {
+        try {
+          await setIdempotencyResponse(idemKey, { status: 201, data: payload }, 60 * 60 * 24)
+        } catch (error) {
+          console.warn('[Schedule] Failed to store idempotency response:', error)
         }
       }
-    })
 
-    console.log('[Schedule] Cast created:', castId)
+      return success(payload, 201)
+    }
 
-    return success({ 
-      castId,
-      status: isDraft ? 'draft' : 'scheduled',
-      scheduledAt: scheduledDate?.toISOString(),
-    }, 201)
+    if (!idemKey) {
+      return await scheduleFn()
+    }
+
+    const locked = await withLock(idemKey, async () => {
+      const cached = await getIdempotencyResponse(idemKey)
+      if (cached) {
+        return { type: 'replay' as const, cached }
+      }
+
+      const response = await scheduleFn()
+      return { type: 'fresh' as const, response }
+    }, { ttlSeconds: 30 })
+
+    if (!locked.success) {
+      return ApiErrors.alreadyExists('Schedule already in progress')
+    }
+
+    if (locked.result.type === 'replay') {
+      return success(locked.result.cached.data, locked.result.cached.status)
+    }
+
+    return locked.result.response
 
   } catch (error) {
     console.error('[Schedule] Error:', error instanceof Error ? error.message : 'Unknown')

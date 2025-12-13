@@ -1,45 +1,55 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { scheduledCasts, threads, castMedia, accounts, accountMembers } from '@/lib/db/schema'
+import { NextRequest } from 'next/server'
+import { db, scheduledCasts, threads, castMedia, accounts, accountMembers } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
-import { getSession, canAccess } from '@/lib/auth'
-
-function generateId() {
-  return crypto.randomUUID()
-}
-
-interface CastInput {
-  content: string
-  embeds?: { url: string }[]
-}
+import { getSession, canModify } from '@/lib/auth'
+import { success, ApiErrors } from '@/lib/api/response'
+import { validate, scheduleThreadSchema } from '@/lib/validations'
+import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
+import { generateId } from '@/lib/utils'
+import { calculateTextLength } from '@/lib/url-utils'
+import { withLock } from '@/lib/lock'
+import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
 
 export async function POST(request: NextRequest) {
   try {
-    // Obtener usuario actual
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return ApiErrors.unauthorized()
     }
 
+    const ip = getClientIP(request)
     const body = await request.json()
-    const { accountId, channelId, scheduledAt, casts } = body as {
-      accountId: string
-      channelId?: string
-      scheduledAt: string
-      casts: CastInput[]
+    const validation = validate(scheduleThreadSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    // Validaciones
-    if (!accountId) {
-      return NextResponse.json({ error: 'accountId is required' }, { status: 400 })
+    const { accountId, channelId, scheduledAt, casts, idempotencyKey } = validation.data
+
+    const idemKey = idempotencyKey
+      ? `schedule-thread:${session.userId}:${accountId}:${idempotencyKey}`
+      : null
+
+    if (idemKey) {
+      const cached = await getIdempotencyResponse(idemKey)
+      if (cached) {
+        return success(cached.data, cached.status)
+      }
     }
 
-    if (!casts || casts.length === 0) {
-      return NextResponse.json({ error: 'casts array is required' }, { status: 400 })
+    const rateLimit = await checkRateLimit(`schedule-thread:${session.userId}`, 'api')
+    if (!rateLimit.success) {
+      console.warn('[ScheduleThread] Rate limit exceeded:', session.userId, ip)
+      return ApiErrors.rateLimited()
     }
 
-    if (!scheduledAt) {
-      return NextResponse.json({ error: 'scheduledAt is required' }, { status: 400 })
+    const scheduledDate = new Date(scheduledAt)
+    if (Number.isNaN(scheduledDate.getTime())) {
+      return ApiErrors.validationFailed([{ field: 'scheduledAt', message: 'Invalid scheduledAt' }])
+    }
+
+    if (scheduledDate <= new Date()) {
+      return ApiErrors.validationFailed([{ field: 'scheduledAt', message: 'Scheduled time must be in the future' }])
     }
 
     // Verificar que la cuenta existe
@@ -48,7 +58,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return ApiErrors.notFound('Account')
     }
 
     const membership = await db.query.accountMembers.findFirst({
@@ -58,63 +68,155 @@ export async function POST(request: NextRequest) {
       ),
     })
 
-    if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!canModify(session, { ownerId: account.ownerId, isMember: !!membership })) {
+      return ApiErrors.forbidden('No access to this account')
     }
-    
-    const threadId = generateId()
 
-    // Crear el thread
-    await db.insert(threads).values({
-      id: threadId,
-      accountId,
-      title: casts[0].content.substring(0, 50),
-      status: 'scheduled',
-      scheduledAt: new Date(scheduledAt),
-    })
+    if (account.signerStatus !== 'approved') {
+      return ApiErrors.validationFailed([
+        { field: 'accountId', message: 'Account signer is not approved' },
+      ])
+    }
 
-    // Crear cada cast del thread
+    const maxChars = account.isPremium ? 10000 : 1024
+    const maxEmbeds = account.isPremium ? 4 : 2
+
     for (let i = 0; i < casts.length; i++) {
       const cast = casts[i]
-      const castId = generateId()
+      if (calculateTextLength(cast.content) > maxChars) {
+        return ApiErrors.validationFailed([
+          { field: `casts.${i}.content`, message: `Content exceeds ${maxChars} characters` },
+        ])
+      }
 
-      await db.insert(scheduledCasts).values({
-        id: castId,
-        accountId,
-        content: cast.content.trim(),
-        scheduledAt: new Date(scheduledAt),
-        channelId: channelId || null,
-        status: 'scheduled',
-        threadId,
-        threadOrder: i,
-        createdById: session.userId,
-      })
-
-      // Guardar media si hay embeds
-      if (cast.embeds && cast.embeds.length > 0) {
-        for (let j = 0; j < cast.embeds.length; j++) {
-          const embed = cast.embeds[j]
-          await db.insert(castMedia).values({
-            id: generateId(),
-            castId,
-            url: embed.url,
-            type: embed.url.match(/\.(mp4|mov|webm)$/i) ? 'video' : 'image',
-            order: j,
-          })
-        }
+      if (cast.embeds && cast.embeds.length > maxEmbeds) {
+        return ApiErrors.validationFailed([
+          {
+            field: `casts.${i}.embeds`,
+            message: `Maximum ${maxEmbeds} embeds allowed${account.isPremium ? '' : ' (upgrade to Pro for 4)'}`,
+          },
+        ])
       }
     }
+    
+    const scheduleThreadFn = async () => {
+      const threadId = generateId()
 
-    return NextResponse.json({
-      success: true,
-      threadId,
-      castsCount: casts.length,
-    })
+      await db.transaction(async (tx) => {
+        await tx.insert(threads).values({
+          id: threadId,
+          accountId,
+          title: casts[0]?.content?.substring(0, 50) || null,
+          status: 'scheduled',
+          scheduledAt: scheduledDate,
+        })
+
+        for (let i = 0; i < casts.length; i++) {
+          const cast = casts[i]
+          const castId = generateId()
+
+          await tx.insert(scheduledCasts).values({
+            id: castId,
+            accountId,
+            content: cast.content.trim(),
+            scheduledAt: scheduledDate,
+            channelId: channelId || null,
+            status: 'scheduled',
+            threadId,
+            threadOrder: i,
+            createdById: session.userId,
+          })
+
+          const embeds = cast.embeds || []
+          if (embeds.length === 0) continue
+
+          const mediaEmbeds = embeds.filter((embed) => {
+            const url = embed.url || ''
+            const isCloudflare = Boolean(embed.cloudflareId) || url.includes('cloudflare') || url.includes('imagedelivery.net')
+            const isLivepeer = Boolean(embed.livepeerAssetId) || url.includes('livepeer') || url.includes('lp-playback')
+            const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
+            const isExplicitVideo = embed.type === 'video'
+            return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo
+          })
+
+          if (mediaEmbeds.length === 0) continue
+
+          await tx.insert(castMedia).values(
+            mediaEmbeds.map((embed, index) => {
+              const url = embed.url
+              const isVideo =
+                embed.type === 'video' ||
+                /\.(mp4|mov|webm|m3u8)$/i.test(url) ||
+                url.includes('cloudflarestream.com') ||
+                url.includes('lp-playback')
+
+              const record: {
+                id: string
+                castId: string
+                url: string
+                type: 'image' | 'video'
+                order: number
+                cloudflareId?: string
+                livepeerAssetId?: string
+                livepeerPlaybackId?: string
+                videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
+              } = {
+                id: generateId(),
+                castId,
+                url,
+                type: isVideo ? 'video' : 'image',
+                order: index,
+              }
+
+              if (embed.cloudflareId) record.cloudflareId = embed.cloudflareId
+              if (embed.livepeerAssetId) record.livepeerAssetId = embed.livepeerAssetId
+              if (embed.livepeerPlaybackId) record.livepeerPlaybackId = embed.livepeerPlaybackId
+              if (embed.videoStatus) record.videoStatus = embed.videoStatus
+
+              return record
+            })
+          )
+        }
+      })
+
+      const payload = { threadId, castsCount: casts.length }
+
+      if (idemKey) {
+        try {
+          await setIdempotencyResponse(idemKey, { status: 201, data: payload }, 60 * 60 * 24)
+        } catch (error) {
+          console.warn('[ScheduleThread] Failed to store idempotency response:', error)
+        }
+      }
+
+      return success(payload, 201)
+    }
+
+    if (!idemKey) {
+      return await scheduleThreadFn()
+    }
+
+    const locked = await withLock(idemKey, async () => {
+      const cached = await getIdempotencyResponse(idemKey)
+      if (cached) {
+        return { type: 'replay' as const, cached }
+      }
+
+      const response = await scheduleThreadFn()
+      return { type: 'fresh' as const, response }
+    }, { ttlSeconds: 30 })
+
+    if (!locked.success) {
+      return ApiErrors.alreadyExists('Schedule thread already in progress')
+    }
+
+    if (locked.result.type === 'replay') {
+      return success(locked.result.cached.data, locked.result.cached.status)
+    }
+
+    return locked.result.response
   } catch (error) {
     console.error('[API] Error scheduling thread:', error)
-    return NextResponse.json(
-      { error: 'Failed to schedule thread' },
-      { status: 500 }
-    )
+    return ApiErrors.operationFailed('Failed to schedule thread')
   }
 }

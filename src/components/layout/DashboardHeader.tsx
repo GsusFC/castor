@@ -129,9 +129,7 @@ export function DashboardHeader() {
               onSelectUser={(user) => router.push(`/user/${user.username}`)}
               onSelectChannel={(channel) => router.push(`/?channel=${channel.id}`)}
               onSelectCast={(cast) => {
-                // Abrir cast en nueva pestaña
-                const url = `https://farcaster.xyz/~/conversations/${cast.hash}`
-                window.open(url, '_blank')
+                router.push(`/cast/${cast.hash}`)
               }}
             />
           </div>

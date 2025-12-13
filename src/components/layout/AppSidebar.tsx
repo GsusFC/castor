@@ -4,11 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useMemo } from 'react'
 import { useUserChannels } from '@/hooks/useUserChannels'
+import { useNotifications } from '@/context/NotificationsContext'
 import { 
   Newspaper, 
   Calendar, 
   BarChart3, 
   Users, 
+  Bell,
   Settings,
   LogOut,
   Plus,
@@ -20,8 +22,9 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 
-const NAV_ITEMS = [
+const NAV_ITEMS: Array<{ href: string; label: string; icon: any; showUnreadBadge?: boolean }> = [
   { href: '/', label: 'Feed', icon: Newspaper },
+  { href: '/notifications', label: 'Notifications', icon: Bell, showUnreadBadge: true },
   { href: '/studio', label: 'Studio', icon: Calendar },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/accounts', label: 'Accounts', icon: Users },
@@ -86,6 +89,7 @@ export function AppSidebar() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [channelSearch, setChannelSearch] = useState('')
   const { channels, favorites, recent, isLoading: channelsLoading, toggleFavorite } = useUserChannels()
+  const { unreadCount, isOpen: isNotificationsOpen, toggle: toggleNotifications } = useNotifications()
 
   const allChannels = useMemo(() => [
     ...favorites,
@@ -132,24 +136,53 @@ export function AppSidebar() {
         <nav className="flex-1 px-3 flex flex-col min-h-0 overflow-hidden">
           <ul className="space-y-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = item.href === '/' 
+              const isRouteActive = item.href === '/'
                 ? pathname === '/'
                 : pathname.startsWith(item.href)
+
+              const isActive = item.showUnreadBadge
+                ? isNotificationsOpen
+                : (!isNotificationsOpen && isRouteActive)
               
               return (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                      isActive 
-                        ? "bg-primary/10 text-primary" 
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    {item.label}
-                  </Link>
+                  {item.showUnreadBadge ? (
+                    <button
+                      type="button"
+                      onClick={toggleNotifications}
+                      className={cn(
+                        "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors",
+                        isActive 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                      aria-label="Abrir notificaciones"
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="flex-1">{item.label}</span>
+                      {unreadCount > 0 && (
+                        <span
+                          className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                          aria-label={`${unreadCount} notificaciones sin leer`}
+                        >
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors",
+                        isActive 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="flex-1">{item.label}</span>
+                    </Link>
+                  )}
                 </li>
               )
             })}

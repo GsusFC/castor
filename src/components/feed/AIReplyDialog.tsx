@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
+
 interface Cast {
   hash: string
   text: string
@@ -37,9 +39,21 @@ const TONES = [
 ]
 
 const LANGUAGES = [
-  { value: 'English', label: 'EN', flag: '🇺🇸' },
-  { value: 'Spanish', label: 'ES', flag: '🇪🇸' },
+  { value: 'en', label: 'EN', flag: '🇺🇸' },
+  { value: 'es', label: 'ES', flag: '🇪🇸' },
 ]
+
+type AISuggestion = {
+  id: string
+  text: string
+  length: number
+}
+
+const toTranslateLanguageName = (language: string): string => {
+  if (language === 'en') return 'English'
+  if (language === 'es') return 'Spanish'
+  return 'English'
+}
 
 export function AIReplyDialog({ 
   cast, 
@@ -48,10 +62,12 @@ export function AIReplyDialog({
   onPublish,
   maxChars = 1024,
 }: AIReplyDialogProps) {
+  const { selectedAccountId } = useSelectedAccount()
   const [tone, setTone] = useState('friendly')
-  const [language, setLanguage] = useState('English')
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [language, setLanguage] = useState('en')
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [isTranslatingReply, setIsTranslatingReply] = useState(false)
   const [showFullText, setShowFullText] = useState(false)
@@ -61,7 +77,7 @@ export function AIReplyDialog({
     
     setIsTranslatingReply(true)
     try {
-      const targetLang = language === 'English' ? 'English' : 'Spanish'
+      const targetLang = toTranslateLanguageName(language)
       const res = await fetch('/api/ai/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,31 +97,46 @@ export function AIReplyDialog({
     }
   }
 
-  const generateSuggestions = async (selectedTone?: string) => {
+  const generateSuggestions = async (selectedTone?: string, selectedLanguage?: string) => {
     if (!cast) return
 
     const toneToUse = selectedTone || tone
+    const languageToUse = selectedLanguage || language
     setIsLoading(true)
     setSuggestions([])
+    setError(null)
     
     try {
-      const res = await fetch('/api/ai/reply', {
+      const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          originalText: cast.text,
-          authorUsername: cast.author.username,
-          tone: toneToUse,
-          language,
+          mode: 'write',
+          replyingTo: {
+            text: cast.text,
+            author: cast.author.username,
+          },
+          targetTone: toneToUse,
+          targetLanguage: languageToUse,
+          isPro: false,
+          accountId: selectedAccountId || undefined,
         }),
       })
       const data = await res.json()
+
+      if (!res.ok) {
+        const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
+        throw new Error(message || 'Error al generar sugerencias')
+      }
       
-      if (data.suggestions) {
-        setSuggestions(data.suggestions)
+      const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
+      setSuggestions(nextSuggestions)
+      if (nextSuggestions.length === 0) {
+        setError('No se pudieron generar sugerencias. Prueba a regenerar.')
       }
     } catch (error) {
       console.error('AI Reply error:', error)
+      setError(error instanceof Error ? error.message : 'Error al generar sugerencias')
     } finally {
       setIsLoading(false)
     }
@@ -116,8 +147,13 @@ export function AIReplyDialog({
     generateSuggestions(newTone)
   }
 
-  const handleUseSuggestion = (suggestion: string) => {
-    setReplyText(suggestion)
+  const handleUseSuggestion = (suggestion: AISuggestion) => {
+    setReplyText(suggestion.text)
+  }
+
+  const handleLanguageChange = (newLanguage: string) => {
+    setLanguage(newLanguage)
+    generateSuggestions(undefined, newLanguage)
   }
 
   const handlePublish = () => {
@@ -132,6 +168,7 @@ export function AIReplyDialog({
     setSuggestions([])
     setReplyText('')
     setShowFullText(false)
+    setError(null)
   }
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -224,7 +261,7 @@ export function AIReplyDialog({
               {LANGUAGES.map((l) => (
                 <button
                   key={l.value}
-                  onClick={() => setLanguage(l.value)}
+                  onClick={() => handleLanguageChange(l.value)}
                   className={cn(
                     "px-2.5 py-1 text-sm rounded-md border transition-all",
                     language === l.value
@@ -261,19 +298,23 @@ export function AIReplyDialog({
                     <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
                   ))}
                 </>
+              ) : error ? (
+                <div className="py-6 text-center text-sm text-destructive">
+                  {error}
+                </div>
               ) : suggestions.length > 0 ? (
-                suggestions.map((suggestion, i) => (
+                suggestions.map((suggestion) => (
                   <button
-                    key={i}
+                    key={suggestion.id}
                     onClick={() => handleUseSuggestion(suggestion)}
                     className={cn(
                       "w-full p-3 text-left text-sm rounded-lg border transition-all group",
-                      replyText === suggestion
+                      replyText === suggestion.text
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50 hover:bg-muted/30"
                     )}
                   >
-                    <p className="line-clamp-2">{suggestion}</p>
+                    <p className="line-clamp-2">{suggestion.text}</p>
                   </button>
                 ))
               ) : (
@@ -297,7 +338,7 @@ export function AIReplyDialog({
                   className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors disabled:opacity-50"
                 >
                   <Globe className="w-3 h-3" />
-                  {isTranslatingReply ? 'Traduciendo...' : `→ ${language === 'English' ? 'EN' : 'ES'}`}
+                  {isTranslatingReply ? 'Traduciendo...' : `→ ${language.toUpperCase()}`}
                 </button>
               )}
             </div>

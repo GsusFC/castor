@@ -49,9 +49,11 @@ export default async function AccountContextPage({ params }: PageProps) {
   const canViewMembers = isOwner || membership?.role === 'admin'
 
   const [styleProfile, knowledgeBase, documents, members] = await Promise.all([
-    db.query.userStyleProfiles.findFirst({
-      where: eq(userStyleProfiles.fid, account.fid),
-    }),
+    account.ownerId
+      ? db.query.userStyleProfiles.findFirst({
+          where: eq(userStyleProfiles.userId, account.ownerId),
+        })
+      : Promise.resolve(null),
     db.query.accountKnowledgeBase.findFirst({
       where: eq(accountKnowledgeBase.accountId, id),
     }),

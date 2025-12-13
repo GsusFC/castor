@@ -11,21 +11,21 @@ interface MiniAppDrawerProps {
 }
 
 export function MiniAppDrawer({ open, onClose, url, title }: MiniAppDrawerProps) {
+  if (!open) return null
+
   return (
     <>
       {/* Backdrop */}
-      {open && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
-          onClick={onClose}
-        />
-      )}
+      <div 
+        className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+        onClick={onClose}
+      />
 
       {/* Drawer */}
       <div 
         className={cn(
           "fixed top-0 right-0 h-full w-full sm:w-[400px] bg-background border-l border-border z-50 transition-transform duration-300 ease-out flex flex-col",
-          open ? "translate-x-0" : "translate-x-full pointer-events-none"
+          "translate-x-0"
         )}
       >
         {/* Header */}
@@ -56,7 +56,7 @@ export function MiniAppDrawer({ open, onClose, url, title }: MiniAppDrawerProps)
 
         {/* Iframe container */}
         <div className="flex-1 bg-muted/30">
-          {open && url && (
+          {url && (
             <iframe
               src={url}
               className="w-full h-full border-0"

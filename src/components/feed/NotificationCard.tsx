@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { MessageCircle } from 'lucide-react'
 
 interface NotificationBadge {
   label: string
@@ -86,14 +87,12 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
   const hasCast = !!notification.cast?.hash
 
   const handleClick = () => {
-    if (isReplyable && onClick) {
-      // Reply -> abre composer para responder
-      onClick()
-    } else if (hasCast && notification.cast && onCastClick) {
-      // Mention, like, recast con cast -> ir al cast
+    if (hasCast && notification.cast && onCastClick) {
       onCastClick(notification.cast.hash)
-    } else if (mainActor?.username && onUserClick) {
-      // Follow (sin cast) -> ir al perfil
+      return
+    }
+
+    if (mainActor?.username && onUserClick) {
       onUserClick(mainActor.username)
     }
   }
@@ -111,9 +110,9 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
       {/* Card - siempre clickeable */}
       <div
         onClick={handleClick}
-        className="flex-1 p-3 border border-border rounded-lg bg-card hover:bg-muted/30 cursor-pointer transition-colors text-left"
+        className="flex-1 min-w-0 p-3 border border-border rounded-lg bg-card hover:bg-muted/30 cursor-pointer transition-colors text-left"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {mainActor?.pfp_url && (
             <img 
               src={mainActor.pfp_url} 
@@ -121,19 +120,35 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
               className="w-6 h-6 rounded-full"
             />
           )}
-          <span className="font-medium text-sm truncate">
+          <span className="min-w-0 font-medium text-[13px] truncate">
             @{mainActor?.username}
             {otherCount > 0 && (
               <span className="text-muted-foreground"> +{otherCount}</span>
             )}
           </span>
-          <span className="text-muted-foreground text-xs ml-auto">{timeAgo}</span>
+          <span className="text-muted-foreground text-[11px] ml-auto shrink-0">{timeAgo}</span>
         </div>
 
         {notification.cast?.text && (
-          <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">
+          <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground line-clamp-3 break-words">
             {notification.cast.text}
           </p>
+        )}
+
+        {isReplyable && hasCast && onClick && (
+          <div className="mt-2 flex justify-end">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onClick()
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              aria-label="Responder"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              Responder
+            </button>
+          </div>
         )}
 
         {(notification.type === 'follow' || notification.type === 'follows') && !notification.cast && (

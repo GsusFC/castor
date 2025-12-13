@@ -23,6 +23,12 @@ import {
 
 type AIMode = 'write' | 'improve' | 'translate'
 
+type AISuggestion = {
+  id: string
+  text: string
+  length: number
+}
+
 interface AIAssistantProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -69,7 +75,7 @@ export function AIAssistant({
 }: AIAssistantProps) {
   const [mode, setMode] = useState<AIMode>('write')
   const [draft, setDraft] = useState(initialDraft)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTone, setSelectedTone] = useState('casual')
   const [targetLanguage, setTargetLanguage] = useState('es')
@@ -95,22 +101,28 @@ export function AIAssistant({
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Error al generar sugerencias')
+        const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
+        throw new Error(message || 'Error al generar sugerencias')
       }
 
-      const data = await response.json()
-      setSuggestions(data.suggestions || [])
+      const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
+      setSuggestions(nextSuggestions)
+      if (nextSuggestions.length === 0) {
+        setError('No se pudieron generar sugerencias. Prueba a regenerar.')
+      }
     } catch (err) {
       console.error('AI error:', err)
-      setError('Error al generar sugerencias. Inténtalo de nuevo.')
+      setError(err instanceof Error ? err.message : 'Error al generar sugerencias. Inténtalo de nuevo.')
     } finally {
       setIsLoading(false)
     }
   }, [mode, draft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro])
 
-  const handleSelectSuggestion = (text: string) => {
-    onSelectText(text)
+  const handleSelectSuggestion = (suggestion: AISuggestion) => {
+    onSelectText(suggestion.text)
     onOpenChange(false)
     // Reset state
     setSuggestions([])
@@ -268,7 +280,18 @@ export function AIAssistant({
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-destructive">{error}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={generateSuggestions}
+              disabled={isLoading}
+            >
+              Reintentar
+            </Button>
+          </div>
         )}
 
         {/* Suggestions */}
@@ -289,13 +312,13 @@ export function AIAssistant({
             </div>
             
             <div className="space-y-2">
-              {suggestions.map((suggestion, i) => (
+              {suggestions.map((suggestion) => (
                 <button
-                  key={i}
+                  key={suggestion.id}
                   onClick={() => handleSelectSuggestion(suggestion)}
                   className="w-full text-left p-3 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
                 >
-                  <p className="text-sm">{suggestion}</p>
+                  <p className="text-sm">{suggestion.text}</p>
                   <span className="text-xs text-muted-foreground mt-1">
                     {suggestion.length}/{maxChars}
                   </span>

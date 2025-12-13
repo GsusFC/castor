@@ -22,6 +22,12 @@ import {
 
 type AIMode = 'translate' | 'propose' | 'improve' | null
 
+type AISuggestion = {
+  id: string
+  text: string
+  length: number
+}
+
 interface AITabsProps {
   onSelectText: (text: string) => void
   currentDraft: string
@@ -67,7 +73,7 @@ export function AITabs({
   accountId,
 }: AITabsProps) {
   const [activeTab, setActiveTab] = useState<AIMode>(null)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTone, setSelectedTone] = useState('casual')
   const [targetLanguage, setTargetLanguage] = useState('en')
@@ -123,10 +129,15 @@ export function AITabs({
       
       if (!response.ok) {
         console.error('AI API error:', data)
-        throw new Error(data.error || 'Error al generar sugerencias')
+        const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
+        throw new Error(message || 'Error al generar sugerencias')
       }
 
-      setSuggestions(data.suggestions || [])
+      const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
+      setSuggestions(nextSuggestions)
+      if (nextSuggestions.length === 0) {
+        setError('No se pudieron generar sugerencias. Prueba a regenerar.')
+      }
     } catch (err) {
       console.error('AI error:', err)
       setError(err instanceof Error ? err.message : 'Error al generar. Inténtalo de nuevo.')
@@ -135,8 +146,8 @@ export function AITabs({
     }
   }, [activeTab, currentDraft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro, accountId])
 
-  const handleSelectSuggestion = (text: string) => {
-    onSelectText(text)
+  const handleSelectSuggestion = (suggestion: AISuggestion) => {
+    onSelectText(suggestion.text)
     setActiveTab(null)
     setSuggestions([])
   }
@@ -146,43 +157,65 @@ export function AITabs({
   return (
     <div className="border-b border-border">
       {/* Tabs */}
-      <div className="flex items-center gap-4 px-3">
-        <button
-          onClick={() => handleTabClick('translate')}
-          className={cn(
-            'flex items-center gap-1.5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-            activeTab === 'translate'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
+      <div className="px-3 py-2">
+        <div
+          role="tablist"
+          className="flex w-full items-center gap-1 rounded-full bg-muted/30 p-1"
         >
-          <Languages className="w-4 h-4" />
-          Traducir
-        </button>
-        <button
-          onClick={() => handleTabClick('propose')}
-          className={cn(
-            'flex items-center gap-1.5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-            activeTab === 'propose'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <FileEdit className="w-4 h-4" />
-          Proponer
-        </button>
-        <button
-          onClick={() => handleTabClick('improve')}
-          className={cn(
-            'flex items-center gap-1.5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-            activeTab === 'improve'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <Wand2 className="w-4 h-4" />
-          Mejorar
-        </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'translate'}
+            onClick={() => handleTabClick('translate')}
+            className={cn(
+              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === 'translate'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Languages className="w-4 h-4" />
+              Traducir
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'propose'}
+            onClick={() => handleTabClick('propose')}
+            className={cn(
+              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === 'propose'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <FileEdit className="w-4 h-4" />
+              Proponer
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'improve'}
+            onClick={() => handleTabClick('improve')}
+            className={cn(
+              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === 'improve'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Wand2 className="w-4 h-4" />
+              Mejorar
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Content panel */}
@@ -223,7 +256,7 @@ export function AITabs({
             {(activeTab === 'propose' || activeTab === 'improve') && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
                     Tono: {TONES.find(t => t.value === selectedTone)?.label}
                     <ChevronDown className="w-3 h-3" />
                   </Button>
@@ -241,7 +274,7 @@ export function AITabs({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button variant="outline" size="sm" className="h-8 gap-1.5">
                   {LANGUAGES.find(l => l.value === targetLanguage)?.label}
                   <ChevronDown className="w-3 h-3" />
                 </Button>
@@ -258,7 +291,7 @@ export function AITabs({
 
             <div className="flex-1" />
 
-            <Button onClick={generateSuggestions} disabled={isLoading} variant="outline" size="sm" className="gap-1.5">
+            <Button onClick={generateSuggestions} disabled={isLoading} variant="outline" size="sm" className="h-8 gap-1.5">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -280,17 +313,30 @@ export function AITabs({
             </Button>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={generateSuggestions}
+                disabled={isLoading}
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
 
           {suggestions.length > 0 && (
             <div className="space-y-2">
-              {suggestions.map((suggestion, i) => (
+              {suggestions.map((suggestion) => (
                 <button
-                  key={i}
+                  key={suggestion.id}
                   onClick={() => handleSelectSuggestion(suggestion)}
                   className="w-full text-left p-3 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors bg-background"
                 >
-                  <p className="text-sm">{suggestion}</p>
+                  <p className="text-sm">{suggestion.text}</p>
                   <span className="text-xs text-muted-foreground mt-1">{suggestion.length}/{maxChars}</span>
                 </button>
               ))}

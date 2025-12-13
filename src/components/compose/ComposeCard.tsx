@@ -10,7 +10,6 @@ import { ScheduleDropdown } from './ScheduleDropdown'
 import { AccountDropdown } from './AccountDropdown'
 import { ChannelDropdown } from './ChannelDropdown'
 import { TemplateDropdown } from './TemplateDropdown'
-import { PreviewPopover } from './PreviewPopover'
 import { CastEditorInline } from './CastEditorInline'
 import { ProgressBar } from './ProgressBar'
 import { ComposeFooter } from './ComposeFooter'
@@ -146,13 +145,6 @@ export function ComposeCard({
         </div>
 
         {/* Preview button - siempre visible */}
-        <PreviewPopover
-          casts={casts}
-          account={selectedAccount || null}
-          channel={selectedChannel}
-          replyTo={replyTo}
-          hasContent={hasContent}
-        />
       </div>
 
       {/* AI Tabs */}

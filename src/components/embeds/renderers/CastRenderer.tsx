@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useInView } from 'react-intersection-observer'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,7 @@ export function CastRenderer({
   const [cast, setCast] = useState<EmbedCast | null>(initialCast || null)
   const [loading, setLoading] = useState(!initialCast && !!url)
   const [error, setError] = useState(false)
+  const hydrationAttemptedRef = useRef(false)
 
   const { ref, inView } = useInView({
     threshold: 0,
@@ -36,20 +37,35 @@ export function CastRenderer({
     rootMargin: '200px',
   })
 
-  // Fetch cast si tenemos URL pero no cast
+  // Reset de la rehidratación si cambia el input
   useEffect(() => {
-    if (initialCast || !url || !inView) return
+    hydrationAttemptedRef.current = false
+  }, [url, initialCast?.hash])
+
+  // Fetch cast si tenemos URL pero no cast, o si el cast viene incompleto
+  useEffect(() => {
+    if (!inView) return
+
+    const needsFetchByUrl = !initialCast && !!url
+    const castMissingAuthor = !!cast && (!cast.author || !cast.author.username || !cast.author.display_name)
+    const needsHydrationByHash = castMissingAuthor && !!cast?.hash && !hydrationAttemptedRef.current
+
+    if (!needsFetchByUrl && !needsHydrationByHash) return
 
     const fetchCast = async () => {
       setLoading(true)
       try {
-        const params = new URLSearchParams({ identifier: url, type: 'url' })
+        const identifier = needsFetchByUrl ? url! : cast!.hash
+        const type = needsFetchByUrl ? 'url' : 'hash'
+        if (!needsFetchByUrl) hydrationAttemptedRef.current = true
+
+        const params = new URLSearchParams({ identifier, type })
         const response = await fetch(`/api/casts/lookup?${params.toString()}`)
         
         if (!response.ok) throw new Error('Failed to fetch')
         
         const data = await response.json()
-        if (data.cast) {
+        if (data.cast && data.cast.author && data.cast.author.username && data.cast.author.display_name) {
           setCast(data.cast)
         } else {
           setError(true)
@@ -62,7 +78,7 @@ export function CastRenderer({
     }
 
     fetchCast()
-  }, [initialCast, url, inView])
+  }, [initialCast, url, inView, cast])
 
   // Skeleton
   if (loading || !inView) {
@@ -80,8 +96,10 @@ export function CastRenderer({
     )
   }
 
+  const hasValidAuthor = !!cast?.author && !!cast.author.username && !!cast.author.display_name
+
   // Error state
-  if (error || !cast) {
+  if (error || !cast || !hasValidAuthor) {
     return (
       <div ref={ref} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50 group', className)}>
         <span className="text-purple-500">◈</span>
@@ -103,6 +121,8 @@ export function CastRenderer({
     e => e.url && e.type === 'image'
   )
 
+  const author = cast.author
+
   return (
     <div 
       ref={ref}
@@ -113,15 +133,15 @@ export function CastRenderer({
     >
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
-        {cast.author.pfp_url && (
+        {author.pfp_url && (
           <img 
-            src={cast.author.pfp_url}
-            alt={cast.author.username}
+            src={author.pfp_url}
+            alt={author.username}
             className="w-5 h-5 rounded-full"
           />
         )}
-        <span className="font-medium text-sm">{cast.author.display_name}</span>
-        <span className="text-muted-foreground text-xs">@{cast.author.username}</span>
+        <span className="font-medium text-sm">{author.display_name}</span>
+        <span className="text-muted-foreground text-xs">@{author.username}</span>
       </div>
 
       {/* Text */}

@@ -39,6 +39,7 @@ export async function publishCast(
     embeds?: Array<{ url: string }>
     channelId?: string
     parentHash?: string
+    idempotencyKey?: string
   }
 ) {
   try {
@@ -47,6 +48,7 @@ export async function publishCast(
       text: text.slice(0, 50),
       embeds: options?.embeds,
       channelId: options?.channelId,
+      idempotencyKey: options?.idempotencyKey,
     })
     
     const response = await neynar.publishCast({
@@ -55,6 +57,7 @@ export async function publishCast(
       embeds: options?.embeds,
       channelId: options?.channelId,
       parent: options?.parentHash,
+      idem: options?.idempotencyKey,
     })
 
     console.log('[Farcaster] Publish response:', {

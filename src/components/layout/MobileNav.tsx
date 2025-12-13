@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Plus, FileText, LayoutTemplate, Edit, Trash2, Rss, Search, X, User, Hash, Star, Loader2 } from 'lucide-react'
+import { Home, Plus, FileText, LayoutTemplate, Edit, Trash2, Rss, Search, X, User, Hash, Star, Loader2, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ComposeModal } from '@/components/compose/ComposeModal'
@@ -11,6 +11,7 @@ import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { useUserChannels } from '@/hooks/useUserChannels'
 import { useDebounce } from '@/hooks/useDebounce'
 import { PowerBadge } from '@/components/ui/PowerBadge'
+import { useNotifications } from '@/context/NotificationsContext'
 import {
   Sheet,
   SheetContent,
@@ -59,6 +60,7 @@ export function MobileNav() {
   const [isSearching, setIsSearching] = useState(false)
   const debouncedQuery = useDebounce(searchQuery, 300)
   const { favorites, toggleFavorite } = useUserChannels()
+  const { unreadCount, toggle: toggleNotifications } = useNotifications()
 
   // Cargar drafts cuando se abre el sheet
   useEffect(() => {
@@ -203,6 +205,21 @@ export function MobileNav() {
               </Link>
 
               <button
+                type="button"
+                onClick={toggleNotifications}
+                className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+                aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
+              >
+                <Bell className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Notifs</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() => setSearchOpen(true)}
                 className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
               >
@@ -221,6 +238,21 @@ export function MobileNav() {
                 <Rss className="w-5 h-5" />
                 <span className="text-[10px] font-medium">Feed</span>
               </Link>
+
+              <button
+                type="button"
+                onClick={toggleNotifications}
+                className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+                aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
+              >
+                <Bell className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Notifs</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
 
               <button
                 onClick={() => setDraftsOpen(true)}

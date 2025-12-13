@@ -271,25 +271,26 @@ export function ContextEditor({
         method: 'POST',
       })
 
+      const data = await response.json().catch(() => null)
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Error updating profile')
+        throw new Error(data?.error || 'Error updating profile')
       }
 
-      const data = await response.json()
-      setCurrentStyleProfile(data.profile)
+      if (data?.profile) {
+        setCurrentStyleProfile(data.profile)
+      }
       
       // Auto-rellenar campos con datos del análisis AI
-      if (data.brandVoice && !brandVoice) {
+      if (data?.brandVoice && !brandVoice) {
         setBrandVoice(data.brandVoice)
       }
-      if (data.alwaysDo?.length && alwaysDo.length === 0) {
+      if (data?.alwaysDo?.length && alwaysDo.length === 0) {
         setAlwaysDo(data.alwaysDo)
       }
-      if (data.neverDo?.length && neverDo.length === 0) {
+      if (data?.neverDo?.length && neverDo.length === 0) {
         setNeverDo(data.neverDo)
       }
-      if (data.hashtags?.length && hashtags.length === 0) {
+      if (data?.hashtags?.length && hashtags.length === 0) {
         setHashtags(data.hashtags)
       }
     } catch (error) {

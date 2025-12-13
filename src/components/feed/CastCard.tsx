@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
@@ -18,6 +18,8 @@ import {
   isFarcasterCastUrl,
 } from '@/components/embeds'
 import { toast } from 'sonner'
+
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 import { MorphText } from '@/components/ui/MorphText'
 import { ScrambleText } from '@/components/ui/ScrambleText'
@@ -95,6 +97,7 @@ interface Cast {
 interface CastCardProps {
   cast: Cast
   onOpenMiniApp?: (url: string, title: string) => void
+  onOpenCast?: (castHash: string) => void
   onQuote?: (castUrl: string) => void
   onDelete?: (castHash: string) => void
   onReply?: (cast: Cast) => void
@@ -106,6 +109,7 @@ interface CastCardProps {
 export function CastCard({ 
   cast, 
   onOpenMiniApp,
+  onOpenCast,
   onQuote,
   onDelete,
   onReply,
@@ -113,6 +117,7 @@ export function CastCard({
   currentUserFid,
   isPro = false,
 }: CastCardProps) {
+  const { selectedAccountId } = useSelectedAccount()
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
@@ -120,7 +125,9 @@ export function CastCard({
   const [isRecasted, setIsRecasted] = useState(false)
   const [likesCount, setLikesCount] = useState(cast.reactions.likes_count)
   const [recastsCount, setRecastsCount] = useState(cast.reactions.recasts_count)
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null)
+  const [videoModal, setVideoModal] = useState<{ url: string; poster?: string } | null>(null)
+  const [showAllImages, setShowAllImages] = useState(false)
   const [replies, setReplies] = useState<any[]>([])
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -128,6 +135,12 @@ export function CastCard({
   const [replyMedia, setReplyMedia] = useState<{ preview: string; url?: string; uploading: boolean; isGif?: boolean } | null>(null)
   const [showGifPicker, setShowGifPicker] = useState(false)
   const [showAIPicker, setShowAIPicker] = useState(false)
+
+  const replyIdempotencyKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    replyIdempotencyKeyRef.current = null
+  }, [replyText, replyMedia?.url])
   const [aiReplyTarget, setAiReplyTarget] = useState<Cast | null>(null)
   const [isSendingReply, setIsSendingReply] = useState(false)
   const [isTranslatingReply, setIsTranslatingReply] = useState(false)
@@ -135,6 +148,9 @@ export function CastCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [showFullText, setShowFullText] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const lightboxDragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const lightboxDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+  const lightboxDidSwipeRef = useRef(false)
   
   const isOwnCast = currentUserFid === cast.author.fid
   const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
@@ -269,18 +285,29 @@ export function CastCard({
       toast.error('Espera a que termine de subir la imagen')
       return
     }
+
+    if (!selectedAccountId) {
+      toast.error('Selecciona una cuenta para publicar')
+      return
+    }
     
     setIsSendingReply(true)
     try {
+      if (!replyIdempotencyKeyRef.current) {
+        replyIdempotencyKeyRef.current = crypto.randomUUID()
+      }
+
       const embeds = replyMedia?.url ? [{ url: replyMedia.url }] : undefined
       
       const res = await fetch('/api/casts/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          accountId: selectedAccountId,
           content: replyText,
           parentHash: cast.hash,
           embeds,
+          idempotencyKey: replyIdempotencyKeyRef.current,
         }),
       })
       
@@ -289,6 +316,7 @@ export function CastCard({
       toast.success('Respuesta publicada')
       setReplyText('')
       setReplyMedia(null)
+      replyIdempotencyKeyRef.current = null
       
       // Recargar replies
       const repliesRes = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
@@ -446,12 +474,131 @@ export function CastCard({
   
   const timeAgo = getShortTimeAgo(cast.timestamp)
 
+  const handleOpenCast = () => {
+    onOpenCast?.(cast.hash)
+  }
+
+  const handleOpenCastKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onOpenCast) return
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    handleOpenCast()
+  }
+
+  const handleCloseLightbox = () => {
+    setLightbox(null)
+  }
+
+  const handleLightboxPrev = () => {
+    setLightbox((current) => {
+      if (!current) return current
+      if (current.urls.length <= 1) return current
+      const nextIndex = (current.index - 1 + current.urls.length) % current.urls.length
+      return { ...current, index: nextIndex }
+    })
+  }
+
+  const handleLightboxNext = () => {
+    setLightbox((current) => {
+      if (!current) return current
+      if (current.urls.length <= 1) return current
+      const nextIndex = (current.index + 1) % current.urls.length
+      return { ...current, index: nextIndex }
+    })
+  }
+
+  const handleLightboxPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (!lightbox) return
+    if (lightbox.urls.length <= 1) return
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    lightboxDragStartRef.current = { x: e.clientX, y: e.clientY }
+    lightboxDragDeltaRef.current = { x: 0, y: 0 }
+    lightboxDidSwipeRef.current = false
+  }
+
+  const handleLightboxPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const start = lightboxDragStartRef.current
+    if (!start) return
+    lightboxDragDeltaRef.current = { x: e.clientX - start.x, y: e.clientY - start.y }
+  }
+
+  const handleLightboxPointerEnd = () => {
+    const start = lightboxDragStartRef.current
+    if (!start) return
+
+    const { x: deltaX, y: deltaY } = lightboxDragDeltaRef.current
+    lightboxDragStartRef.current = null
+    lightboxDragDeltaRef.current = { x: 0, y: 0 }
+
+    const SWIPE_THRESHOLD_PX = 60
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return
+    if (Math.abs(deltaX) < Math.abs(deltaY)) return
+
+    lightboxDidSwipeRef.current = true
+    if (deltaX > 0) {
+      handleLightboxPrev()
+      return
+    }
+
+    handleLightboxNext()
+  }
+
+  useEffect(() => {
+    if (!lightbox) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        handleCloseLightbox()
+        return
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        handleLightboxPrev()
+        return
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        handleLightboxNext()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = originalOverflow
+    }
+  }, [lightbox])
+
+  useEffect(() => {
+    if (!videoModal) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      setVideoModal(null)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = originalOverflow
+    }
+  }, [videoModal])
+
   return (
     <div 
       ref={cardRef}
-      onClick={handleToggleReplies}
       className={cn(
-        "p-4 border rounded-lg bg-card transition-all cursor-pointer",
+        "p-4 border rounded-lg bg-card transition-all",
         isExpanded 
           ? "border-primary/50 shadow-lg ring-1 ring-primary/20" 
           : "border-border hover:bg-muted/30"
@@ -517,7 +664,16 @@ export function CastCard({
       </div>
 
       {/* Content */}
-      <div className="mt-3 ml-0 sm:ml-13">
+      <div
+        onClick={onOpenCast ? handleOpenCast : undefined}
+        onKeyDown={handleOpenCastKeyDown}
+        role={onOpenCast ? 'link' : undefined}
+        tabIndex={onOpenCast ? 0 : undefined}
+        className={cn(
+          "mt-3 ml-0 sm:ml-13",
+          onOpenCast && "cursor-pointer"
+        )}
+      >
         <div className="relative">
           {/* Indicador de traducción flotante */}
           {showTranslation && (
@@ -578,14 +734,40 @@ export function CastCard({
             e.metadata?.frame?.image
           ))
           const quoteCasts = cast.embeds.filter(e => e.cast)
-          // Media grid calculation
-          const mediaCount = images.length + videos.length
-          const getGridClass = (count: number) => {
-            if (count === 1) return "grid-cols-1"
-            if (count === 2) return "grid-cols-2 aspect-[2/1]"
-            if (count === 3) return "grid-cols-2 aspect-[2/1]" // Especial handling for 3 via row-span
-            return "grid-cols-2 aspect-square"
-          }
+
+          type FrameItem = { kind: 'frame'; url: string; image: string; title: string }
+          type ImageItem = { kind: 'image'; url: string }
+          type VideoItem = { kind: 'video'; url: string; poster: string | undefined; durationS: number | undefined }
+          type CarouselItem = FrameItem | ImageItem | VideoItem
+
+          const frameItems: FrameItem[] = frames
+            .map((embed) => {
+              const frameImage = embed.metadata?.frame?.image || embed.metadata?.html?.ogImage?.[0]?.url
+              const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Abrir Mini App'
+              if (!frameImage || !embed.url) return null
+              return { kind: 'frame' as const, url: embed.url, image: frameImage, title: frameTitle }
+            })
+            .filter((item): item is FrameItem => item !== null)
+
+          const imageItems: ImageItem[] = images
+            .map((embed) => embed.url)
+            .filter((url): url is string => !!url)
+            .map((url) => ({ kind: 'image' as const, url }))
+
+          const videoItems: VideoItem[] = videos
+            .map((embed) => {
+              if (!embed.url) return null
+              const poster = embed.metadata?.html?.ogImage?.[0]?.url
+              const durationS = embed.metadata?.video?.duration_s
+              return { kind: 'video' as const, url: embed.url, poster, durationS }
+            })
+            .filter((item): item is VideoItem => item !== null)
+
+          const hasCarouselMedia = images.length > 0 || videos.length > 0
+
+          const carouselItems: CarouselItem[] = hasCarouselMedia ? [...imageItems, ...videoItems, ...frameItems] : []
+          const carouselItemsToRender: CarouselItem[] = showAllImages ? carouselItems : carouselItems.slice(0, 2)
+          const hiddenCarouselCount = Math.max(0, carouselItems.length - carouselItemsToRender.length)
 
           // Links (no images, videos, frames ni quotes)
           const processedUrls = new Set([
@@ -631,96 +813,188 @@ export function CastCard({
               ))}
 
               {/* Media Grid */}
-              {(images.length > 0 || videos.length > 0) && (
-                <div className={cn("grid gap-1 rounded-xl overflow-hidden", getGridClass(mediaCount))}>
-                  {images.map((embed, i) => (
-                    <button
-                      key={`img-${i}`}
-                      onClick={() => embed.url && setLightboxImage(embed.url)}
-                      className={cn(
-                        "relative w-full bg-muted overflow-hidden hover:opacity-95 transition-colors",
-                        mediaCount === 1 ? "aspect-video max-h-[500px]" : "aspect-square",
-                        mediaCount === 3 && i === 0 ? "row-span-2" : ""
-                      )}
-                    >
-                      <img
-                        src={embed.url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                  
-                  {videos.map((embed, i) => (
-                    <div 
-                      key={`video-${i}`} 
-                      className={cn(
-                        "relative w-full h-full bg-black overflow-hidden",
-                        mediaCount === 1 ? "aspect-video" : "aspect-square",
-                        mediaCount === 3 && i === 0 && images.length === 0 ? "row-span-2 aspect-auto" : ""
-                      )}
-                    >
-                      <HLSVideo
-                        src={embed.url || ''}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
+              {hasCarouselMedia && (
+                <div className="-mx-4 sm:mx-0">
+                  <div className="flex gap-2 overflow-x-auto pb-2 px-4 sm:px-0 no-scrollbar">
+                    {carouselItemsToRender.map((item, i) => {
+                      if (item.kind === 'frame') {
+                        return (
+                          <button
+                            key={`media-${item.kind}-${item.url}-${i}`}
+                            onClick={() => onOpenMiniApp?.(item.url, item.title)}
+                            aria-label={item.title}
+                            className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
+                          >
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                            <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
+                              MINI APP
+                            </div>
+                            <div className="absolute inset-x-0 bottom-0 p-2">
+                              <div className="space-y-2">
+                                <div className="text-white text-sm font-semibold truncate text-left">{item.title}</div>
+                                <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
+                                  Jugar / abrir
+                                  <ExternalLink className="w-4 h-4" />
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      }
+
+                      if (item.kind === 'video') {
+                        return (
+                          <button
+                            key={`media-${item.kind}-${item.url}-${i}`}
+                            onClick={() => setVideoModal({ url: item.url, poster: item.poster })}
+                            aria-label="Reproducir video"
+                            className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-black overflow-hidden hover:opacity-95 transition-opacity rounded-xl"
+                          >
+                            {item.poster ? (
+                              <img
+                                src={item.poster}
+                                alt=""
+                                className="absolute inset-0 w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black" />
+                            )}
+                            <div className="absolute inset-0 bg-black/20" />
+                            <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
+                              VIDEO
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/20">
+                                <Film className="w-6 h-6 text-white" />
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      }
+
+                      return (
+                        <button
+                          key={`media-${item.kind}-${item.url}-${i}`}
+                          onClick={() => {
+                            const urls = imageItems.map((img) => img.url)
+                            const foundIndex = urls.findIndex((url) => url === item.url)
+                            const clampedIndex = foundIndex >= 0 ? foundIndex : 0
+                            setLightbox({ urls, index: clampedIndex })
+                          }}
+                          aria-label="Abrir imagen"
+                          className={cn(
+                            "relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl"
+                          )}
+                        >
+                          <img
+                            src={item.url}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      )
+                    })}
+
+                    {hiddenCarouselCount > 0 && !showAllImages && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAllImages(true)
+                        }}
+                        className="flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square rounded-xl border border-border bg-card/60 hover:bg-card transition-colors flex items-center justify-center"
+                        aria-label={`Mostrar ${hiddenCarouselCount} más`}
+                      >
+                        <span className="text-sm font-medium text-foreground">
+                          Mostrar {hiddenCarouselCount} más
+                        </span>
+                      </button>
+                    )}
+
+                    {carouselItems.length > 2 && showAllImages && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAllImages(false)
+                        }}
+                        className="flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square rounded-xl border border-border bg-card/60 hover:bg-card transition-colors flex items-center justify-center"
+                        aria-label="Ver menos"
+                      >
+                        <span className="text-sm font-medium text-foreground">Ver menos</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Frames / Miniapps (Scroll horizontal separado para no romper el grid) */}
-              {frames.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                  {frames.map((embed, i) => {
-                    const frameImage = embed.metadata?.frame?.image || embed.metadata?.html?.ogImage?.[0]?.url
-                    const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Abrir Mini App'
-                    const buttons = embed.metadata?.frame?.buttons || []
-                    
-                    if (!frameImage || !embed.url) return null
-                    
-                    return (
-                      <div
+              {frames.length > 0 && !hasCarouselMedia && (
+                <div className="-mx-4 sm:mx-0">
+                  <div className="flex gap-2 overflow-x-auto pb-2 px-4 sm:px-0 no-scrollbar">
+                    {(showAllImages ? frameItems : frameItems.slice(0, 2)).map((item, i) => (
+                      <button
                         key={`frame-${i}`}
-                        className="w-full max-w-[300px] flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card shadow-sm"
+                        onClick={() => onOpenMiniApp?.(item.url, item.title)}
+                        aria-label={item.title}
+                        className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
                       >
-                        <div className="relative aspect-[1.91/1] bg-muted">
-                           <img
-                            src={frameImage}
-                            alt={frameTitle}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                          <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                            FRAME
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                        <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
+                          MINI APP
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 p-2">
+                          <div className="space-y-2">
+                            <div className="text-white text-sm font-semibold truncate text-left">{item.title}</div>
+                            <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
+                              Jugar / abrir
+                              <ExternalLink className="w-4 h-4" />
+                            </div>
                           </div>
                         </div>
-                        <div className="p-3 border-t border-border">
-                          <h4 className="font-medium text-sm truncate mb-2">{frameTitle}</h4>
-                          <div className="grid grid-cols-2 gap-2">
-                             {buttons.slice(0, 2).map((btn, idx) => (
-                               <button 
-                                 key={idx}
-                                 className="w-full py-1.5 px-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded transition-colors truncate border border-border/50"
-                               >
-                                 {btn.title || `Action ${idx + 1}`}
-                               </button>
-                             ))}
-                             <button 
-                               onClick={() => onOpenMiniApp?.(embed.url!, frameTitle)}
-                               className={cn(
-                                 "w-full py-1.5 px-2 bg-primary text-primary-foreground text-xs font-medium rounded transition-colors truncate flex items-center justify-center gap-1",
-                                 buttons.length > 0 ? "col-span-2" : "col-span-2"
-                               )}
-                             >
-                               <span>Abrir App</span>
-                               <ExternalLink className="w-3 h-3" />
-                             </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                      </button>
+                    ))}
+
+                    {frameItems.length > 2 && !showAllImages && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAllImages(true)
+                        }}
+                        className="flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square rounded-xl border border-border bg-card/60 hover:bg-card transition-colors flex items-center justify-center"
+                        aria-label={`Mostrar ${frameItems.length - 2} frames más`}
+                      >
+                        <span className="text-sm font-medium text-foreground">
+                          Mostrar {frameItems.length - 2} más
+                        </span>
+                      </button>
+                    )}
+
+                    {frameItems.length > 2 && showAllImages && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAllImages(false)
+                        }}
+                        className="flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square rounded-xl border border-border bg-card/60 hover:bg-card transition-colors flex items-center justify-center"
+                        aria-label="Ver menos frames"
+                      >
+                        <span className="text-sm font-medium text-foreground">Ver menos</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -728,7 +1002,11 @@ export function CastCard({
               {tweets.map((embed, i) => {
                 const tweetId = embed.url?.match(/status\/(\d+)/)?.[1]
                 return tweetId ? (
-                  <TweetRenderer key={`tweet-${i}`} tweetId={tweetId} />
+                  <TweetRenderer
+                    key={`tweet-${i}`}
+                    tweetId={tweetId}
+                    className="max-w-xl mx-auto max-h-[520px] overflow-auto overscroll-contain"
+                  />
                 ) : null
               })}
 
@@ -736,7 +1014,7 @@ export function CastCard({
               {youtubeLinks.map((embed, i) => {
                 const videoId = extractYouTubeId(embed.url!)
                 return videoId ? (
-                  <YouTubeRenderer key={`yt-${i}`} videoId={videoId} />
+                  <YouTubeRenderer key={`yt-${i}`} videoId={videoId} className="max-w-xl mx-auto" />
                 ) : null
               })}
 
@@ -806,12 +1084,19 @@ export function CastCard({
 
         {/* Reply */}
         <button 
-          onClick={() => {
-            if (onReply) {
-              onReply(cast)
-            } else {
-              handleToggleReplies()
+          onClick={(e) => {
+            if (onOpenCast) {
+              handleToggleReplies(e)
+              return
             }
+
+            if (onReply) {
+              e.stopPropagation()
+              onReply(cast)
+              return
+            }
+
+            handleToggleReplies(e)
           }}
           className={cn(
             "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
@@ -882,7 +1167,22 @@ export function CastCard({
           ) : replies.length > 0 && (
             <div className="max-h-64 overflow-y-auto space-y-4 border-l-2 border-border/50 pl-4 ml-2 scrollbar-thin">
               {replies.slice(0, 5).map((reply) => (
-                <div key={reply.hash} className="text-sm group">
+                <div
+                  key={reply.hash}
+                  onClick={() => onOpenCast?.(reply.hash)}
+                  onKeyDown={(e) => {
+                    if (!onOpenCast) return
+                    if (e.key !== 'Enter' && e.key !== ' ') return
+                    e.preventDefault()
+                    onOpenCast(reply.hash)
+                  }}
+                  role={onOpenCast ? 'link' : undefined}
+                  tabIndex={onOpenCast ? 0 : undefined}
+                  className={cn(
+                    "text-sm group rounded-lg -mx-2 px-2 py-2",
+                    onOpenCast && "cursor-pointer hover:bg-muted/30"
+                  )}
+                >
                   <div className="flex items-start gap-2">
                     {reply.author && (
                       <UserPopover
@@ -1004,7 +1304,10 @@ export function CastCard({
               {replies.length > 5 && (
                 <button 
                   className="w-full text-xs text-muted-foreground text-center py-2 hover:text-primary transition-colors"
-                  onClick={() => {/* TODO: Cargar más o ir al detalle */}}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenCast?.(cast.hash)
+                  }}
                 >
                   Ver {replies.length - 5} respuestas más
                 </button>
@@ -1014,23 +1317,124 @@ export function CastCard({
         </div>
       )}
 
-      {/* Lightbox para imágenes */}
-      {lightboxImage && (
-        <div 
+      {/* Modal de video */}
+      {videoModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Reproductor de video"
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightboxImage(null)}
+          onClick={() => setVideoModal(null)}
         >
           <button
-            onClick={() => setLightboxImage(null)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setVideoModal(null)
+            }}
             className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors"
+            aria-label="Cerrar"
           >
             <X className="w-8 h-8" />
           </button>
-          <img
-            src={lightboxImage}
-            alt=""
-            className="max-w-full max-h-full object-contain"
+          <div
+            className="w-full max-w-4xl aspect-video bg-black rounded-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+          >
+            <HLSVideo
+              src={videoModal.url}
+              poster={videoModal.poster}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox para imágenes */}
+      {lightbox && (
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visor de imágenes"
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => {
+            if (lightboxDidSwipeRef.current) {
+              lightboxDidSwipeRef.current = false
+              return
+            }
+
+            handleCloseLightbox()
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCloseLightbox()
+            }}
+            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="w-8 h-8" />
+          </button>
+
+          {lightbox.urls.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleLightboxPrev()
+              }}
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Imagen anterior"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {lightbox.urls.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleLightboxNext()
+              }}
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Imagen siguiente"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          {lightbox.urls.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-xs font-medium bg-black/30 px-2 py-1 rounded">
+              {lightbox.index + 1} / {lightbox.urls.length}
+            </div>
+          )}
+
+          <img
+            src={lightbox.urls[lightbox.index]}
+            alt=""
+            className="max-w-full max-h-full object-contain touch-none select-none"
+            draggable={false}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              handleLightboxPointerDown(e)
+            }}
+            onPointerMove={(e) => {
+              e.stopPropagation()
+              handleLightboxPointerMove(e)
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation()
+              handleLightboxPointerEnd()
+            }}
+            onPointerCancel={(e) => {
+              e.stopPropagation()
+              handleLightboxPointerEnd()
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (lightboxDidSwipeRef.current) {
+                lightboxDidSwipeRef.current = false
+              }
+            }}
           />
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Loader2, ExternalLink, Users, MapPin, Link as LinkIcon } from 'lucide-react'
@@ -45,6 +46,7 @@ interface Cast {
 }
 
 export function ProfileSheet({ username, open, onOpenChange }: ProfileSheetProps) {
+  const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [casts, setCasts] = useState<Cast[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -163,6 +165,7 @@ export function ProfileSheet({ username, open, onOpenChange }: ProfileSheetProps
                     <CastCard 
                       key={cast.hash} 
                       cast={cast}
+                      onOpenCast={(castHash) => router.push(`/cast/${castHash}`)}
                     />
                   ))
                 ) : (

@@ -44,13 +44,15 @@ export async function POST(request: NextRequest) {
       orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],
     })
 
-    let account = accountId
+    const requestedAccount = accountId
       ? accessibleAccounts.find(a => a.id === accountId) ?? null
       : null
 
-    if (!account) {
-      account = accessibleAccounts.find(a => a.ownerId === session.userId) ?? accessibleAccounts[0] ?? null
+    if (accountId && !requestedAccount) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const account = requestedAccount ?? (accessibleAccounts.find(a => a.ownerId === session.userId) ?? accessibleAccounts[0] ?? null)
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })

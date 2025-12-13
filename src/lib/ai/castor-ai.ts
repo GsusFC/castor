@@ -13,6 +13,70 @@ const AI_CONFIG = {
   cacheProfileDays: process.env.NODE_ENV === 'production' ? 7 : 30,
 }
 
+export type SupportedTargetLanguage = 'en' | 'es' | 'fr' | 'de' | 'pt'
+
+export const assertSupportedTargetLanguage = (value: unknown): SupportedTargetLanguage => {
+  if (typeof value !== 'string') {
+    throw new Error('targetLanguage must be a string')
+  }
+
+  switch (value) {
+    case 'en':
+    case 'es':
+    case 'fr':
+    case 'de':
+    case 'pt':
+      return value
+    default:
+      throw new Error(`Unsupported targetLanguage: ${value}`)
+  }
+}
+
+export const toEnglishLanguageName = (lang: SupportedTargetLanguage): string => {
+  switch (lang) {
+    case 'en':
+      return 'English'
+    case 'es':
+      return 'Spanish'
+    case 'fr':
+      return 'French'
+    case 'de':
+      return 'German'
+    case 'pt':
+      return 'Portuguese'
+  }
+}
+
+export const toSpanishLanguageName = (lang: SupportedTargetLanguage): string => {
+  switch (lang) {
+    case 'en':
+      return 'inglés'
+    case 'es':
+      return 'español'
+    case 'fr':
+      return 'francés'
+    case 'de':
+      return 'alemán'
+    case 'pt':
+      return 'portugués'
+  }
+}
+
+const resolveWritingLanguage = (
+  targetLanguage: unknown,
+  profileLanguagePreference: StyleProfile['languagePreference']
+): SupportedTargetLanguage => {
+  if (targetLanguage !== undefined) {
+    return assertSupportedTargetLanguage(targetLanguage)
+  }
+
+  if (profileLanguagePreference !== 'mixed') {
+    return profileLanguagePreference
+  }
+
+  return 'en'
+}
+
 // Types
 export interface StyleProfile {
   id: string
@@ -247,10 +311,10 @@ Responde SOLO con JSON válido (sin markdown):
 
     switch (mode) {
       case 'write':
-        userPrompt = this.buildWritePrompt(context, maxChars)
+        userPrompt = this.buildWritePrompt(context, maxChars, profile.languagePreference)
         break
       case 'improve':
-        userPrompt = this.buildImprovePrompt(context, maxChars)
+        userPrompt = this.buildImprovePrompt(context, maxChars, profile.languagePreference)
         break
       case 'translate':
         userPrompt = this.buildTranslatePrompt(context)
@@ -327,9 +391,13 @@ REGLAS:
     return context
   }
 
-  private buildWritePrompt(context: SuggestionContext, maxChars: number): string {
-    const targetLang = context.targetLanguage === 'es' ? 'Spanish' : 'English'
-    let prompt = `Write in ${targetLang}.\n\n`
+  private buildWritePrompt(
+    context: SuggestionContext,
+    maxChars: number,
+    profileLanguagePreference: StyleProfile['languagePreference']
+  ): string {
+    const targetLang = resolveWritingLanguage(context.targetLanguage, profileLanguagePreference)
+    let prompt = `Write in ${toEnglishLanguageName(targetLang)}.\n\n`
 
     if (context.replyingTo) {
       prompt += `Replying to @${context.replyingTo.author}:\n"${context.replyingTo.text}"\n\n`
@@ -347,23 +415,27 @@ REGLAS:
       prompt += `Desired tone: ${context.targetTone}\n\n`
     }
 
-    prompt += `Generate 3 different options (max ${maxChars} characters each).
+    prompt += `Generate exactly 3 different options (max ${maxChars} characters each).
 
-Format:
-1. [suggestion]
-2. [suggestion]
-3. [suggestion]`
+Return ONLY valid JSON (no markdown, no extra text):
+{
+  "suggestions": ["option 1", "option 2", "option 3"]
+}`
 
     return prompt
   }
 
-  private buildImprovePrompt(context: SuggestionContext, maxChars: number): string {
+  private buildImprovePrompt(
+    context: SuggestionContext,
+    maxChars: number,
+    profileLanguagePreference: StyleProfile['languagePreference']
+  ): string {
     if (!context.currentDraft) {
       throw new Error('Draft is required for improve mode')
     }
 
-    const targetLang = context.targetLanguage === 'es' ? 'Spanish' : 'English'
-    let prompt = `Write improvements in ${targetLang}.\n\n`
+    const targetLang = resolveWritingLanguage(context.targetLanguage, profileLanguagePreference)
+    let prompt = `Write improvements in ${toEnglishLanguageName(targetLang)}.\n\n`
     prompt += `User draft:\n"${context.currentDraft}"\n\n`
 
     if (context.targetTone) {
@@ -371,12 +443,12 @@ Format:
     }
 
     prompt += `Improve this draft keeping the essence but making it more effective.
-Provide 3 improved versions (max ${maxChars} characters each).
+Provide exactly 3 improved versions (max ${maxChars} characters each).
 
-Format:
-1. [improved version]
-2. [improved version]
-3. [improved version]`
+Return ONLY valid JSON (no markdown, no extra text):
+{
+  "suggestions": ["version 1", "version 2", "version 3"]
+}`
 
     return prompt
   }
@@ -386,36 +458,48 @@ Format:
       throw new Error('Text is required for translate mode')
     }
 
-    const targetLang = context.targetLanguage === 'es' ? 'español' : 'English'
+    const targetLang = assertSupportedTargetLanguage(context.targetLanguage)
 
-    return `Traduce este texto a ${targetLang}, manteniendo el tono y estilo:
+    return `Traduce este texto a ${toSpanishLanguageName(targetLang)}, manteniendo el tono y estilo:
 
 "${context.currentDraft}"
 
 Ofrece 3 versiones de la traducción con diferentes matices:
 
-1. [traducción directa]
-2. [traducción más informal]
-3. [traducción más formal]`
+Responde SOLO con JSON válido (sin markdown, sin texto extra):
+{
+  "suggestions": ["traducción 1", "traducción 2", "traducción 3"]
+}`
   }
 
   private parseSuggestions(text: string, maxChars: number): string[] {
-    const cleaned = text.replace(/```.*?\n?/g, '').trim()
-    const lines = cleaned.split('\n')
-    
-    const suggestions: string[] = []
-    
-    for (const line of lines) {
-      const match = line.match(/^\d+\.\s*(.+)$/)
-      if (match) {
-        const suggestion = match[1].trim().replace(/^["']|["']$/g, '')
-        if (suggestion.length > 0 && suggestion.length <= maxChars) {
-          suggestions.push(suggestion)
-        }
-      }
+    const cleaned = text
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim()
+
+    const parsed = JSON.parse(cleaned) as unknown
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid AI response: expected JSON object')
     }
 
-    return suggestions.slice(0, 3)
+    const suggestionsRaw = (parsed as { suggestions?: unknown }).suggestions
+    if (!Array.isArray(suggestionsRaw)) {
+      throw new Error('Invalid AI response: expected suggestions array')
+    }
+
+    const suggestions = suggestionsRaw
+      .filter((s): s is string => typeof s === 'string')
+      .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+      .filter((s) => s.length > 0)
+      .filter((s) => s.length <= maxChars)
+      .slice(0, 3)
+
+    if (suggestions.length === 0) {
+      throw new Error('Invalid AI response: no valid suggestions')
+    }
+
+    return suggestions
   }
 
   private createDefaultProfile(userId: string, fid: number): StyleProfile {

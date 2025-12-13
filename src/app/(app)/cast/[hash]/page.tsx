@@ -9,9 +9,8 @@ import { cn } from '@/lib/utils'
 
 interface ConversationResponse {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  cast: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parent: any | null
+  thread: any[]
+  targetHash: string
   replies: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     casts: any[]
@@ -50,6 +49,10 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
     router.push(`/cast/${castHash}`)
   }
 
+  const thread = data?.thread ?? []
+  const mainCast = thread.length > 0 ? thread[thread.length - 1] : null
+  const parentCast = thread.length > 1 ? thread[thread.length - 2] : null
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -82,17 +85,17 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
               Reintentar
             </button>
           </div>
-        ) : data ? (
+        ) : data && mainCast ? (
           <div className="divide-y divide-border">
             {/* Parent cast (si existe) */}
-            {data.parent && (
+            {parentCast && (
               <div className="relative">
                 <div
-                  onClick={() => handleCastClick(data.parent!.hash)}
+                  onClick={() => handleCastClick(parentCast.hash)}
                   className="w-full text-left cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
                 >
                   <CastCard
-                    cast={data.parent}
+                    cast={parentCast}
                     onSelectUser={handleSelectUser}
                   />
                 </div>
@@ -104,10 +107,10 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
             {/* Main cast (highlighted) */}
             <div className={cn(
               "bg-muted/30",
-              data.parent && "border-l-2 border-primary"
+              parentCast && "border-l-2 border-primary"
             )}>
               <CastCard
-                cast={data.cast}
+                cast={mainCast}
                 onSelectUser={handleSelectUser}
               />
             </div>

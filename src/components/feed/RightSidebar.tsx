@@ -28,9 +28,10 @@ interface TrendingCast {
 
 interface RightSidebarProps {
   onSelectUser?: (username: string) => void
+  onSelectCast?: (castHash: string) => void
 }
 
-export function RightSidebar({ onSelectUser }: RightSidebarProps) {
+export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) {
   const router = useRouter()
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([])
   const [trendingCasts, setTrendingCasts] = useState<TrendingCast[]>([])
@@ -68,8 +69,11 @@ export function RightSidebar({ onSelectUser }: RightSidebarProps) {
         }}
         onSelectChannel={(channel) => router.push(`/?channel=${channel.id}`)}
         onSelectCast={(cast) => {
-          const url = `https://farcaster.xyz/~/conversations/${cast.hash}`
-          window.open(url, '_blank')
+          if (onSelectCast) {
+            onSelectCast(cast.hash)
+            return
+          }
+          router.push(`/cast/${cast.hash}`)
         }}
       />
       {/* Who to follow */}
@@ -124,11 +128,17 @@ export function RightSidebar({ onSelectUser }: RightSidebarProps) {
           <ul className="space-y-3">
             {trendingCasts.map((cast) => (
               <li key={cast.hash}>
-                <a
-                  href={`https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSelectCast) {
+                      onSelectCast(cast.hash)
+                      return
+                    }
+                    router.push(`/cast/${cast.hash}`)
+                  }}
+                  className="block w-full text-left p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  aria-label={`Abrir conversación de @${cast.author.username}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {cast.author.pfp_url && (
@@ -146,7 +156,7 @@ export function RightSidebar({ onSelectUser }: RightSidebarProps) {
                     </span>
                   </div>
                   <p className="text-xs line-clamp-2">{cast.text}</p>
-                </a>
+                </button>
               </li>
             ))}
           </ul>

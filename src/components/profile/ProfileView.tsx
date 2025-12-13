@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, ExternalLink, Loader2, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PowerBadge } from '@/components/ui/PowerBadge'
@@ -13,6 +14,7 @@ interface ProfileViewProps {
   onSelectUser?: (username: string) => void
   onReply?: (cast: Cast) => void
   onQuote?: (castUrl: string) => void
+  onOpenCast?: (castHash: string) => void
   currentUserFid?: number
   isPro?: boolean
 }
@@ -57,9 +59,11 @@ export function ProfileView({
   onSelectUser, 
   onReply, 
   onQuote,
+  onOpenCast,
   currentUserFid,
   isPro = false,
 }: ProfileViewProps) {
+  const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [casts, setCasts] = useState<Cast[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -93,6 +97,14 @@ export function ProfileView({
   const bio = profile?.profile?.bio?.text || profile?.bio
   const location = profile?.profile?.location?.description
   const coverImage = profile?.profile?.banner?.url
+
+  const handleOpenCast = (castHash: string) => {
+    if (onOpenCast) {
+      onOpenCast(castHash)
+      return
+    }
+    router.push(`/cast/${castHash}`)
+  }
 
   if (isLoading) {
     return (
@@ -246,6 +258,7 @@ export function ProfileView({
             <CastCard 
               key={cast.hash} 
               cast={cast}
+              onOpenCast={handleOpenCast}
               onSelectUser={onSelectUser}
               onReply={onReply}
               onQuote={onQuote}

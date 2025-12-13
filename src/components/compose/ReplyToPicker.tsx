@@ -98,18 +98,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
 
   // Botón para abrir el picker
   if (!isOpen) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className="text-muted-foreground"
-      >
-        <MessageSquare className="w-4 h-4 mr-2" />
-        Responder a un cast
-      </Button>
-    )
+    return null
   }
 
   // Input para buscar cast

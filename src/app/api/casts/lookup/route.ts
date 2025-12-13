@@ -45,6 +45,13 @@ function formatResponse(castData: any) {
       },
       timestamp: castData.timestamp,
       embeds: castData.embeds,
+      reactions: {
+        likes_count: castData.reactions?.likes_count || 0,
+        recasts_count: castData.reactions?.recasts_count || 0,
+      },
+      replies: {
+        count: castData.replies?.count || 0,
+      },
     },
   })
 }

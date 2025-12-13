@@ -149,6 +149,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
 
+    if (!account.ownerId) {
+      return NextResponse.json({ error: 'Account owner not found' }, { status: 400 })
+    }
+
     const isOwner = account.ownerId === session.userId
     const membership = await db.query.accountMembers.findFirst({
       where: and(
@@ -195,7 +199,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // 4. Guardar en DB
     const existingProfile = await db.query.userStyleProfiles.findFirst({
-      where: eq(userStyleProfiles.fid, account.fid),
+      where: eq(userStyleProfiles.userId, account.ownerId),
     })
 
     const now = new Date()
@@ -236,14 +240,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
       profile = { ...existingProfile, ...profileData }
     } else {
       const profileId = nanoid()
-      await db.insert(userStyleProfiles).values({
-        id: profileId,
-        userId: session.userId,
-        ...profileData,
-        createdAt: now,
+      await db
+        .insert(userStyleProfiles)
+        .values({
+          id: profileId,
+          userId: account.ownerId,
+          ...profileData,
+          createdAt: now,
+        })
+        .onConflictDoUpdate({
+          target: userStyleProfiles.userId,
+          set: profileData,
+        })
+
+      const savedProfile = await db.query.userStyleProfiles.findFirst({
+        where: eq(userStyleProfiles.userId, account.ownerId),
       })
-      
-      profile = { id: profileId, userId: session.userId, ...profileData, createdAt: now }
+
+      if (!savedProfile) {
+        return NextResponse.json({ error: 'Failed to save profile' }, { status: 500 })
+      }
+
+      profile = savedProfile
     }
 
     console.log(`[Style Profile] Done! Analyzed ${allCasts.length} casts`)
@@ -282,9 +300,28 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
 
-    // Obtener perfil de estilo
+    if (!account.ownerId) {
+      return NextResponse.json({ error: 'Account owner not found' }, { status: 400 })
+    }
+
+    const isOwner = account.ownerId === session.userId
+
+    const membership = await db.query.accountMembers.findFirst({
+      where: and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.userId, session.userId)
+      ),
+      columns: {
+        id: true,
+      },
+    })
+
+    if (session.role !== 'admin' && !isOwner && !membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const profile = await db.query.userStyleProfiles.findFirst({
-      where: eq(userStyleProfiles.fid, account.fid),
+      where: eq(userStyleProfiles.userId, account.ownerId),
     })
 
     return NextResponse.json({ profile })

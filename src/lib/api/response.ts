@@ -75,6 +75,9 @@ export const ApiErrors = {
   
   forbidden: (message = 'Access denied') => 
     error(message, ErrorCodes.FORBIDDEN, 403),
+
+  alreadyExists: (message = 'Already exists') =>
+    error(message, ErrorCodes.ALREADY_EXISTS, 409),
   
   notFound: (resource = 'Resource') => 
     error(`${resource} not found`, ErrorCodes.NOT_FOUND, 404),

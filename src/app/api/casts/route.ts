@@ -3,6 +3,20 @@ import { db, scheduledCasts, accounts, accountMembers } from '@/lib/db'
 import { eq, desc, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 
+ type PublicAccount = {
+   id: string
+   username: string
+   displayName: string | null
+   pfpUrl: string | null
+ }
+
+ const toPublicAccount = (account: PublicAccount): PublicAccount => ({
+   id: account.id,
+   username: account.username,
+   displayName: account.displayName,
+   pfpUrl: account.pfpUrl,
+ })
+
 /**
  * GET /api/casts
  * Lista todos los casts programados
@@ -52,7 +66,14 @@ export async function GET(request: NextRequest) {
     const casts = await db.query.scheduledCasts.findMany({
       where: inArray(scheduledCasts.accountId, accountId ? [accountId] : accessibleAccountIds),
       with: {
-        account: true,
+        account: {
+          columns: {
+            id: true,
+            username: true,
+            displayName: true,
+            pfpUrl: true,
+          },
+        },
       },
       orderBy: [desc(scheduledCasts.scheduledAt)],
     })
@@ -68,7 +89,12 @@ export async function GET(request: NextRequest) {
       filteredCasts = filteredCasts.filter((c) => c.accountId === accountId)
     }
 
-    return NextResponse.json({ casts: filteredCasts })
+    const safeCasts = filteredCasts.map((cast) => ({
+      ...cast,
+      account: cast.account ? toPublicAccount(cast.account) : null,
+    }))
+
+    return NextResponse.json({ casts: safeCasts })
   } catch (error) {
     console.error('[API] Error fetching casts:', error)
     return NextResponse.json(

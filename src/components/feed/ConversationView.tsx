@@ -11,17 +11,15 @@ interface ConversationViewProps {
   onSelectUser: (username: string) => void
   onSelectCast?: (hash: string) => void
   onQuote?: (text: string) => void
-  onReply?: (cast: { hash: string; author: { username: string; fid: number } }) => void
+  onReply?: (cast: any) => void
   onOpenComposer?: () => void
   userPfp?: string
 }
 
 interface ConversationResponse {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   thread: any[]
   targetHash: string
   replies: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     casts: any[]
     cursor: string | null
     hasMore: boolean
@@ -36,6 +34,7 @@ export function ConversationView({
   onReply,
   onOpenComposer,
   userPfp,
+  onQuote,
 }: ConversationViewProps) {
   const { data, isLoading, error } = useQuery<ConversationResponse>({
     queryKey: ['conversation', castHash],
@@ -57,29 +56,14 @@ export function ConversationView({
   const targetCast = data?.thread[data.thread.length - 1]
 
   const handleReplyClick = () => {
-    if (targetCast && onReply) {
-      onReply({
-        hash: targetCast.hash,
-        author: {
-          username: targetCast.author.username,
-          fid: targetCast.author.fid,
-        }
-      })
-    }
+    if (!targetCast || !onReply) return
+    onReply(targetCast)
   }
 
   // Handler genérico para reply a cualquier cast
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCastReply = (cast: any) => {
-    if (onReply) {
-      onReply({
-        hash: cast.hash,
-        author: {
-          username: cast.author.username,
-          fid: cast.author.fid,
-        }
-      })
-    }
+    if (!onReply) return
+    onReply(cast)
   }
 
   return (
@@ -146,6 +130,7 @@ export function ConversationView({
                       cast={cast}
                       onSelectUser={onSelectUser}
                       onReply={() => handleCastReply(cast)}
+                      onQuote={onQuote}
                     />
                   </div>
                   {/* Línea conectora bajo el avatar */}
@@ -175,6 +160,7 @@ export function ConversationView({
                       cast={reply}
                       onSelectUser={onSelectUser}
                       onReply={() => handleCastReply(reply)}
+                      onQuote={onQuote}
                     />
                   </div>
                 ))}

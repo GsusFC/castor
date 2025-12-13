@@ -26,11 +26,11 @@ interface FormattedCast {
   author: CastAuthor
   timestamp: string
   embeds?: CastEmbed[]
-  reactions?: {
+  reactions: {
     likes_count: number
     recasts_count: number
   }
-  replies?: {
+  replies: {
     count: number
   }
   parent_hash?: string
@@ -44,6 +44,11 @@ interface FormattedCast {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatCast(cast: any): FormattedCast {
+  if (!cast?.hash) throw new Error('Invalid cast payload: missing hash')
+  if (!cast?.author?.fid || !cast?.author?.username || !cast?.author?.display_name) {
+    throw new Error('Invalid cast payload: missing author')
+  }
+
   return {
     hash: cast.hash,
     text: cast.text,
@@ -56,13 +61,13 @@ function formatCast(cast: any): FormattedCast {
     },
     timestamp: cast.timestamp,
     embeds: cast.embeds,
-    reactions: cast.reactions ? {
-      likes_count: cast.reactions.likes_count || cast.reactions.likes?.length || 0,
-      recasts_count: cast.reactions.recasts_count || cast.reactions.recasts?.length || 0,
-    } : undefined,
-    replies: cast.replies ? {
-      count: cast.replies.count || 0,
-    } : undefined,
+    reactions: {
+      likes_count: cast.reactions?.likes_count || cast.reactions?.likes?.length || 0,
+      recasts_count: cast.reactions?.recasts_count || cast.reactions?.recasts?.length || 0,
+    },
+    replies: {
+      count: cast.replies?.count || 0,
+    },
     parent_hash: cast.parent_hash,
     parent_url: cast.parent_url,
     channel: cast.channel ? {

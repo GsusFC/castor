@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 type Tone = 'professional' | 'casual' | 'friendly' | 'witty' | 'controversial'
 
@@ -52,12 +52,11 @@ Devuelve SOLO un JSON con el siguiente formato (sin markdown, sin explicaciones)
   "detectedTone": "tono del autor original"
 }`
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: prompt,
-    })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const generation = await model.generateContent(prompt)
+    const response = await generation.response
 
-    const responseText = response.text?.trim() || '{}'
+    const responseText = response.text().trim() || '{}'
     
     // Limpiar posibles marcadores de código
     const cleanJson = responseText
@@ -65,9 +64,9 @@ Devuelve SOLO un JSON con el siguiente formato (sin markdown, sin explicaciones)
       .replace(/```\n?/g, '')
       .trim()
 
-    const result = JSON.parse(cleanJson)
+    const parsed = JSON.parse(cleanJson)
 
-    return NextResponse.json(result)
+    return NextResponse.json(parsed)
   } catch (error) {
     console.error('[AI Reply] Error:', error)
     return NextResponse.json(

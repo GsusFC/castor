@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -86,12 +86,11 @@ Pregunta del usuario: ${question}
 
 Responde de forma concisa, útil y accionable. Si no tienes suficiente información para responder algo específico, dilo claramente. Responde en español.`
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: prompt,
-    })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const result = await model.generateContent(prompt)
+    const response = await result.response
 
-    const answer = response.text?.trim() || 'No pude generar una respuesta.'
+    const answer = response.text().trim() || 'No pude generar una respuesta.'
 
     return NextResponse.json({ answer })
   } catch (error) {

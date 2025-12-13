@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
-import { castorAI, AIMode, SuggestionContext } from '@/lib/ai/castor-ai'
+import { getSession, canAccess } from '@/lib/auth'
+import { db, accounts, accountMembers } from '@/lib/db'
+import { and, eq } from 'drizzle-orm'
+import { castorAI, AIMode, SuggestionContext, assertSupportedTargetLanguage } from '@/lib/ai/castor-ai'
 import { getMaxChars } from '@/lib/compose/constants'
+import { nanoid } from 'nanoid'
+
+const isInvalidAIResponseError = (error: unknown): boolean => {
+  if (error instanceof SyntaxError) return true
+  if (error instanceof Error && error.message.startsWith('Invalid AI response:')) return true
+  return false
+}
 
 /**
  * POST /api/ai/assistant
@@ -64,6 +73,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (mode === 'translate' && !targetLanguage) {
+      return NextResponse.json(
+        { error: 'targetLanguage is required for translate mode' },
+        { status: 400 }
+      )
+    }
+
+    if (targetLanguage !== undefined) {
+      try {
+        assertSupportedTargetLanguage(targetLanguage)
+      } catch (e) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : 'Invalid targetLanguage' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Obtener o crear perfil de estilo (con fallback)
     console.log('[AI Assistant] Getting profile for:', session.userId, session.fid)
     let profile
@@ -94,6 +121,31 @@ export async function POST(request: NextRequest) {
     // Obtener contexto de la cuenta si se proporciona accountId
     let accountContext: SuggestionContext['accountContext']
     if (accountId) {
+      const account = await db.query.accounts.findFirst({
+        where: eq(accounts.id, accountId),
+        columns: {
+          ownerId: true,
+        },
+      })
+
+      if (!account) {
+        return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      }
+
+      const membership = await db.query.accountMembers.findFirst({
+        where: and(
+          eq(accountMembers.accountId, accountId),
+          eq(accountMembers.userId, session.userId)
+        ),
+        columns: {
+          id: true,
+        },
+      })
+
+      if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
       console.log('[AI Assistant] Getting account context for:', accountId)
       const ctx = await castorAI.getAccountContext(accountId)
       if (ctx) {
@@ -125,11 +177,40 @@ export async function POST(request: NextRequest) {
       console.log('[AI Assistant] Generated', suggestions.length, 'suggestions')
     } catch (genError) {
       console.error('[AI Assistant] Generation error:', genError)
-      throw genError
+      if (isInvalidAIResponseError(genError)) {
+        return NextResponse.json(
+          {
+            error: 'AI_BAD_RESPONSE',
+            code: 'AI_BAD_RESPONSE',
+            message: 'La IA devolvió una respuesta inválida. Prueba a regenerar.',
+            suggestions: [],
+          },
+          { status: 502 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error: 'AI_GENERATION_FAILED',
+          code: 'AI_GENERATION_FAILED',
+          message: 'No se pudieron generar sugerencias. Inténtalo de nuevo.',
+          suggestions: [],
+        },
+        { status: 500 }
+      )
     }
 
+    const suggestionObjects = suggestions.map((text: string) => ({
+      id: nanoid(),
+      text,
+      length: text.length,
+      mode,
+      targetTone: targetTone ?? null,
+      targetLanguage: targetLanguage ?? null,
+    }))
+
     return NextResponse.json({
-      suggestions,
+      suggestions: suggestionObjects,
       profile: {
         tone: profile.tone,
         avgLength: profile.avgLength,
@@ -139,7 +220,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[AI Assistant] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate suggestions', suggestions: [] },
+      {
+        error: 'AI_INTERNAL_ERROR',
+        code: 'AI_INTERNAL_ERROR',
+        message: 'No se pudieron generar sugerencias. Inténtalo de nuevo.',
+        suggestions: [],
+      },
       { status: 500 }
     )
   }

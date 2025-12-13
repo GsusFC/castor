@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { db, accounts, castAnalytics, analyticsInsightsCache, accountMembers } from '@/lib/db'
 import { eq, or, and, desc, inArray, gt } from 'drizzle-orm'
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { nanoid } from 'nanoid'
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 // Cache válido por 24 horas
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000
@@ -160,12 +160,11 @@ Dame un JSON con este formato exacto (sin markdown):
   "summary": "Resumen de 1-2 frases sobre el rendimiento general"
 }`
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: prompt,
-    })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const result = await model.generateContent(prompt)
+    const response = await result.response
 
-    const responseText = response.text?.trim() || '{}'
+    const responseText = response.text().trim() || '{}'
     const cleanJson = responseText
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')

@@ -6,12 +6,34 @@ import { generateId } from '@/lib/utils'
 import { success, ApiErrors } from '@/lib/api/response'
 import { validate, updateCastSchema } from '@/lib/validations'
 
+ type PublicAccount = {
+   id: string
+   username: string
+   displayName: string | null
+   pfpUrl: string | null
+ }
+
+ const toPublicAccount = (account: PublicAccount): PublicAccount => ({
+   id: account.id,
+   username: account.username,
+   displayName: account.displayName,
+   pfpUrl: account.pfpUrl,
+ })
+
 // Helper to get cast with permission check
 async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
   const cast = await db.query.scheduledCasts.findFirst({
     where: eq(scheduledCasts.id, id),
     with: {
-      account: true,
+      account: {
+        columns: {
+          id: true,
+          username: true,
+          displayName: true,
+          pfpUrl: true,
+          ownerId: true,
+        },
+      },
       media: true,
     },
   })
@@ -24,6 +46,8 @@ async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnTy
     return { error: ApiErrors.notFound('Account') }
   }
 
+  const ownerId = cast.account.ownerId
+
   const membership = await db.query.accountMembers.findFirst({
     where: and(
       eq(accountMembers.accountId, cast.accountId),
@@ -32,7 +56,7 @@ async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnTy
   })
 
   const hasAccess = canAccess(session, {
-    ownerId: cast.account.ownerId,
+    ownerId,
     isMember: !!membership,
   })
 
@@ -40,7 +64,12 @@ async function getCastWithAuth(id: string, session: NonNullable<Awaited<ReturnTy
     return { error: ApiErrors.forbidden('No access to this cast') }
   }
 
-  return { cast }
+  return {
+    cast: {
+      ...cast,
+      account: toPublicAccount(cast.account),
+    },
+  }
 }
 
 /**

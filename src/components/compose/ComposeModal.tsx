@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -77,6 +77,10 @@ export function ComposeModal({
   const [error, setError] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyToCast | null>(null)
 
+  const submitIdempotencyKeyRef = useRef<string | null>(null)
+  const publishNowIdempotencyKeyRef = useRef<string | null>(null)
+  const saveDraftIdempotencyKeyRef = useRef<string | null>(null)
+
   // Modo edición
   const isEditMode = !!editCast
   const [editCastId, setEditCastId] = useState<string | null>(null)
@@ -99,6 +103,9 @@ export function ComposeModal({
       setError(null)
       setReplyTo(null)
       setEditCastId(null)
+      submitIdempotencyKeyRef.current = null
+      publishNowIdempotencyKeyRef.current = null
+      saveDraftIdempotencyKeyRef.current = null
     } else if (!editCast && (defaultContent || defaultEmbed || defaultReplyTo)) {
       // Modal se abre - cargar contenido o embed con pequeño delay
       // para asegurar que el thread está listo
@@ -178,6 +185,9 @@ export function ComposeModal({
     setSelectedChannel(null)
     setReplyTo(null)
     setError(null)
+    submitIdempotencyKeyRef.current = null
+    publishNowIdempotencyKeyRef.current = null
+    saveDraftIdempotencyKeyRef.current = null
   }
 
   // Submit
@@ -191,6 +201,12 @@ export function ComposeModal({
     setIsSubmitting(true)
 
     try {
+      if (!submitIdempotencyKeyRef.current) {
+        submitIdempotencyKeyRef.current = crypto.randomUUID()
+      }
+
+      const submitIdempotencyKey = submitIdempotencyKeyRef.current
+
       const scheduledAt = schedule.toISO()
       if (!scheduledAt) throw new Error('Fecha inválida')
 
@@ -207,6 +223,7 @@ export function ComposeModal({
             accountId: selectedAccountId,
             channelId: selectedChannel?.id,
             scheduledAt,
+            idempotencyKey: submitIdempotencyKey,
             casts: thread.casts.map(cast => ({
               content: cast.content,
               embeds: [
@@ -243,17 +260,23 @@ export function ComposeModal({
           : '/api/casts/schedule'
         const method = isEditMode && editCastId ? 'PATCH' : 'POST'
 
+        const scheduleBody: Record<string, unknown> = {
+          accountId: selectedAccountId,
+          content: cast.content,
+          channelId: selectedChannel?.id,
+          scheduledAt,
+          embeds: embeds.length > 0 ? embeds : undefined,
+          parentHash: replyTo?.hash,
+        }
+
+        if (method === 'POST') {
+          scheduleBody.idempotencyKey = submitIdempotencyKey
+        }
+
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accountId: selectedAccountId,
-            content: cast.content,
-            channelId: selectedChannel?.id,
-            scheduledAt,
-            embeds: embeds.length > 0 ? embeds : undefined,
-            parentHash: replyTo?.hash,
-          }),
+          body: JSON.stringify(scheduleBody),
         })
 
         const data = await res.json()
@@ -266,6 +289,7 @@ export function ComposeModal({
           ? 'Thread programado correctamente'
           : 'Cast programado correctamente'
       toast.success(successMsg)
+      submitIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
@@ -290,6 +314,12 @@ export function ComposeModal({
     setIsSavingDraft(true)
 
     try {
+      if (!saveDraftIdempotencyKeyRef.current) {
+        saveDraftIdempotencyKeyRef.current = crypto.randomUUID()
+      }
+
+      const saveDraftIdempotencyKey = saveDraftIdempotencyKeyRef.current
+
       const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
         throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
@@ -318,6 +348,7 @@ export function ComposeModal({
           scheduledAt: scheduledAt || undefined, // Don't send null, send undefined so it's omitted
           embeds: embeds.length > 0 ? embeds : undefined,
           isDraft: true,
+          idempotencyKey: saveDraftIdempotencyKey,
         }),
       })
 
@@ -325,6 +356,7 @@ export function ComposeModal({
       if (!res.ok) throw new Error(data.error || 'Error al guardar borrador')
 
       toast.success('Borrador guardado')
+      saveDraftIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
@@ -341,20 +373,29 @@ export function ComposeModal({
   const handlePublishNow = async () => {
     setError(null)
 
-    if (!selectedAccountId || !hasContent) {
+    if (!selectedAccountId) {
       return
     }
+
+    const cast = thread.casts[0]
+    const hasEmbeds = cast?.media?.some(m => m.url) || (cast?.links?.length ?? 0) > 0
+    const canPublish = cast?.content?.trim().length > 0 || hasEmbeds
+    if (!canPublish) return
 
     setIsPublishing(true)
 
     try {
+      if (!publishNowIdempotencyKeyRef.current) {
+        publishNowIdempotencyKeyRef.current = crypto.randomUUID()
+      }
+
+      const publishNowIdempotencyKey = publishNowIdempotencyKeyRef.current
+
       const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
         throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
       }
 
-      const cast = thread.casts[0]
-      
       console.log('[Publish] Cast media:', cast.media)
       console.log('[Publish] Cast links:', cast.links)
       
@@ -374,6 +415,7 @@ export function ComposeModal({
           channelId: selectedChannel?.id,
           embeds: embeds.length > 0 ? embeds : undefined,
           parentHash: replyTo?.hash,
+          idempotencyKey: publishNowIdempotencyKey,
         }),
       })
 
@@ -381,6 +423,7 @@ export function ComposeModal({
       if (!res.ok) throw new Error(data.error || 'Error al publicar')
 
       toast.success('Cast publicado!')
+      publishNowIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()

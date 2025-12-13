@@ -182,7 +182,7 @@ export function NotificationsDrawer() {
     'inset-0 sm:inset-4 sm:rounded-2xl sm:border sm:border-border sm:shadow-xl',
     'md:inset-auto md:top-4 md:bottom-4 md:right-4',
     'md:w-[560px] lg:w-[640px]',
-    'md:max-w-[calc(100vw-2rem)]',
+    'md:max-w-[calc(100%-2rem)]',
     'sm:max-h-[calc(100vh-2rem)]',
     'translate-x-0'
   ), [isOpen])

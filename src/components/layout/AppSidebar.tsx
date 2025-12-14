@@ -89,7 +89,7 @@ export function AppSidebar() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [channelSearch, setChannelSearch] = useState('')
   const { channels, favorites, recent, isLoading: channelsLoading, toggleFavorite } = useUserChannels()
-  const { unreadCount, isOpen: isNotificationsOpen, toggle: toggleNotifications } = useNotifications()
+  const { unreadCount } = useNotifications()
 
   const allChannels = useMemo(() => [
     ...favorites,
@@ -140,49 +140,31 @@ export function AppSidebar() {
                 ? pathname === '/'
                 : pathname.startsWith(item.href)
 
-              const isActive = item.showUnreadBadge
-                ? isNotificationsOpen
-                : (!isNotificationsOpen && isRouteActive)
+              const isActive = isRouteActive
               
               return (
                 <li key={item.href}>
-                  {item.showUnreadBadge ? (
-                    <button
-                      type="button"
-                      onClick={toggleNotifications}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors",
-                        isActive 
-                          ? "bg-primary/10 text-primary" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      )}
-                      aria-label="Abrir notificaciones"
-                    >
-                      <item.icon className="w-5 h-5" />
-                      <span className="flex-1">{item.label}</span>
-                      {unreadCount > 0 && (
-                        <span
-                          className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
-                          aria-label={`${unreadCount} notificaciones sin leer`}
-                        >
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors",
-                        isActive 
-                          ? "bg-primary/10 text-primary" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      )}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      <span className="flex-1">{item.label}</span>
-                    </Link>
-                  )}
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors",
+                      isActive 
+                        ? "bg-primary/10 text-primary" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    )}
+                    aria-label={item.showUnreadBadge ? 'Abrir notificaciones' : item.label}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="flex-1">{item.label}</span>
+                    {item.showUnreadBadge && unreadCount > 0 && (
+                      <span
+                        className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                        aria-label={`${unreadCount} notificaciones sin leer`}
+                      >
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Link>
                 </li>
               )
             })}

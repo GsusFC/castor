@@ -60,7 +60,7 @@ export function MobileNav() {
   const [isSearching, setIsSearching] = useState(false)
   const debouncedQuery = useDebounce(searchQuery, 300)
   const { favorites, toggleFavorite } = useUserChannels()
-  const { unreadCount, toggle: toggleNotifications } = useNotifications()
+  const { unreadCount } = useNotifications()
 
   // Cargar drafts cuando se abre el sheet
   useEffect(() => {
@@ -204,9 +204,8 @@ export function MobileNav() {
                 <span className="text-[10px] font-medium">Studio</span>
               </Link>
 
-              <button
-                type="button"
-                onClick={toggleNotifications}
+              <Link
+                href="/notifications"
                 className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
                 aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
               >
@@ -217,7 +216,7 @@ export function MobileNav() {
                     {unreadCount}
                   </span>
                 )}
-              </button>
+              </Link>
 
               <button
                 onClick={() => setSearchOpen(true)}
@@ -239,9 +238,8 @@ export function MobileNav() {
                 <span className="text-[10px] font-medium">Feed</span>
               </Link>
 
-              <button
-                type="button"
-                onClick={toggleNotifications}
+              <Link
+                href="/notifications"
                 className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
                 aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
               >
@@ -252,7 +250,7 @@ export function MobileNav() {
                     {unreadCount}
                   </span>
                 )}
-              </button>
+              </Link>
 
               <button
                 onClick={() => setDraftsOpen(true)}

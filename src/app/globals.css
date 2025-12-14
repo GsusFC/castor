@@ -8,7 +8,6 @@
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
     overflow-y: scroll; /* Allow scroll */
-    overflow-x: hidden;
   }
   html::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
@@ -80,7 +79,6 @@
   }
   html, body {
     @apply bg-background text-foreground;
-    overflow-x: hidden;
   }
   /* Ensure portals inherit theme variables */
   [data-radix-popper-content-wrapper] {

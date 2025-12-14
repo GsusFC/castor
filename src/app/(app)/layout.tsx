@@ -1,6 +1,5 @@
 import { MobileNav } from '@/components/layout/MobileNav'
 import { AppSidebar } from '@/components/layout/AppSidebar'
-import { NotificationsDrawer } from '@/components/feed/NotificationsDrawer'
 import { SelectedAccountProvider } from '@/context/SelectedAccountContext'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { QueryProvider } from '@/components/providers/QueryProvider'
@@ -34,8 +33,6 @@ export default function DashboardLayout({
                {/* Mobile Bottom Nav */}
                <MobileNav />
              </div>
-
-             <NotificationsDrawer />
            </NotificationsProvider>
          </SelectedAccountProvider>
        </QueryProvider>

@@ -63,6 +63,14 @@ export async function GET(request: NextRequest) {
     let url = searchParams.get('url') || searchParams.get('identifier')
     const hash = searchParams.get('hash')
     const type = searchParams.get('type') // 'url' o 'hash'
+    const silent = searchParams.get('silent') === '1' || searchParams.get('silent') === 'true'
+
+    const respondNotFound = () => {
+      return NextResponse.json(
+        { error: 'Cast not found', cast: null },
+        { status: silent ? 200 : 404 }
+      )
+    }
 
     // Si type es 'hash', tratar identifier como hash
     if (type === 'hash' && url) {
@@ -103,7 +111,7 @@ export async function GET(request: NextRequest) {
           castData = response.cast
         } catch {
           // Cast no encontrado con ese hash
-          return NextResponse.json({ error: 'Cast not found' }, { status: 404 })
+          return respondNotFound()
         }
       } else {
         // Normalizar URL (farcaster.xyz -> warpcast.com) y buscar por URL
@@ -117,10 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!castData) {
-      return NextResponse.json(
-        { error: 'Cast not found' },
-        { status: 404 }
-      )
+      return respondNotFound()
     }
 
     return formatResponse(castData)

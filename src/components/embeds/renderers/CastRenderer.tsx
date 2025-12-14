@@ -59,7 +59,7 @@ export function CastRenderer({
         const type = needsFetchByUrl ? 'url' : 'hash'
         if (!needsFetchByUrl) hydrationAttemptedRef.current = true
 
-        const params = new URLSearchParams({ identifier, type })
+        const params = new URLSearchParams({ identifier, type, silent: '1' })
         const response = await fetch(`/api/casts/lookup?${params.toString()}`)
         
         if (!response.ok) throw new Error('Failed to fetch')

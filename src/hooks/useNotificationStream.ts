@@ -28,10 +28,17 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
   const { onNotification, showToast = true } = options
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectAttemptRef = useRef(0)
 
   const connect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
+      eventSourceRef.current = null
     }
 
     const eventSource = new EventSource('/api/notifications/stream')
@@ -42,6 +49,7 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
         const data: NotificationEvent = JSON.parse(event.data)
         
         if (data.type === 'connected') {
+          reconnectAttemptRef.current = 0
           console.log('[Notifications] Stream connected')
           return
         }
@@ -69,13 +77,22 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
     }
 
     eventSource.onerror = () => {
-      console.log('[Notifications] Stream error, reconnecting...')
+      if (eventSourceRef.current !== eventSource) return
+
       eventSource.close()
-      
-      // Reconectar después de 5 segundos
+      eventSourceRef.current = null
+
+      if (reconnectTimeoutRef.current) return
+
+      reconnectAttemptRef.current += 1
+      const delayMs = Math.min(5000 * 2 ** (reconnectAttemptRef.current - 1), 60000)
+
+      console.log('[Notifications] Stream error, reconnecting...', { delayMs })
+
       reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null
         connect()
-      }, 5000)
+      }, delayMs)
     }
   }, [onNotification, showToast])
 
@@ -85,9 +102,11 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
     }
   }, [connect])

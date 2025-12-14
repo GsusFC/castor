@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
@@ -84,7 +84,7 @@ interface Cast {
   }
 }
 
-export default function FeedPage() {
+function FeedPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString()
@@ -564,5 +564,13 @@ export default function FeedPage() {
         defaultReplyTo={replyToCast}
       />
     </div>
+  )
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense fallback={null}>
+      <FeedPageInner />
+    </Suspense>
   )
 }

@@ -69,6 +69,18 @@ export function NotificationsDrawer() {
   }, [isOpen])
 
   useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      close()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [close, isOpen])
+
+  useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await fetch('/api/me')
@@ -178,7 +190,7 @@ export function NotificationsDrawer() {
   }, [pathname, router])
 
   const panelClasses = useMemo(() => cn(
-    'absolute flex flex-col bg-background pointer-events-auto overflow-x-hidden animate-in slide-in-from-right duration-300',
+    'fixed z-50 flex flex-col bg-background pointer-events-auto overflow-x-hidden animate-in slide-in-from-right duration-300',
     'inset-0 sm:inset-4 sm:rounded-2xl sm:border sm:border-border sm:shadow-xl',
     'md:inset-auto md:top-4 md:bottom-4 md:right-4',
     'md:w-[560px] lg:w-[640px]',
@@ -199,82 +211,80 @@ export function NotificationsDrawer() {
         />
       )}
 
-      <div className="fixed inset-0 z-50 overflow-x-hidden pointer-events-none">
-        <div className={panelClasses} role="dialog" aria-label="Notifications" aria-modal={false}>
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-card">
-            <span className="font-medium truncate">Notifications</span>
-            <button
-              type="button"
-              onClick={close}
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Cerrar notificaciones"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-              <div className="flex flex-wrap items-center gap-1 px-3 py-2.5">
-                {NOTIFICATION_FILTERS.map((filter) => (
-                  <button
-                    key={filter.value}
-                    onClick={() => setNotificationFilter(filter.value)}
-                    className={cn(
-                      'px-2.5 py-1 text-xs rounded-md transition-colors',
-                      notificationFilter === filter.value
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    )}
-                    aria-label={`Filtrar: ${filter.label}`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 px-3 py-3 pb-safe">
-              {isLoading ? (
-                Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
-              ) : notifications.length > 0 ? (
-                notifications.map((notification: { type: string; most_recent_timestamp?: string }, i: number) => (
-                  <NotificationCard
-                    key={`${notification.type}-${notification.most_recent_timestamp}-${i}`}
-                    notification={notification as any}
-                    onClick={() => handleReplyFromNotification(notification)}
-                    onUserClick={handleOpenUser}
-                    onCastClick={handleOpenCast}
-                  />
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground py-12">
-                  No hay notificaciones
-                </p>
-              )}
-
-              <div ref={loadMoreRef} className="py-2">
-                {notificationsQuery.isFetchingNextPage && (
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <ComposeModal
-            open={composeOpen}
-            onOpenChange={(open) => {
-              setComposeOpen(open)
-              if (!open) {
-                setReplyToCast(null)
-              }
-            }}
-            defaultAccountId={userAccountId}
-            defaultReplyTo={replyToCast}
-          />
+      <div className={panelClasses} role="dialog" aria-label="Notifications" aria-modal={false}>
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-card">
+          <span className="font-medium truncate">Notifications</span>
+          <button
+            type="button"
+            onClick={close}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar notificaciones"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
+            <div className="flex flex-wrap items-center gap-1 px-3 py-2.5">
+              {NOTIFICATION_FILTERS.map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setNotificationFilter(filter.value)}
+                  className={cn(
+                    'px-2.5 py-1 text-xs rounded-md transition-colors',
+                    notificationFilter === filter.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                  )}
+                  aria-label={`Filtrar: ${filter.label}`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 px-3 py-3 pb-safe">
+            {isLoading ? (
+              Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
+            ) : notifications.length > 0 ? (
+              notifications.map((notification: { type: string; most_recent_timestamp?: string }, i: number) => (
+                <NotificationCard
+                  key={`${notification.type}-${notification.most_recent_timestamp}-${i}`}
+                  notification={notification as any}
+                  onClick={() => handleReplyFromNotification(notification)}
+                  onUserClick={handleOpenUser}
+                  onCastClick={handleOpenCast}
+                />
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground py-12">
+                No hay notificaciones
+              </p>
+            )}
+
+            <div ref={loadMoreRef} className="py-2">
+              {notificationsQuery.isFetchingNextPage && (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <ComposeModal
+          open={composeOpen}
+          onOpenChange={(open) => {
+            setComposeOpen(open)
+            if (!open) {
+              setReplyToCast(null)
+            }
+          }}
+          defaultAccountId={userAccountId}
+          defaultReplyTo={replyToCast}
+        />
       </div>
     </>
   )

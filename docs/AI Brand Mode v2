@@ -1,0 +1,351 @@
+AI Brand Mode
+Brand Context Global — Visión y Diseño (v2)
+Objetivo
+Habilitar que todas las features de IA generativa de Castor produzcan outputs consistentes con la voz de marca de una cuenta (brand voice) y sus reglas, sin exponer prompts editables a usuarios finales.
+Principios
+	•	El contexto de marca se gestiona a nivel de cuenta (account-level), orientado a equipos/marcas.
+	•	No se permite edición directa de prompts: el control se hace mediante datos estructurados.
+	•	El sistema debe ser consistente: cualquier surface de IA generativa debe operar con un accountId y su contexto.
+	•	Separación clara entre traducción literal (gratis, no IA) y traducción con voz (IA generativa, brand-aware).
+Definiciones
+Brand Context (Knowledge Base): datos estructurados persistidos en account_knowledge_base.
+BrandVoice: texto breve que describe cómo escribe la marca (tono, estilo, vocabulario, formato).
+AI Brand Mode: estado ON/OFF que indica si se debe aplicar contexto de marca a la IA generativa.
+IA generativa: modelos que producen texto nuevo (write, improve, reply, insights/chat, translate con voz).
+Alcance
+Incluye (IA generativa, brand-aware)
+Asistente IA: write, improve, translate (con voz/localización)
+AI Replies: sugerencias de respuesta
+Analytics: insights/chat y recomendaciones generadas
+Excluye
+Translate literal del cast: feature gratis que ya funciona. No aplica brand voice. Debe permanecer literal sin reescritura estilística.
+Fuente de verdad de contexto
+Persistencia (DB)
+account_knowledge_base: brandVoice, bio, expertise (array), alwaysDo (array), neverDo (array), hashtags (array), defaultTone, defaultLanguage, internalNotes, brand_voice_history (JSONB array)
+account_documents: documentos adjuntos (brand guidelines, claims, FAQs, etc.)
+UI
+Página de edición: /accounts/[id]/context (ContextEditor)
+Activación de AI Brand Mode (gating)
+Regla de activación (v1)
+	•	AI Brand Mode = ON si brandVoice existe y no está vacío.
+	•	AI Brand Mode = OFF en caso contrario.
+neverDo NO es obligatorio para activar (se considera recomendado).
+Manejo del caso "All accounts"
+Regla
+Cuando el usuario tiene seleccionada la vista "All accounts", las features de IA generativa quedan bloqueadas con un mensaje que solicita seleccionar una cuenta específica.
+Justificación
+	•	Evita confusión sobre qué contexto de marca se está aplicando.
+	•	Previene errores de publicación con voz incorrecta.
+	•	Simplifica la lógica de accountId (siempre requerido, nunca inferido).
+UI propuesta
+En cualquier surface de IA generativa (AITabs, AI Reply, Analytics), si no hay cuenta seleccionada:
+┌─────────────────────────────────────────────┐
+│  ℹ️  Selecciona una cuenta                   │
+│                                             │
+│  Para usar el asistente de IA necesitas    │
+│  elegir una cuenta específica.             │
+│                                             │
+│  [Selector de cuenta inline]               │
+└─────────────────────────────────────────────┘
+
+Implementación
+	•	Verificar selectedAccountId antes de renderizar controles de IA.
+	•	Si es null o "all", mostrar el bloqueo.
+	•	El selector inline permite cambiar sin salir del contexto actual.
+Onboarding propuesto
+Objetivo
+Reducir fricción: que el usuario pueda activar Brand Mode en minutos.
+CTA
+En cada surface de IA generativa (Studio/AITabs, AI Reply, Analytics), si Brand Mode está OFF:
+	•	Mostrar banner/notice: "Activa AI Brand Mode completando tu Brand Voice."
+	•	CTA: "Completar contexto" → /accounts/[id]/context (cuenta activa)
+Estados UX
+	•	OFF: no hay brandVoice.
+	•	ON: brandVoice presente.
+	•	(Opcional) INCOMPLETE: KB existe pero brandVoice vacío; mismo CTA.
+"Translate con voz" (AIAssistant translate)
+Intención
+No es traducción literal; es localización brand-aware:
+	•	Mantener significado.
+	•	Ajustar tono/registro a brandVoice.
+	•	Respetar reglas (alwaysDo/neverDo) si existen.
+Reglas
+	•	Output: solo la versión final (sin explicaciones).
+	•	No inventar facts.
+	•	Si el texto contiene claims sensibles: mantenerse conservador.
+Regeneración y versionado de BrandVoice
+Principio
+El BrandVoice nunca se sobreescribe silenciosamente. Cualquier regeneración es una propuesta de actualización que el usuario compara con la versión actual y decide cómo resolver.
+Triggers de regeneración
+	•	Evolución natural del estilo (paso del tiempo)
+	•	Rebrand consciente
+	•	BrandVoice inicial de baja calidad
+	•	Migración de cuenta con nuevo historial
+Flujo de regeneración
+	•	Usuario solicita "Actualizar BrandVoice"
+	•	Selecciona ventana temporal (3 o 6 meses)
+	•	Sistema genera nueva propuesta
+	•	UI muestra comparación lado a lado (actual vs nuevo)
+	•	Usuario elige: Usar nuevo, Combinar ambos, o Conservar actual
+
+UI de comparación
+┌─────────────────────────────────────────────────────────────────┐
+│  📊 Comparación de BrandVoice                                   │
+│                                                                 │
+│  ACTUAL                          NUEVO (propuesto)              │
+│  ┌─────────────────────────┐     ┌─────────────────────────┐    │
+│  │ Tono directo y técnico, │     │ Tono directo pero más   │    │
+│  │ sin rodeos. Usa         │     │ conversacional. Usa     │    │
+│  │ analogías de producto.  │     │ analogías de producto   │    │
+│  │ Prefiere frases cortas. │     │ y referencias a la      │    │
+│  │ Evita emojis salvo 🔥    │     │ comunidad. Más emojis.  │    │
+│  └─────────────────────────┘     └─────────────────────────┘    │
+│                                                                 │
+│  Cambios detectados:                                            │
+│  • + "más conversacional"                                       │
+│  • + "referencias a la comunidad"                               │
+│  • ~ emojis: de "ocasionalmente" a "más frecuente"              │
+│                                                                 │
+│  [Usar nuevo]  [Combinar ambos]  [Conservar actual]             │
+└─────────────────────────────────────────────────────────────────┘
+
+Generación de merge
+Prompt interno para combinar versiones:
+Combina estos dos BrandVoice en uno coherente.
+Prioriza elementos específicos sobre genéricos.
+Conserva restricciones explícitas ("nunca", "siempre", "evita").
+Máximo 200 palabras.
+
+ACTUAL: {current_brand_voice}
+NUEVO: {new_brand_voice}
+
+Histórico de versiones
+Modelo de datos
+interface BrandVoiceHistoryEntry {
+  id: string;
+  content: string;
+  createdAt: Date;
+  source: 'manual' | 'generated' | 'merged';
+  castsAnalyzed?: number;
+  castsPeriod?: string;
+  previousId?: string;
+}
+
+Almacenamiento: campo brand_voice_history (JSONB array) en account_knowledge_base.
+Reglas
+	•	Máximo 10 versiones conservadas.
+	•	Versiones más antiguas se eliminan (soft delete opcional para auditoría).
+	•	Cada guardado (nuevo, actualización, restauración) crea una entrada.
+UI de histórico
+Accesible desde /accounts/[id]/context:
+┌─────────────────────────────────────────────────────────────────┐
+│  📜 Historial de BrandVoice                                     │
+│                                                                 │
+│  Actual (guardado hace 2 días)                    [Activo]      │
+│  └─ Merged • 127 casts • Ene-Jun 2024                           │
+│                                                                 │
+│  Versión anterior (hace 4 meses)                  [Restaurar]   │
+│  └─ Generated • 89 casts • Sep-Dic 2023                         │
+│                                                                 │
+│  Primera versión (hace 8 meses)                   [Restaurar]   │
+│  └─ Manual                                                      │
+└─────────────────────────────────────────────────────────────────┘
+
+Integración de account_documents en el system prompt
+Jerarquía de contexto
+	•	brandVoice → cómo escribe la marca (tono, estilo)
+	•	alwaysDo/neverDo → reglas operativas
+	•	documents_summary → qué puede decir (claims, facts, messaging)
+Lógica de integración
+brandVoice y documents_summary operan en dimensiones distintas: brandVoice = el cómo, documents_summary = el qué. No compiten; se concatenan con roles claros en el system prompt:
+Tu voz de marca:
+{brandVoice}
+
+Información oficial de la marca (no inventar fuera de esto):
+{documents_summary}
+
+Reglas:
+- Siempre: {alwaysDo}
+- Nunca: {neverDo}
+
+Límites (sin RAG)
+	•	documents_summary limitado a ~500-800 tokens.
+	•	Selección manual de qué documentos incluir en el resumen.
+	•	Cuando se requiera mayor fidelidad, implementar RAG (fuera de scope v1).
+Generación automática (asistida) del contexto
+BrandVoice a partir de casts (Neynar + análisis IA)
+BrandVoice puede generarse automáticamente a partir del historial de la cuenta.
+¿Cuántos casts analizar?
+Recomendación práctica:
+	•	80–150 casts: mejor balance calidad/coste (recomendado).
+	•	30–60 casts: onboarding rápido (más sesgo).
+	•	200–400 casts: cuentas con múltiples temáticas o estilo editorial.
+	•	800–1000 casts: rendimientos decrecientes para BrandVoice puro.
+Muestreo recomendado
+	•	Ventana temporal: 3–6 meses (marca actual).
+	•	Priorizar casts originales (texto propio).
+	•	Excluir posts vacíos/solo links.
+	•	Dedupe de plantillas repetidas.
+	•	Incluir una fracción de replies si quieres reflejar estilo conversacional.
+neverDo auto-sugerido (confirmable)
+neverDo puede sugerirse automáticamente y requerir confirmación explícita del usuario.
+UX sugerido en /accounts/[id]/context:
+	•	Bloque: "Sugerir reglas (never do) automáticamente"
+	•	Acción: "Generar sugerencias"
+	•	UI: checklist + "Aplicar seleccionadas"
+Manejo de errores en generación de BrandVoice
+Estados y umbrales
+Estado
+Condición
+Comportamiento
+insufficient_data
+< 30 casts (filtrados)
+Bloquear generación, ofrecer escritura manual
+low_confidence
+30-79 casts, o alta varianza
+Warning visible, resultado editable
+success
+80+ casts, señal clara
+Resultado editable, flujo normal
+generation_failed
+Error de API (Neynar o IA)
+Retry automático (1x), fallback manual
+too_generic
+Validación detecta frases vacías
+Sugerir edición o regenerar
+
+Detección de alta varianza
+Heurísticas que disparan low_confidence:
+	•	> 50% de casts son solo links/media sin texto
+	•	Mezcla de 3+ idiomas sin patrón dominante
+	•	Desviación estándar de longitud de casts > 80% de la media
+Validación post-generación
+Antes de mostrar el resultado:
+	•	¿Menos de 50 caracteres? → Regenerar automáticamente (1x)
+	•	¿Contiene frases genéricas? (lista negra: "profesional y cercano", "amigable pero formal") → Marcar como too_generic
+	•	¿Más de 1500 caracteres? → Truncar con aviso
+UI por estado
+insufficient_data
+⚠️ Necesitas más historial
+
+Encontramos solo {n} casts en los últimos 6 meses.
+Para generar un BrandVoice fiable necesitamos al menos 30.
+
+[Escribir manualmente]  [Cancelar]
+
+low_confidence
+🤔 Resultado preliminar
+
+Tu historial es muy variado, así que este BrandVoice
+es un punto de partida. Te recomendamos editarlo.
+
+[Ver resultado y editar]
+
+generation_failed
+❌ No pudimos generar tu BrandVoice
+
+Hubo un problema al analizar tus casts.
+
+[Reintentar]  [Escribir manualmente]
+
+too_generic
+😐 El resultado es demasiado genérico
+
+No encontramos suficiente señal distintiva en tus casts.
+Te recomendamos escribirlo manualmente o editar esto como base.
+
+[Editar resultado]  [Escribir desde cero]
+
+Consistencia técnica (diseño)
+Regla de oro
+Toda llamada de IA generativa debe ejecutarse con un accountId (cuenta activa) cargando AccountContext desde esa cuenta.
+Consideraciones
+	•	Centralizar la construcción de contexto (system context) en una función única (p.ej. buildSystemContext(...)).
+	•	Reutilizar el mismo contrato de datos entre assistant/replies/analytics.
+Implementación (checklist)
+Esta sección describe qué tocar en el código para llevar esta visión a producción. No es un refactor masivo: es un set de cambios pequeños pero consistentes.
+Plan por PRs (ejecución recomendada)
+PR1 — Brand Mode gating + CTA (solo UI)
+Objetivo: que el usuario entienda y pueda activar Brand Mode.
+Scope: Banner/notice cuando Brand Mode está OFF. CTA a /accounts/[id]/context con la cuenta activa.
+Archivos: src/components/compose/AITabs.tsx, src/components/feed/AIReplyDialog.tsx
+Criterio: Si brandVoice está vacío, se ve el CTA. Si brandVoice existe, el CTA no aparece.
+
+PR1.1 — Bloqueo de IA en "All accounts"
+Objetivo: impedir uso de IA generativa sin cuenta seleccionada.
+Scope: Verificar selectedAccountId antes de renderizar IA generativa.
+Archivos: src/components/compose/AITabs.tsx, src/components/feed/AIReplyDialog.tsx, src/context/SelectedAccountContext.tsx
+Criterio: Si no hay cuenta seleccionada, mostrar bloqueo con selector inline.
+
+PR2 — Propagar accountId a IA generativa (assistant + replies)
+Objetivo: asegurar consistencia de contexto.
+Scope: Requests a /api/ai/assistant incluyen accountId desde la cuenta activa. AI replies también pasan accountId.
+Archivos: src/components/ai/AIAssistant.tsx, src/components/compose/AITabs.tsx, src/components/feed/AIReplyDialog.tsx
+Criterio: Con cuentas distintas, la IA refleja contextos distintos.
+
+PR3 — Hardening multi-tenant en /api/ai/assistant
+Objetivo: impedir fuga cross-account por accountId.
+Scope: Verificar permisos antes de cargar AccountContext. Responder 403 si el usuario no pertenece a la cuenta.
+Archivos: src/app/api/ai/assistant/route.ts
+Criterio: Intento de accountId ajeno devuelve 403.
+
+PR4 — Traducciones: literal vs "con voz" (claridad y no-regresión)
+Objetivo: que no se mezcle la traducción literal gratis con la IA.
+Scope: Confirmar que /api/ai/translate permanece literal y sin accountId. Ajustar labels/copy del AIAssistant.
+Archivos: src/app/api/ai/translate/route.ts, src/components/feed/CastCard.tsx, src/components/ai/AIAssistant.tsx
+Criterio: Translate del cast funciona igual que antes. Translate del asistente aplica BrandVoice.
+
+PR5 — Generar BrandVoice desde casts (80–150) y prefill editable
+Objetivo: activar Brand Mode sin que el usuario escriba desde cero.
+Scope: Endpoint/acción que genere brandVoice con casts (Neynar + IA). Guardado en account_knowledge_base.brand_voice. UI para "Generar BrandVoice".
+Archivos: src/app/(app)/accounts/[id]/context/ContextEditor.tsx, nuevo endpoint API para generación
+Criterio: Un click genera un borrador de BrandVoice y el usuario puede editar y guardar.
+
+PR5.1 — Histórico de BrandVoice
+Objetivo: mantener versiones anteriores para restauración.
+Scope: Añadir brand_voice_history a account_knowledge_base, migrar datos existentes.
+Archivos: Schema/migración de DB, src/app/(app)/accounts/[id]/context/ContextEditor.tsx
+Criterio: Cada guardado crea entrada en histórico; UI muestra versiones anteriores.
+
+PR5.2 — Flujo de regeneración con diff/merge
+Objetivo: permitir actualización de BrandVoice con comparación.
+Scope: UI de comparación, lógica de merge, confirmación.
+Archivos: src/app/(app)/accounts/[id]/context/ContextEditor.tsx, src/components/context/BrandVoiceDiff.tsx (nuevo)
+Criterio: Regenerar muestra diff; usuario puede elegir nuevo/merge/conservar.
+
+PR5.3 — Manejo de errores y estados de generación
+Objetivo: UX clara para todos los casos de error.
+Scope: Detección de umbrales, validación post-gen, UI de errores.
+Archivos: src/app/(app)/accounts/[id]/context/ContextEditor.tsx, src/lib/ai/brand-voice-generator.ts
+Criterio: Cada estado tiene UI específica; nunca se guarda sin confirmación.
+
+PR6 — neverDo auto-sugerido (confirmable)
+Objetivo: elevar brand safety sin fricción.
+Scope: Generación de sugerencias + checklist "Aplicar seleccionadas".
+Archivos: src/app/(app)/accounts/[id]/context/ContextEditor.tsx, endpoint/acción de sugerencias
+Criterio: No se aplican reglas sin confirmación explícita.
+
+PR7 — (Opcional) Documentos (account_documents) para mayor fidelidad
+Objetivo: llevar Brand Mode a nivel "marca real" (guidelines/claims/FAQs).
+Scope: Empezar con resumen (sin RAG), o diseñar retrieval.
+Criterio: La IA refleja guidelines documentales de forma medible.
+Seguridad / multi-tenant
+	•	Cualquier endpoint que acepte accountId debe verificar que el usuario autenticado tiene permisos sobre esa cuenta.
+	•	internalNotes debe tratarse como información interna (evitar filtrado accidental).
+Métricas de producto (para validar el impacto)
+	•	% usuarios que activan Brand Mode (brandVoice completado)
+	•	Tiempo hasta activación
+	•	% usuarios que aceptan sugerencias de neverDo
+	•	Satisfacción: regeneraciones vs aceptación de outputs
+	•	Tasa de edición manual tras generación (proxy de calidad)
+Roadmap sugerido
+	•	Fase 1: gating (solo brandVoice) + banners/CTAs + bloqueo "All accounts"
+	•	Fase 2: generación de brandVoice desde 80–150 casts (Neynar + IA) y prefill editable
+	•	Fase 3: histórico y regeneración con diff/merge
+	•	Fase 4: auto-sugerencia de neverDo con confirmación
+	•	Fase 5: uso de account_documents (resumen o retrieval) para elevar fidelidad de marca
+Preguntas abiertas
+	•	¿Cómo versionar/regenerar BrandVoice cuando la marca cambia (rebrand)? → Resuelto con flujo de diff/merge
+	•	¿Qué ocurre si el usuario tiene "All accounts" seleccionadas? → Resuelto: bloqueo con selector inline
+	•	¿Cuántas versiones de histórico conservar antes de purgar?
+	•	¿Implementar notificaciones cuando el BrandVoice lleva mucho tiempo sin actualizar?

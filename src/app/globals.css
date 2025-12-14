@@ -120,9 +120,11 @@
   }
   
   /* Minimum touch target size */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+  @media (max-width: 639px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
   
   /* Prevent text selection on interactive elements */
@@ -191,12 +193,6 @@
 /* Typography scale for mobile readability */
 @layer base {
   /* Ensure minimum readable text size on mobile */
-  @media (max-width: 639px) {
-    .text-xs {
-      font-size: 0.875rem; /* 14px minimum on mobile */
-      line-height: 1.25rem;
-    }
-  }
 }
 
 /* Safe area utilities for iPhone notch/home indicator */

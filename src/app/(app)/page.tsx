@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { CastCard } from '@/components/feed/CastCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
@@ -84,6 +85,9 @@ interface Cast {
 }
 
 export default function FeedPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const searchParamsString = searchParams.toString()
   const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
@@ -93,17 +97,17 @@ export default function FeedPage() {
   const [profile, setProfile] = useState<UserProfile>({})
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
 
-  const [channelIdFromUrl, setChannelIdFromUrl] = useState<string | null>(null)
-  const [castHashFromUrl, setCastHashFromUrl] = useState<string | null>(null)
-  const [usernameFromUrl, setUsernameFromUrl] = useState<string | null>(null)
+  const channelIdFromUrl = searchParams.get('channel')
+  const castHashFromUrl = searchParams.get('cast')
+  const usernameFromUrl = searchParams.get('user')
 
-  // Leer canal de URL (?channel=xxx)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setChannelIdFromUrl(params.get('channel'))
-    setCastHashFromUrl(params.get('cast'))
-    setUsernameFromUrl(params.get('user'))
-  }, [])
+  const clearChannelFromUrl = useCallback(() => {
+    const next = new URLSearchParams(searchParamsString)
+    next.delete('channel')
+
+    const qs = next.toString()
+    router.push(qs ? `/?${qs}` : '/')
+  }, [router, searchParamsString])
 
   useEffect(() => {
     if (!castHashFromUrl) return
@@ -419,6 +423,7 @@ export default function FeedPage() {
               <button
                 key={tab.id}
                 onClick={() => {
+                  clearChannelFromUrl()
                   setActiveTab(tab.id)
                   if (tab.id !== 'channel') setSelectedChannel(null)
                 }}
@@ -454,8 +459,7 @@ export default function FeedPage() {
           {selectedChannel && (
             <button
               onClick={() => {
-                setSelectedChannel(null)
-                setActiveTab('home')
+                clearChannelFromUrl()
               }}
               className="h-9 px-3 text-sm font-medium rounded-full bg-primary text-primary-foreground"
             >
@@ -469,11 +473,7 @@ export default function FeedPage() {
       {activeTab === 'channel' && selectedChannel && (
         <ChannelHeader 
           channelId={selectedChannel.id} 
-          onBack={() => {
-            setSelectedChannel(null)
-            setActiveTab('home')
-            window.history.pushState({}, '', '/')
-          }}
+          onBack={clearChannelFromUrl}
           signerUuid={userSignerUuid || undefined}
         />
       )}

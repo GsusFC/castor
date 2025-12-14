@@ -13,7 +13,7 @@ export default function ConnectAccountPage() {
   }, [router])
   
   return (
-    <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="flex items-center justify-center min-h-[50dvh]">
       <p className="text-muted-foreground">Redirigiendo...</p>
     </div>
   )

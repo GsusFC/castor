@@ -2,6 +2,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import {
+  assertSupportedTargetLanguage,
+  toEnglishLanguageName,
+  toSpanishLanguageName,
+  type SupportedTargetLanguage,
+} from './languages'
+
+export { assertSupportedTargetLanguage, toEnglishLanguageName, toSpanishLanguageName }
+export type { SupportedTargetLanguage }
 
 // Initialize Google AI with the stable SDK
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -11,55 +20,6 @@ const AI_CONFIG = {
   model: 'gemini-2.0-flash', // Modelo de alto rendimiento (2k RPM en plan pago)
   analysisPromptSize: process.env.NODE_ENV === 'production' ? 25 : 15, // Aumentamos contexto
   cacheProfileDays: process.env.NODE_ENV === 'production' ? 7 : 30,
-}
-
-export type SupportedTargetLanguage = 'en' | 'es' | 'fr' | 'de' | 'pt'
-
-export const assertSupportedTargetLanguage = (value: unknown): SupportedTargetLanguage => {
-  if (typeof value !== 'string') {
-    throw new Error('targetLanguage must be a string')
-  }
-
-  switch (value) {
-    case 'en':
-    case 'es':
-    case 'fr':
-    case 'de':
-    case 'pt':
-      return value
-    default:
-      throw new Error(`Unsupported targetLanguage: ${value}`)
-  }
-}
-
-export const toEnglishLanguageName = (lang: SupportedTargetLanguage): string => {
-  switch (lang) {
-    case 'en':
-      return 'English'
-    case 'es':
-      return 'Spanish'
-    case 'fr':
-      return 'French'
-    case 'de':
-      return 'German'
-    case 'pt':
-      return 'Portuguese'
-  }
-}
-
-export const toSpanishLanguageName = (lang: SupportedTargetLanguage): string => {
-  switch (lang) {
-    case 'en':
-      return 'inglés'
-    case 'es':
-      return 'español'
-    case 'fr':
-      return 'francés'
-    case 'de':
-      return 'alemán'
-    case 'pt':
-      return 'portugués'
-  }
 }
 
 const resolveWritingLanguage = (
@@ -332,7 +292,8 @@ Responde SOLO con JSON válido (sin markdown):
    * Traduce texto a otro idioma
    */
   async translate(text: string, targetLanguage: string): Promise<string> {
-    const langName = targetLanguage === 'es' ? 'español' : 'English'
+    const lang = assertSupportedTargetLanguage(targetLanguage)
+    const langName = toSpanishLanguageName(lang)
     const prompt = `Traduce este texto a ${langName}. Responde SOLO con la traducción, sin explicaciones:
 
 "${text}"`

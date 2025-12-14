@@ -130,55 +130,62 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-6 h-[calc(100vh-6rem)]">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold">Analytics</h1>
-          <button
-            onClick={() => backfillMutation.mutate(selectedAccount || undefined)}
-            disabled={backfillMutation.isPending}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs bg-muted hover:bg-muted/80 rounded-md transition-colors"
-            title="Importar últimos 100 casts"
-          >
-            {backfillMutation.isPending ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Download className="w-3 h-3" />
-            )}
-            Importar
-          </button>
-        </div>
-        
-        {/* Filtros */}
-        <div className="flex items-center gap-3">
-          {/* Filtro por período */}
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            {([7, 30, 90] as PeriodFilter[]).map((d) => (
-              <button
-                key={d}
-                onClick={() => setPeriod(d)}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded-md transition-colors",
-                  period === d
-                    ? "bg-background shadow text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {d}d
-              </button>
-            ))}
+    <div className="mx-auto w-full max-w-4xl xl:max-w-6xl">
+      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Analytics</h1>
+              <p className="text-sm text-muted-foreground">Rendimiento y engagement</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            {/* Filtro por período */}
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              {([7, 30, 90] as PeriodFilter[]).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setPeriod(d)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm rounded-md transition-colors",
+                    period === d
+                      ? "bg-background shadow text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => backfillMutation.mutate(selectedAccount || undefined)}
+              disabled={backfillMutation.isPending}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-muted hover:bg-muted/80 rounded-md transition-colors"
+              title="Importar últimos 100 casts"
+            >
+              {backfillMutation.isPending ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+              Importar
+            </button>
           </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
+      <div className="mt-6 space-y-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
           {/* Selector de cuenta */}
           {data?.accounts && data.accounts.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-4">
@@ -431,8 +438,9 @@ export default function AnalyticsPage() {
               </div>
             </div>
           )}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

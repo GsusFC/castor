@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   User, Clock, Calendar, ExternalLink, Edit, Trash2, 
   Plus, CheckCircle, AlertCircle, List, CalendarDays,
-  FileText, LayoutTemplate, ChevronDown, Image, Video
+  FileText, LayoutTemplate, LayoutDashboard, ChevronDown, Image, Video
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -218,7 +218,6 @@ export function UnifiedDashboard({
       if (!res.ok) throw new Error('Failed to update cast')
       router.refresh()
     } catch (error) {
-      console.error('Error moving cast:', error)
       toast.error('Error al mover el cast')
     }
   }
@@ -238,21 +237,17 @@ export function UnifiedDashboard({
   const handleDeleteCast = async (castId: string) => {
     if (!confirm('¿Eliminar este cast?')) return
     try {
-      console.log('[Delete] Deleting cast:', castId)
       const res = await fetch(`/api/casts/${castId}`, { method: 'DELETE' })
       
       if (!res.ok) {
         const text = await res.text()
-        console.error('[Delete] Error response:', res.status, text)
         throw new Error(`Error ${res.status}`)
       }
       
-      const data = await res.json()
-      console.log('[Delete] Success:', data)
+      await res.json()
       toast.success('Cast eliminado')
       router.refresh()
     } catch (error) {
-      console.error('[Delete] Error:', error)
       toast.error('Error al eliminar cast')
     }
   }
@@ -328,7 +323,20 @@ export function UnifiedDashboard({
   }
 
   return (
-    <div className="space-y-6">
+  <div className="mx-auto w-full max-w-4xl xl:max-w-6xl">
+    <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+          <LayoutDashboard className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold">Studio</h1>
+          <p className="text-sm text-muted-foreground">Schedule and publish</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-6 space-y-6">
       {/* Módulo de Cuentas */}
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -510,6 +518,7 @@ export function UnifiedDashboard({
                         }}
                         className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         title="Eliminar"
+                        aria-label="Eliminar"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -559,13 +568,16 @@ export function UnifiedDashboard({
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600"
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-transparent"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDeleteTemplate(template.id)
                       }}
+                      aria-label="Eliminar template"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
+                        <Trash2 className="w-4 h-4" />
+                      </span>
                     </Button>
                   </div>
                 ))}
@@ -606,6 +618,7 @@ export function UnifiedDashboard({
         defaultContent={templateContent?.content}
         defaultChannelId={templateContent?.channelId}
       />
+      </div>
     </div>
   )
 }
@@ -776,26 +789,30 @@ function CastCard({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-7 w-7"
+              className="h-7 w-7 p-0 hover:bg-transparent"
               onClick={(e) => {
                 e.stopPropagation()
                 onEdit?.()
               }}
               title="Editar"
             >
-              <Edit className="w-3.5 h-3.5" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent">
+                <Edit className="w-3.5 h-3.5" />
+              </span>
             </Button>
             <Button 
               variant="ghost" 
               size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-transparent"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
               }}
               title="Eliminar"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-destructive/10">
+                <Trash2 className="w-3.5 h-3.5" />
+              </span>
             </Button>
           </div>
         )}

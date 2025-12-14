@@ -242,10 +242,12 @@ export function CastEditorInline({
               variant="ghost"
               size="icon"
               onClick={onRemove}
-              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
               aria-label={`Eliminar cast ${index + 1}`}
             >
-              <X className="w-3 h-3" />
+              <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
+                <X className="w-4 h-4" />
+              </span>
             </Button>
           )}
         </div>

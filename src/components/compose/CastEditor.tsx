@@ -407,8 +407,9 @@ export function CastEditor({
             variant="ghost"
             size="icon"
             onClick={onRemove}
-            className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
             title="Eliminar cast"
+            aria-label="Eliminar cast"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -476,12 +477,15 @@ export function CastEditor({
 
               {!m.uploading && !m.error && (
                 <Button
-                  variant="destructive"
+                  variant="ghost"
                   size="icon"
                   onClick={() => removeMedia(m.preview)}
-                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity shadow-sm p-0"
+                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity p-0 hover:bg-transparent"
+                  aria-label="Eliminar media"
                 >
-                  <X className="w-3 h-3" />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm">
+                    <X className="w-3 h-3" />
+                  </span>
                 </Button>
               )}
             </div>
@@ -510,6 +514,7 @@ export function CastEditor({
               cast.media.length >= 2 && "opacity-50"
             )}
             title="Añadir imagen o video"
+            aria-label="Añadir imagen o video"
           >
             <Image className="w-5 h-5" />
           </Button>
@@ -527,7 +532,8 @@ export function CastEditor({
                 "text-muted-foreground hover:text-castor-black",
                 showEmojiPicker && "bg-muted text-castor-black"
               )}
-              title="Insertar emoji"
+              aria-label="Abrir selector de emojis"
+              title="Emojis"
             >
               <Smile className="w-5 h-5" />
             </Button>
@@ -546,6 +552,7 @@ export function CastEditor({
                         type="button"
                         onClick={() => insertEmoji(emoji)}
                         className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-xl transition-colors"
+                        aria-label={`Insertar ${emoji}`}
                       >
                         {emoji}
                       </button>
@@ -572,6 +579,7 @@ export function CastEditor({
                 cast.media.length >= 2 && "opacity-50"
               )}
               title="Insertar GIF"
+              aria-label="Insertar GIF"
             >
               <span className="text-xs font-bold">GIF</span>
             </Button>

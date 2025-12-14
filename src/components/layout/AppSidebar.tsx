@@ -68,6 +68,8 @@ function ChannelItem({
             "opacity-0 group-hover:opacity-100 transition-opacity p-0.5",
             channel.isFavorite && "opacity-100"
           )}
+          aria-label={channel.isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+          title={channel.isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
         >
           <Star 
             className={cn(

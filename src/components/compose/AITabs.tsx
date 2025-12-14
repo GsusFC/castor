@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { 
@@ -19,6 +19,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { AI_LANGUAGE_OPTIONS, type SupportedTargetLanguage } from '@/lib/ai/languages'
+import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
 
 type AIMode = 'translate' | 'propose' | 'improve' | null
 
@@ -54,14 +56,6 @@ const TONES = [
   { value: 'controversial', label: 'Polémico' },
 ]
 
-const LANGUAGES = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'pt', label: 'Português' },
-]
-
 export function AITabs({
   onSelectText,
   currentDraft,
@@ -72,12 +66,27 @@ export function AITabs({
   maxChars = 320,
   accountId,
 }: AITabsProps) {
+  const { defaultLanguage, enabledLanguages } = useAiLanguagePreferences()
   const [activeTab, setActiveTab] = useState<AIMode>(null)
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTone, setSelectedTone] = useState('casual')
-  const [targetLanguage, setTargetLanguage] = useState('en')
+  const [targetLanguage, setTargetLanguage] = useState<SupportedTargetLanguage>('en')
+  const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (hasSelectedLanguage) return
+    setTargetLanguage(defaultLanguage)
+  }, [defaultLanguage, hasSelectedLanguage])
+
+  useEffect(() => {
+    if (enabledLanguages.includes(targetLanguage)) return
+    setHasSelectedLanguage(false)
+    setTargetLanguage(defaultLanguage)
+  }, [defaultLanguage, enabledLanguages, targetLanguage])
+
+  const languageOptions = AI_LANGUAGE_OPTIONS.filter((lang) => enabledLanguages.includes(lang.value))
 
   const handleTabClick = (tab: AIMode) => {
     if (activeTab === tab) {
@@ -243,9 +252,12 @@ export function AITabs({
                   variant="ghost"
                   size="icon"
                   onClick={onClearReply}
-                  className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                  className="h-6 w-6 shrink-0 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                  aria-label="Quitar respuesta"
                 >
-                  <X className="w-3 h-3" />
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
+                    <X className="w-4 h-4" />
+                  </span>
                 </Button>
               )}
             </div>
@@ -275,13 +287,19 @@ export function AITabs({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                  {LANGUAGES.find(l => l.value === targetLanguage)?.label}
+                  {languageOptions.find((l) => l.value === targetLanguage)?.label}
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {LANGUAGES.map((lang) => (
-                  <DropdownMenuItem key={lang.value} onClick={() => setTargetLanguage(lang.value)}>
+                {languageOptions.map((lang) => (
+                  <DropdownMenuItem
+                    key={lang.value}
+                    onClick={() => {
+                      setTargetLanguage(lang.value)
+                      setHasSelectedLanguage(true)
+                    }}
+                  >
                     {targetLanguage === lang.value && <Check className="w-4 h-4 mr-2" />}
                     {lang.label}
                   </DropdownMenuItem>

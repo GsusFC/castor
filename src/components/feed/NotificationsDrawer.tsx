@@ -195,7 +195,7 @@ export function NotificationsDrawer() {
     'md:inset-auto md:top-4 md:bottom-4 md:right-4',
     'md:w-[560px] lg:w-[640px]',
     'md:max-w-[calc(100%-2rem)]',
-    'sm:max-h-[calc(100vh-2rem)]',
+    'sm:max-h-[calc(100dvh-2rem)]',
     'translate-x-0'
   ), [isOpen])
 

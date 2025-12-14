@@ -48,6 +48,7 @@ export function MiniAppDrawer({ open, onClose, url, title }: MiniAppDrawerProps)
             <button
               onClick={onClose}
               className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Cerrar"
             >
               <X className="w-5 h-5" />
             </button>

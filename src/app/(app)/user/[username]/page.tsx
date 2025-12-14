@@ -119,7 +119,7 @@ export default function UserProfilePage() {
 
   if (profileQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex items-center justify-center min-h-[50dvh]">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )

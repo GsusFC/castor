@@ -143,6 +143,7 @@ export function GlobalSearch({ onSelectChannel, onSelectUser, onSelectCast }: Gl
           <button
             onClick={handleClear}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded"
+            aria-label="Limpiar búsqueda"
           >
             <X className="w-3 h-3 text-muted-foreground" />
           </button>
@@ -263,6 +264,7 @@ export function GlobalSearch({ onSelectChannel, onSelectUser, onSelectCast }: Gl
                               toggleFavorite({ id: channel.id, name: channel.name, imageUrl: channel.image_url })
                             }}
                             className="p-1.5 hover:bg-muted rounded transition-colors"
+                            aria-label={isFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
                           >
                             <Star className={cn("w-4 h-4", isFav ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground")} />
                           </button>

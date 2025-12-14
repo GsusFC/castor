@@ -122,6 +122,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-muted rounded-md transition-colors"
+          aria-label="Cerrar"
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>

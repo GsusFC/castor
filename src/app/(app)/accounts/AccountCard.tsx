@@ -127,6 +127,7 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             variant="ghost"
             size="icon"
             title="Gestionar contexto AI"
+            aria-label="Gestionar contexto AI"
             className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-primary hover:bg-primary/10"
           >
             <Brain className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -159,6 +160,7 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
             onClick={() => setShowConfirm(true)}
             className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Eliminar cuenta"
+            aria-label="Eliminar cuenta"
           >
             <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
           </Button>

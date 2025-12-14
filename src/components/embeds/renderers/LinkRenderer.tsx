@@ -127,6 +127,7 @@ export function LinkRenderer({
             <button
               onClick={(e) => { e.stopPropagation(); onRemove(); }}
               className="absolute -top-1 -right-1 p-1 bg-destructive text-destructive-foreground rounded-full"
+              aria-label="Eliminar"
             >
               <X className="w-2.5 h-2.5" />
             </button>
@@ -188,6 +189,7 @@ export function LinkRenderer({
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
             className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            aria-label="Eliminar"
           >
             <X className="w-3 h-3" />
           </button>
@@ -221,6 +223,7 @@ export function LinkRenderer({
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
             className="absolute -top-1 -right-1 p-1 bg-destructive text-destructive-foreground rounded-full"
+            aria-label="Eliminar"
           >
             <X className="w-2.5 h-2.5" />
           </button>
@@ -245,7 +248,7 @@ export function LinkRenderer({
         <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <span className="text-sm font-medium text-foreground truncate">{domain}</span>
         <div className="flex items-center gap-1 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={handleCopy} className="p-1.5 rounded-md hover:bg-muted">
+          <button onClick={handleCopy} className="p-1.5 rounded-md hover:bg-muted" aria-label="Copiar enlace">
             {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
@@ -254,6 +257,7 @@ export function LinkRenderer({
           <button
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
             className="p-1 hover:bg-muted rounded"
+            aria-label="Eliminar"
           >
             <X className="w-3 h-3 text-muted-foreground" />
           </button>
@@ -293,11 +297,11 @@ export function LinkRenderer({
 
       {/* Actions */}
       <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={handleCopy} className="p-1.5 rounded-md hover:bg-muted">
+        <button onClick={handleCopy} className="p-1.5 rounded-md hover:bg-muted" aria-label="Copiar enlace">
           {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
         </button>
         {showRemove && onRemove && (
-          <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }} className="p-1.5 rounded-md hover:bg-muted">
+          <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }} className="p-1.5 rounded-md hover:bg-muted" aria-label="Eliminar">
             <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
           </button>
         )}

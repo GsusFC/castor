@@ -572,7 +572,12 @@ export function ContextEditor({
             <span key={i} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1">
               {item}
               {canEdit && (
-                <button onClick={() => removeItem(expertise, setExpertise, i)} className="hover:text-destructive">
+                <button
+                  onClick={() => removeItem(expertise, setExpertise, i)}
+                  className="hover:text-destructive"
+                  aria-label={`Eliminar ${item}`}
+                  title={`Eliminar ${item}`}
+                >
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -611,7 +616,12 @@ export function ContextEditor({
               <div key={i} className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg text-sm">
                 <span className="flex-1">{item}</span>
                 {canEdit && (
-                  <button onClick={() => removeItem(alwaysDo, setAlwaysDo, i)} className="text-muted-foreground hover:text-destructive">
+                  <button
+                    onClick={() => removeItem(alwaysDo, setAlwaysDo, i)}
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={`Eliminar ${item}`}
+                    title={`Eliminar ${item}`}
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -648,7 +658,12 @@ export function ContextEditor({
               <div key={i} className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg text-sm">
                 <span className="flex-1">{item}</span>
                 {canEdit && (
-                  <button onClick={() => removeItem(neverDo, setNeverDo, i)} className="text-muted-foreground hover:text-destructive">
+                  <button
+                    onClick={() => removeItem(neverDo, setNeverDo, i)}
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={`Eliminar ${item}`}
+                    title={`Eliminar ${item}`}
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -687,7 +702,12 @@ export function ContextEditor({
             <span key={i} className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-sm flex items-center gap-1">
               #{item}
               {canEdit && (
-                <button onClick={() => removeItem(hashtags, setHashtags, i)} className="hover:text-destructive">
+                <button
+                  onClick={() => removeItem(hashtags, setHashtags, i)}
+                  className="hover:text-destructive"
+                  aria-label={`Eliminar #${item}`}
+                  title={`Eliminar #${item}`}
+                >
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -751,6 +771,7 @@ export function ContextEditor({
                     variant="ghost" 
                     onClick={() => handleDeleteDocument(doc.id)}
                     className="text-muted-foreground hover:text-destructive"
+                    aria-label={`Eliminar documento ${doc.name}`}
                   >
                     <X className="w-4 h-4" />
                   </Button>

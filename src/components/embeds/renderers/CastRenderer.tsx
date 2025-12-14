@@ -108,6 +108,7 @@ export function CastRenderer({
           <button
             onClick={onRemove}
             className="ml-auto p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Eliminar"
           >
             <X className="w-3 h-3 text-muted-foreground" />
           </button>
@@ -163,6 +164,7 @@ export function CastRenderer({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Eliminar"
         >
           <X className="w-3 h-3" />
         </button>

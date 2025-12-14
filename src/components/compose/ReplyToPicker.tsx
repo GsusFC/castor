@@ -88,9 +88,12 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
           variant="ghost"
           size="icon"
           onClick={() => onSelect(null)}
-          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+          className="h-6 w-6 shrink-0 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
+          aria-label="Quitar respuesta"
         >
-          <X className="w-4 h-4" />
+          <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
+            <X className="w-4 h-4" />
+          </span>
         </Button>
       </div>
     )
@@ -133,6 +136,7 @@ export function ReplyToPicker({ replyTo, onSelect }: ReplyToPickerProps) {
             setUrl('')
             setError(null)
           }}
+          aria-label="Cerrar"
         >
           <X className="w-4 h-4" />
         </Button>

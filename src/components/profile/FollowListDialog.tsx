@@ -51,7 +51,7 @@ export function FollowListDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-md max-h-[80dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {type === 'followers' ? 'Seguidores' : 'Siguiendo'} de @{username}

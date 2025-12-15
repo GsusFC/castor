@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
@@ -9,6 +9,7 @@ import { PowerBadge } from '@/components/ui/PowerBadge'
 import { GifPicker } from '@/components/compose/GifPicker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AIReplyDialog } from './AIReplyDialog'
+import { useRouter } from 'next/navigation'
 import { 
   CastRenderer, 
   TweetRenderer, 
@@ -23,6 +24,8 @@ import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 import { MorphText } from '@/components/ui/MorphText'
 import { ScrambleText } from '@/components/ui/ScrambleText'
+import { renderCastText } from '@/lib/cast-text'
+import { useTickerDrawer } from '@/context/TickerDrawerContext'
 
 interface CastAuthor {
   fid: number
@@ -117,6 +120,8 @@ export function CastCard({
   currentUserFid,
   isPro = false,
 }: CastCardProps) {
+  const router = useRouter()
+  const { openTicker } = useTickerDrawer()
   const { selectedAccountId } = useSelectedAccount()
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
@@ -163,6 +168,22 @@ export function CastCard({
     : cast.text.slice(0, MAX_TEXT_LENGTH) + '...'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleSelectUser = useCallback((username: string) => {
+    if (onSelectUser) {
+      onSelectUser(username)
+      return
+    }
+    const qs = new URLSearchParams()
+    qs.set('user', username)
+    router.push(`/?${qs.toString()}`)
+  }, [onSelectUser, router])
+
+  const handleSelectChannel = useCallback((channelId: string) => {
+    const qs = new URLSearchParams()
+    qs.set('channel', channelId)
+    router.push(`/?${qs.toString()}`)
+  }, [router])
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -692,6 +713,14 @@ export function CastCard({
                 ? "text-primary/90 font-medium" 
                 : "text-foreground"
             )}
+            render={(text) => renderCastText(text, {
+              variant: 'interactive',
+              interactive: {
+                onMentionClick: handleSelectUser,
+                onChannelClick: handleSelectChannel,
+                onTickerClick: openTicker,
+              },
+            })}
           />
           
           {/* Botón ver más/menos */}
@@ -754,10 +783,17 @@ export function CastCard({
             .filter((url): url is string => !!url)
             .map((url) => ({ kind: 'image' as const, url }))
 
+          const getCloudflarePoster = (url: string): string | undefined => {
+            const match = url.match(/(?:watch\.cloudflarestream\.com\/|cloudflarestream\.com\/)([^/?#]+)/)
+            const id = match?.[1]
+            if (!id) return undefined
+            return `https://videodelivery.net/${id}/thumbnails/thumbnail.jpg`
+          }
+
           const videoItems: VideoItem[] = videos
             .map((embed) => {
               if (!embed.url) return null
-              const poster = embed.metadata?.html?.ogImage?.[0]?.url
+              const poster = embed.metadata?.html?.ogImage?.[0]?.url || getCloudflarePoster(embed.url)
               const durationS = embed.metadata?.video?.duration_s
               return { kind: 'video' as const, url: embed.url, poster, durationS }
             })
@@ -850,32 +886,19 @@ export function CastCard({
 
                       if (item.kind === 'video') {
                         return (
-                          <button
+                          <div
                             key={`media-${item.kind}-${item.url}-${i}`}
-                            onClick={() => setVideoModal({ url: item.url, poster: item.poster })}
-                            aria-label="Reproducir video"
-                            className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-black overflow-hidden hover:opacity-95 transition-opacity rounded-xl"
+                            className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-black overflow-hidden rounded-xl"
                           >
-                            {item.poster ? (
-                              <img
-                                src={item.poster}
-                                alt=""
-                                className="absolute inset-0 w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black" />
-                            )}
-                            <div className="absolute inset-0 bg-black/20" />
-                            <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
+                            <HLSVideo
+                              src={item.url}
+                              poster={item.poster}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="pointer-events-none absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
                               VIDEO
                             </div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/20">
-                                <Film className="w-6 h-6 text-white" />
-                              </div>
-                            </div>
-                          </button>
+                          </div>
                         )
                       }
 

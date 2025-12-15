@@ -2,6 +2,7 @@
 
 import { CastItem, Account, Channel, ReplyToCast, LinkEmbed } from './types'
 import { cn } from '@/lib/utils'
+import { renderCastText } from '@/lib/cast-text'
 
 interface CastPreviewProps {
   casts: CastItem[]
@@ -13,37 +14,6 @@ interface CastPreviewProps {
 
 export function CastPreview({ casts, account, channel, replyTo, compact = false }: CastPreviewProps) {
   if (!account) return null
-
-  // Función para renderizar texto con mentions resaltadas
-  const renderText = (text: string) => {
-    // Regex para detectar @mentions
-    const parts = text.split(/(@\w+)/g)
-    
-    return parts.map((part, i) => {
-      if (part.startsWith('@')) {
-        return (
-          <span key={i} className="text-purple-600 font-medium">
-            {part}
-          </span>
-        )
-      }
-      // Detectar URLs y hacerlas clickables
-      const urlRegex = /(https?:\/\/[^\s]+)/g
-      if (urlRegex.test(part)) {
-        return part.split(urlRegex).map((segment, j) => {
-          if (segment.match(urlRegex)) {
-            return (
-              <span key={`${i}-${j}`} className="text-blue-600">
-                {segment}
-              </span>
-            )
-          }
-          return segment
-        })
-      }
-      return part
-    })
-  }
 
   return (
     <div className={cn(
@@ -125,7 +95,7 @@ export function CastPreview({ casts, account, channel, replyTo, compact = false 
 
                 {/* Content */}
                 <div className="text-foreground whitespace-pre-wrap break-words">
-                  {cast.content ? renderText(cast.content) : (
+                  {cast.content ? renderCastText(cast.content, { variant: 'highlight' }) : (
                     <span className="text-muted-foreground italic">Sin contenido...</span>
                   )}
                 </div>

@@ -68,6 +68,7 @@ export function ProfileView({
   const [casts, setCasts] = useState<Cast[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ProfileTab>('casts')
+  const [isCastsLoading, setIsCastsLoading] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,12 +79,6 @@ export function ProfileView({
           const data = await profileRes.json()
           setProfile(data.user)
         }
-
-        const castsRes = await fetch(`/api/users/${username}/casts?limit=20`)
-        if (castsRes.ok) {
-          const data = await castsRes.json()
-          setCasts(data.casts || [])
-        }
       } catch (error) {
         console.error('Error fetching profile:', error)
       } finally {
@@ -93,6 +88,39 @@ export function ProfileView({
 
     fetchProfile()
   }, [username])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const fetchCasts = async () => {
+      setIsCastsLoading(true)
+      try {
+        const castsRes = await fetch(
+          `/api/users/${username}/casts?limit=20&type=${encodeURIComponent(activeTab)}`,
+          { signal: controller.signal }
+        )
+        if (!castsRes.ok) {
+          setCasts([])
+          return
+        }
+
+        const data = await castsRes.json()
+        setCasts(data.casts || [])
+      } catch (error) {
+        if ((error as any)?.name === 'AbortError') return
+        console.error('Error fetching profile casts:', error)
+        setCasts([])
+      } finally {
+        setIsCastsLoading(false)
+      }
+    }
+
+    fetchCasts()
+
+    return () => {
+      controller.abort()
+    }
+  }, [activeTab, username])
 
   const bio = profile?.profile?.bio?.text || profile?.bio
   const location = profile?.profile?.location?.description
@@ -253,7 +281,11 @@ export function ProfileView({
 
       {/* Casts */}
       <div className="space-y-4">
-        {casts.length > 0 ? (
+        {isCastsLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : casts.length > 0 ? (
           casts.map((cast) => (
             <CastCard 
               key={cast.hash} 
@@ -268,7 +300,7 @@ export function ProfileView({
           ))
         ) : (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No hay casts
+            {activeTab === 'casts' ? 'No hay casts' : activeTab === 'replies' ? 'No hay respuestas' : 'No hay likes'}
           </p>
         )}
       </div>

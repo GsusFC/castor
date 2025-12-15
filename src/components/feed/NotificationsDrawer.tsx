@@ -1,14 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { usePathname, useRouter } from 'next/navigation'
-import { Loader2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationCard } from '@/components/feed/NotificationCard'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
 import { useNotifications } from '@/context/NotificationsContext'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 type NotificationFilter = 'all' | 'reply' | 'mention' | 'like' | 'recast' | 'follow'
 
@@ -42,6 +43,7 @@ export function NotificationsDrawer() {
   const router = useRouter()
   const pathname = usePathname()
   const { isOpen, close } = useNotifications()
+  const [isMobile, setIsMobile] = useState(false)
 
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
@@ -54,31 +56,19 @@ export function NotificationsDrawer() {
   const loadMoreLockRef = useRef(false)
 
   useEffect(() => {
-    if (!isOpen) return
+    const mql = window.matchMedia('(max-width: 639px)')
 
-    const prevHtml = document.documentElement.style.overflowX
-    const prevBody = document.body.style.overflowX
+    const handleChange = () => {
+      setIsMobile(mql.matches)
+    }
 
-    document.documentElement.style.overflowX = 'hidden'
-    document.body.style.overflowX = 'hidden'
+    handleChange()
+    mql.addEventListener('change', handleChange)
 
     return () => {
-      document.documentElement.style.overflowX = prevHtml
-      document.body.style.overflowX = prevBody
+      mql.removeEventListener('change', handleChange)
     }
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      close()
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [close, isOpen])
+  }, [])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -172,104 +162,95 @@ export function NotificationsDrawer() {
   }, [])
 
   const handleOpenUser = useCallback((username: string) => {
+    close()
     if (pathname === '/') {
       window.dispatchEvent(new CustomEvent('castor:feed:open-user', { detail: { username } }))
       return
     }
 
     router.push(`/?user=${encodeURIComponent(username)}`)
-  }, [pathname, router])
+  }, [close, pathname, router])
 
   const handleOpenCast = useCallback((castHash: string) => {
+    close()
     if (pathname === '/') {
       window.dispatchEvent(new CustomEvent('castor:feed:open-cast', { detail: { castHash } }))
       return
     }
 
     router.push(`/?cast=${encodeURIComponent(castHash)}`)
-  }, [pathname, router])
-
-  const panelClasses = useMemo(() => cn(
-    'fixed z-50 flex flex-col bg-background pointer-events-auto overflow-x-hidden animate-in slide-in-from-right duration-300',
-    'inset-0 sm:inset-4 sm:rounded-2xl sm:border sm:border-border sm:shadow-xl',
-    'md:inset-auto md:top-4 md:bottom-4 md:right-4',
-    'md:w-[560px] lg:w-[640px]',
-    'md:max-w-[calc(100%-2rem)]',
-    'sm:max-h-[calc(100dvh-2rem)]',
-    'translate-x-0'
-  ), [isOpen])
-
-  if (!isOpen) return null
+  }, [close, pathname, router])
 
   return (
-    <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200 sm:hidden"
-          onClick={close}
-          aria-hidden="true"
-        />
-      )}
+    <Sheet
+      open={isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) close()
+      }}
+    >
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={cn(
+          'p-0 overflow-hidden',
+          isMobile ? 'w-full h-[70dvh]' : 'w-full sm:w-[20vw] sm:min-w-[320px] sm:max-w-[520px]'
+        )}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>Notifications</SheetTitle>
+        </SheetHeader>
 
-      <div className={panelClasses} role="dialog" aria-label="Notifications" aria-modal={false}>
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-card">
-          <span className="font-medium truncate">Notifications</span>
-          <button
-            type="button"
-            onClick={close}
-            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Cerrar notificaciones"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-            <div className="flex flex-wrap items-center gap-1 px-3 py-2.5">
-              {NOTIFICATION_FILTERS.map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setNotificationFilter(filter.value)}
-                  className={cn(
-                    'px-2.5 py-1 text-xs rounded-md transition-colors',
-                    notificationFilter === filter.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                  )}
-                  aria-label={`Filtrar: ${filter.label}`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+            <span className="font-medium truncate pr-10">Notifications</span>
           </div>
 
-          <div className="space-y-3 px-3 py-3 pb-safe">
-            {isLoading ? (
-              Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
-            ) : notifications.length > 0 ? (
-              notifications.map((notification: { type: string; most_recent_timestamp?: string }, i: number) => (
-                <NotificationCard
-                  key={`${notification.type}-${notification.most_recent_timestamp}-${i}`}
-                  notification={notification as any}
-                  onClick={() => handleReplyFromNotification(notification)}
-                  onUserClick={handleOpenUser}
-                  onCastClick={handleOpenCast}
-                />
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-12">
-                No hay notificaciones
-              </p>
-            )}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
+              <div className="flex flex-wrap items-center gap-1 px-4 py-2.5">
+                {NOTIFICATION_FILTERS.map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setNotificationFilter(filter.value)}
+                    className={cn(
+                      'px-2.5 py-1 text-xs rounded-md transition-colors',
+                      notificationFilter === filter.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    )}
+                    aria-label={`Filtrar: ${filter.label}`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <div ref={loadMoreRef} className="py-2">
-              {notificationsQuery.isFetchingNextPage && (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
+            <div className="space-y-3 px-4 py-3 pb-safe">
+              {isLoading ? (
+                Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
+              ) : notifications.length > 0 ? (
+                notifications.map((notification: { type: string; most_recent_timestamp?: string }, i: number) => (
+                  <NotificationCard
+                    key={`${notification.type}-${notification.most_recent_timestamp}-${i}`}
+                    notification={notification as any}
+                    onClick={() => handleReplyFromNotification(notification)}
+                    onUserClick={handleOpenUser}
+                    onCastClick={handleOpenCast}
+                  />
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-12">
+                  No hay notificaciones
+                </p>
               )}
+
+              <div ref={loadMoreRef} className="py-2">
+                {notificationsQuery.isFetchingNextPage && (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -285,7 +266,7 @@ export function NotificationsDrawer() {
           defaultAccountId={userAccountId}
           defaultReplyTo={replyToCast}
         />
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -1,14 +1,16 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useEffect, useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface MorphTextProps {
   text: string
   className?: string
+  render?: (text: string) => ReactNode
 }
 
-export function MorphText({ text, className }: MorphTextProps) {
+export function MorphText({ text, className, render }: MorphTextProps) {
   const [displayText, setDisplayText] = useState(text)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const previousTextRef = useRef(text)
@@ -47,7 +49,7 @@ export function MorphText({ text, className }: MorphTextProps) {
         className
       )}
     >
-      {displayText}
+      {render ? render(displayText) : displayText}
     </div>
   )
 }

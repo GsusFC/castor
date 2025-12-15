@@ -17,8 +17,18 @@ interface LinkRendererProps extends BaseRendererProps, RemovableProps {
   compact?: boolean
 }
 
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 async function fetchMetadata(url: string): Promise<EmbedMetadata | null> {
   try {
+    if (!isHttpUrl(url)) return null
     const params = new URLSearchParams({ url })
     const response = await fetch(`/api/embeds/metadata?${params.toString()}`)
     if (!response.ok) return null
@@ -32,7 +42,7 @@ async function fetchMetadata(url: string): Promise<EmbedMetadata | null> {
 function getDisplayUrl(url: string): { domain: string; path: string } {
   try {
     const urlObj = new URL(url)
-    const domain = urlObj.hostname.replace('www.', '')
+    const domain = urlObj.hostname ? urlObj.hostname.replace('www.', '') : urlObj.protocol.replace(':', '')
     const path = urlObj.pathname.length > 1 ? urlObj.pathname : ''
     return { domain, path }
   } catch {
@@ -75,7 +85,7 @@ export function LinkRenderer({
   const { data: fetchedMetadata, isLoading } = useQuery({
     queryKey: ['embed-metadata', url],
     queryFn: () => fetchMetadata(url),
-    enabled: inView && !preloadedMetadata && !!url,
+    enabled: inView && !preloadedMetadata && !!url && isHttpUrl(url),
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 1,

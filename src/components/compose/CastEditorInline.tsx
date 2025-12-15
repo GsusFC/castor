@@ -10,6 +10,7 @@ import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { VideoValidation } from './VideoValidation'
 import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
+import { renderCastText } from '@/lib/cast-text'
 
 interface CastEditorInlineProps {
   cast: CastItem
@@ -50,68 +51,7 @@ export function CastEditorInline({
    * Syntax highlighting para @handles, URLs, $tickers, /channels
    */
   const highlightText = (text: string) => {
-    if (!text) return null
-    
-    // Regex para detectar patrones
-    const patterns = [
-      { regex: /@\w+/g, className: 'text-primary' }, // @handles
-      { regex: /\/\w+/g, className: 'text-blue-400' }, // /channels
-      { regex: /\$[A-Za-z]+/g, className: 'text-green-400' }, // $tickers
-      { regex: /https?:\/\/[^\s]+/g, className: 'text-primary/80 underline' }, // URLs
-    ]
-    
-    // Encontrar todos los matches con sus posiciones
-    const matches: { start: number; end: number; className: string }[] = []
-    
-    for (const { regex, className } of patterns) {
-      let match
-      const regexCopy = new RegExp(regex.source, regex.flags)
-      while ((match = regexCopy.exec(text)) !== null) {
-        matches.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          className,
-        })
-      }
-    }
-    
-    // Ordenar por posición
-    matches.sort((a, b) => a.start - b.start)
-    
-    // Construir elementos
-    const elements: React.ReactNode[] = []
-    let lastIndex = 0
-    
-    for (const match of matches) {
-      // Texto normal antes del match
-      if (match.start > lastIndex) {
-        elements.push(
-          <span key={`text-${lastIndex}`} className="text-foreground">
-            {text.slice(lastIndex, match.start)}
-          </span>
-        )
-      }
-      
-      // Match resaltado
-      elements.push(
-        <span key={`match-${match.start}`} className={match.className}>
-          {text.slice(match.start, match.end)}
-        </span>
-      )
-      
-      lastIndex = match.end
-    }
-    
-    // Texto restante
-    if (lastIndex < text.length) {
-      elements.push(
-        <span key={`text-${lastIndex}`} className="text-foreground">
-          {text.slice(lastIndex)}
-        </span>
-      )
-    }
-    
-    return elements.length > 0 ? elements : <span className="text-foreground">{text}</span>
+    return renderCastText(text, { variant: 'highlight' })
   }
 
   // URL detection with debounce

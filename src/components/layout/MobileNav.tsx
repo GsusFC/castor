@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Plus, FileText, LayoutTemplate, Rss, Search, Bell } from 'lucide-react'
+import { Home, Plus, FileText, LayoutTemplate, Rss, Search, Bell, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ComposeModal } from '@/components/compose/ComposeModal'
@@ -56,7 +56,7 @@ export function MobileNav() {
   const [isSearching, setIsSearching] = useState(false)
   const debouncedQuery = useDebounce(searchQuery, 300)
   const { favorites, toggleFavorite } = useUserChannels()
-  const { unreadCount } = useNotifications()
+  const { unreadCount, open: openNotifications, isOpen: isNotificationsOpen } = useNotifications()
 
   // Cargar drafts cuando se abre el sheet
   useEffect(() => {
@@ -182,7 +182,8 @@ export function MobileNav() {
     router.push(`/?channel=${channelId}`)
   }
 
-  const isAnySheetOpen = searchOpen || draftsOpen || templatesOpen
+  const isAnySheetOpen = searchOpen || draftsOpen || templatesOpen || isNotificationsOpen
+  const isNavLayerActive = isAnySheetOpen || isSheetLayerActive
 
   useEffect(() => {
     if (isAnySheetOpen) {
@@ -200,7 +201,7 @@ export function MobileNav() {
   return (
     <>
       {/* FAB - New Cast button - fixed above nav (oculto cuando sheets están abiertos) */}
-      {!isSheetLayerActive && (
+      {!isNavLayerActive && (
         <button
           onClick={() => setComposeOpen(true)}
           className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 lg:hidden"
@@ -213,9 +214,10 @@ export function MobileNav() {
       {/* Bottom navigation - only visible on mobile */}
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-20 lg:hidden pb-safe',
-          isSheetLayerActive && 'z-[60]',
-          isSheetLayerActive && 'pointer-events-none'
+          'fixed bottom-0 left-0 right-0 border-t border-border lg:hidden pb-safe',
+          isNavLayerActive
+            ? 'z-[80] pointer-events-none bg-card'
+            : 'z-20 bg-card/95 backdrop-blur-xl'
         )}
       >
         <div className="flex items-center justify-around h-16 px-4">
@@ -231,10 +233,11 @@ export function MobileNav() {
                 <span className="text-[10px] font-medium">Studio</span>
               </Link>
 
-              <Link
-                href="/notifications"
+              <button
+                type="button"
+                onClick={openNotifications}
                 className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-                aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
+                aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Open notifications'}
               >
                 <Bell className="w-5 h-5" />
                 <span className="text-[10px] font-medium">Notifs</span>
@@ -243,7 +246,7 @@ export function MobileNav() {
                     {unreadCount}
                   </span>
                 )}
-              </Link>
+              </button>
 
               <button
                 onClick={() => setSearchOpen(true)}
@@ -266,17 +269,12 @@ export function MobileNav() {
               </Link>
 
               <Link
-                href="/notifications"
-                className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-                aria-label={unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Notifications'}
+                href="/settings"
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
+                aria-label="Open settings"
               >
-                <Bell className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Notifs</span>
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-                    {unreadCount}
-                  </span>
-                )}
+                <Settings className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Settings</span>
               </Link>
 
               <button

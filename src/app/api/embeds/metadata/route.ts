@@ -141,6 +141,13 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return NextResponse.json(
+      { error: 'Only HTTP/HTTPS URLs are supported', metadata: null },
+      { status: 400 }
+    )
+  }
+
   try {
     const response = await fetchWithRedirects(parsedUrl)
 

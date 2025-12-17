@@ -163,11 +163,11 @@ export function LinkRenderer({
 
         {/* Image */}
         {(metadata?.frameImage || metadata?.image) && (
-          <div className="aspect-[1.91/1] bg-muted overflow-hidden">
+          <div className="aspect-[1.91/1] bg-muted overflow-hidden flex items-center justify-center">
             <img
               src={metadata.frameImage || metadata.image}
               alt={metadata.title || 'Mini App'}
-              className="w-full h-full object-cover"
+              className="max-w-full max-h-full object-contain"
             />
           </div>
         )}

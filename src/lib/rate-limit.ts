@@ -10,10 +10,16 @@ import { logger } from './logger'
 
 const isProduction = process.env.NODE_ENV === 'production'
 
-// Usar Redis de Upstash si está configurado, sino usar memoria local
-const redis = process.env.UPSTASH_REDIS_REST_URL
+// Usar Redis de Upstash si está configurado correctamente, sino usar memoria local
+const isValidRedisConfig = 
+  process.env.UPSTASH_REDIS_REST_URL && 
+  process.env.UPSTASH_REDIS_REST_TOKEN &&
+  !process.env.UPSTASH_REDIS_REST_URL.includes('your-redis') &&
+  !process.env.UPSTASH_REDIS_REST_TOKEN.includes('your-token')
+
+const redis = isValidRedisConfig
   ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
+      url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
     })
   : null

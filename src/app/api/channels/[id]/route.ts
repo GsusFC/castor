@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
+import { getSession } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -7,8 +8,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const session = await getSession()
+    const viewerFid = session?.fid
 
-    const response = await neynar.lookupChannel({ id })
+    const response = await neynar.lookupChannel({ id, viewerFid })
 
     if (!response.channel) {
       return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
@@ -18,6 +21,7 @@ export async function GET(
     const channel = response.channel as typeof response.channel & {
       header_image_url?: string
       member_count?: number
+      viewer_context?: { following: boolean }
     }
 
     return NextResponse.json({
@@ -29,6 +33,9 @@ export async function GET(
         description: channel.description,
         follower_count: channel.follower_count,
         member_count: channel.member_count,
+      },
+      viewerContext: {
+        following: channel.viewer_context?.following ?? false,
       },
     })
   } catch (error) {

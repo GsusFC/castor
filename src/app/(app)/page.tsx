@@ -96,10 +96,47 @@ function FeedPageInner() {
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
+  const [selectedConversationHash, setSelectedConversationHash] = useState<string | null>(null)
 
   const channelIdFromUrl = searchParams.get('channel')
   const castHashFromUrl = searchParams.get('cast')
   const usernameFromUrl = searchParams.get('user')
+
+  const pushSearchParams = useCallback((updater: (params: URLSearchParams) => void) => {
+    const next = new URLSearchParams(searchParamsString)
+    updater(next)
+
+    const qs = next.toString()
+    router.push(qs ? `/?${qs}` : '/')
+  }, [router, searchParamsString])
+
+  const openProfile = useCallback((username: string) => {
+    setSelectedConversationHash(null)
+    setSelectedProfileUsername(username)
+    pushSearchParams((next) => {
+      next.set('user', username)
+      next.delete('cast')
+    })
+  }, [pushSearchParams])
+
+  const openConversation = useCallback((castHash: string) => {
+    setSelectedProfileUsername(null)
+    setSelectedConversationHash(castHash)
+    pushSearchParams((next) => {
+      next.set('cast', castHash)
+      next.delete('user')
+    })
+  }, [pushSearchParams])
+
+  const closeOverlay = useCallback(() => {
+    setSelectedConversationHash(null)
+    setSelectedProfileUsername(null)
+    pushSearchParams((next) => {
+      next.delete('cast')
+      next.delete('user')
+    })
+  }, [pushSearchParams])
 
   const clearChannelFromUrl = useCallback(() => {
     const next = new URLSearchParams(searchParamsString)
@@ -110,15 +147,26 @@ function FeedPageInner() {
   }, [router, searchParamsString])
 
   useEffect(() => {
-    if (!castHashFromUrl) return
-    setSelectedConversationHash(castHashFromUrl)
+    if (castHashFromUrl) {
+      setSelectedProfileUsername(null)
+      setSelectedConversationHash(castHashFromUrl)
+      return
+    }
+    setSelectedConversationHash(null)
   }, [castHashFromUrl])
 
   useEffect(() => {
-    if (!usernameFromUrl) return
-    setSelectedConversationHash(null)
-    setSelectedProfileUsername(usernameFromUrl)
-  }, [usernameFromUrl])
+    // If a cast is selected via URL, it takes precedence.
+    if (castHashFromUrl) return
+
+    if (usernameFromUrl) {
+      setSelectedConversationHash(null)
+      setSelectedProfileUsername(usernameFromUrl)
+      return
+    }
+
+    setSelectedProfileUsername(null)
+  }, [castHashFromUrl, usernameFromUrl])
   
   useEffect(() => {
     if (!channelIdFromUrl) {
@@ -158,8 +206,6 @@ function FeedPageInner() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
-  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
-  const [selectedConversationHash, setSelectedConversationHash] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
@@ -186,16 +232,14 @@ function FeedPageInner() {
       const detail = (event as CustomEvent).detail as { castHash?: string } | undefined
       const castHash = detail?.castHash
       if (!castHash) return
-      setSelectedProfileUsername(null)
-      setSelectedConversationHash(castHash)
+      openConversation(castHash)
     }
 
     const handleOpenUser = (event: Event) => {
       const detail = (event as CustomEvent).detail as { username?: string } | undefined
       const username = detail?.username
       if (!username) return
-      setSelectedConversationHash(null)
-      setSelectedProfileUsername(username)
+      openProfile(username)
     }
 
     window.addEventListener('castor:feed:open-cast', handleOpenCast)
@@ -205,7 +249,7 @@ function FeedPageInner() {
       window.removeEventListener('castor:feed:open-cast', handleOpenCast)
       window.removeEventListener('castor:feed:open-user', handleOpenUser)
     }
-  }, [])
+  }, [openConversation, openProfile])
 
   // Obtener FID y perfil del usuario logueado
   useEffect(() => {
@@ -338,41 +382,21 @@ function FeedPageInner() {
         <ConversationView
           castHash={selectedConversationHash}
           onBack={() => {
-            setSelectedConversationHash(null)
+            router.back()
           }}
           onSelectUser={(username) => {
-            setSelectedConversationHash(null)
-            setSelectedProfileUsername(username)
+            openProfile(username)
           }}
-          onSelectCast={(hash) => setSelectedConversationHash(hash)}
+          onSelectCast={(hash) => openConversation(hash)}
           onQuote={handleQuote}
-          onReply={(c: any) => {
-            const author = c?.author
-            if (!c?.hash || !c?.text || !c?.timestamp || !author?.fid || !author?.username) return
-
-            setReplyToCast({
-              hash: c.hash,
-              text: c.text,
-              timestamp: c.timestamp,
-              author: {
-                fid: author.fid,
-                username: author.username,
-                displayName: author.display_name ?? null,
-                pfpUrl: author.pfp_url ?? null,
-              },
-            })
-            setComposeOpen(true)
-          }}
-          onOpenComposer={() => setComposeOpen(true)}
-          userPfp={profile.pfpUrl}
         />
       ) : selectedProfileUsername ? (
         <ProfileView 
           username={selectedProfileUsername} 
-          onBack={() => setSelectedProfileUsername(null)}
-          onSelectUser={setSelectedProfileUsername}
+          onBack={() => closeOverlay()}
+          onSelectUser={openProfile}
           onOpenCast={(castHash: string) => {
-            setSelectedConversationHash(castHash)
+            openConversation(castHash)
           }}
           onQuote={handleQuote}
           onReply={(c) => {
@@ -401,7 +425,7 @@ function FeedPageInner() {
         <div className="flex items-center gap-2">
           {/* Avatar/Profile button */}
           <button
-            onClick={() => profile.username && setSelectedProfileUsername(profile.username)}
+            onClick={() => profile.username && openProfile(profile.username)}
             className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
           >
             {profile.pfpUrl ? (
@@ -488,12 +512,12 @@ function FeedPageInner() {
               key={cast.hash}
               cast={cast}
               onOpenCast={(castHash) => {
-                setSelectedConversationHash(castHash)
+                openConversation(castHash)
               }}
               onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
               onQuote={handleQuote}
               onDelete={handleDelete}
-              onSelectUser={setSelectedProfileUsername}
+              onSelectUser={openProfile}
               onReply={(c) => {
                 setReplyToCast({
                   hash: c.hash,
@@ -534,9 +558,9 @@ function FeedPageInner() {
       {/* Right Sidebar - desktop only, sticky */}
       <div className="hidden lg:block w-80 shrink-0 sticky top-0 h-screen py-6">
         <RightSidebar
-          onSelectUser={setSelectedProfileUsername}
+          onSelectUser={openProfile}
           onSelectCast={(castHash: string) => {
-            setSelectedConversationHash(castHash)
+            openConversation(castHash)
           }}
         />
       </div>

@@ -9,6 +9,8 @@ export interface MediaFile {
   livepeerAssetId?: string
   livepeerPlaybackId?: string
   videoStatus?: 'pending' | 'processing' | 'ready' | 'error'
+  width?: number
+  height?: number
 }
 
 export interface LinkEmbed {

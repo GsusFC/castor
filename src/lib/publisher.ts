@@ -13,7 +13,7 @@ import { auditCast } from '@/lib/audit'
 const MAX_RETRY_COUNT = 3
 const RETRY_DELAY_MINUTES = [5, 15, 60] // Backoff: 5min, 15min, 1hr
 // Dominio de Cloudflare Stream (específico de la cuenta)
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * Determines if a failed cast should be retried

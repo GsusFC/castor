@@ -2,9 +2,60 @@ import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
+import https from 'node:https'
+import { URL } from 'node:url'
+
+export const runtime = 'nodejs'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+
+const cloudflarePostJson = async <T>(
+  url: string,
+  token: string,
+  body: unknown
+): Promise<{ status: number; data: T }> => {
+  const parsedUrl = new URL(url)
+  const requestBody = JSON.stringify(body)
+
+  return await new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        method: 'POST',
+        hostname: parsedUrl.hostname,
+        path: `${parsedUrl.pathname}${parsedUrl.search}`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestBody).toString(),
+        },
+        timeout: 30000,
+        family: 4,
+      },
+      res => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          try {
+            const json = JSON.parse(text) as T
+            resolve({ status: res.statusCode || 0, data: json })
+          } catch (parseError) {
+            reject(new Error(`Cloudflare response is not valid JSON (status ${res.statusCode || 0})`))
+          }
+        })
+      }
+    )
+
+    req.on('timeout', () => {
+      req.destroy(new Error('Cloudflare request timed out'))
+    })
+
+    req.on('error', reject)
+    req.write(requestBody)
+    req.end()
+  })
+}
 
 /**
  * POST /api/media/upload-url
@@ -20,6 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar configuración de Cloudflare
+    console.log('[Upload URL] Config check - Account ID:', CF_ACCOUNT_ID ? 'SET' : 'MISSING', '| Token:', CF_IMAGES_TOKEN ? `SET (${CF_IMAGES_TOKEN.substring(0, 8)}...)` : 'MISSING')
     if (!CF_ACCOUNT_ID || !CF_IMAGES_TOKEN) {
       console.error('[Upload URL] Cloudflare not configured')
       return ApiErrors.operationFailed('Media upload not configured')
@@ -98,32 +150,37 @@ export async function POST(request: NextRequest) {
 
     } else {
       // Para videos, usar direct_upload (HTTP simple, mejor soporte CORS)
-      const response = await fetch(
+      const { status, data } = await cloudflarePostJson<any>(
         `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
+        CF_IMAGES_TOKEN,
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            maxDurationSeconds: 3600,
-            allowedOrigins: ['*'],
-            requireSignedURLs: false,
-            meta: { name: fileName },
-          }),
+          maxDurationSeconds: 3600,
+          allowedOrigins: ['*'],
+          requireSignedURLs: false,
+          meta: { name: fileName },
         }
       )
 
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        console.error('[Upload URL] Cloudflare Stream init failed:', response.status, data.errors)
-        return ApiErrors.externalError('Cloudflare Stream')
+      if (status < 200 || status >= 300 || !data?.success) {
+        console.error('[Upload URL] Cloudflare Stream init failed:', status, JSON.stringify(data, null, 2))
+        return ApiErrors.externalError('Cloudflare Stream', data?.errors?.[0]?.message || `Status ${status}`)
       }
 
-      const uploadUrl = data.result.uploadURL
-      const streamMediaId = data.result.uid
+      const uploadUrl = data.result?.uploadURL
+      const streamMediaId = data.result?.uid
+
+      const normalizedUploadUrl = (() => {
+        if (!uploadUrl || typeof uploadUrl !== 'string') return uploadUrl
+        try {
+          const parsed = new URL(uploadUrl)
+          if (parsed.hostname === 'upload.cloudflarestream.com') {
+            parsed.hostname = 'upload.videodelivery.net'
+          }
+          return parsed.toString()
+        } catch {
+          return uploadUrl
+        }
+      })()
 
       if (!uploadUrl || !streamMediaId) {
         console.error('[Upload URL] No upload URL or media ID in response')
@@ -134,14 +191,15 @@ export async function POST(request: NextRequest) {
 
       return success({
         type: 'video',
-        uploadUrl,
+        uploadUrl: normalizedUploadUrl,
         id: streamMediaId,
         cloudflareId: streamMediaId,
       })
     }
 
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error('[Upload URL] Error:', error)
-    return ApiErrors.operationFailed('Failed to create upload URL')
+    return ApiErrors.operationFailed(`Failed to create upload URL: ${message}`)
   }
 }

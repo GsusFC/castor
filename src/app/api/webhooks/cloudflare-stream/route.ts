@@ -7,7 +7,7 @@ const CF_WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
 // Dominio de Cloudflare Stream (específico de la cuenta)
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'customer-l9k1ruqd8kemqqty.cloudflarestream.com'
+const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
 /**
  * Verifica la firma del webhook de Cloudflare
@@ -96,6 +96,28 @@ export async function POST(request: NextRequest) {
       // Video listo - habilitar descargas y obtener URL MP4
       console.log('[CF Webhook] Video ready, enabling downloads:', data.uid)
       
+      // Obtener detalles del video (incluyendo dimensiones)
+      let width: number | null = null
+      let height: number | null = null
+      try {
+        const videoDetailsRes = await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/${data.uid}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
+            },
+          }
+        )
+        if (videoDetailsRes.ok) {
+          const videoDetails = await videoDetailsRes.json()
+          width = videoDetails.result?.input?.width || null
+          height = videoDetails.result?.input?.height || null
+          console.log('[CF Webhook] Video dimensions:', { width, height })
+        }
+      } catch (err) {
+        console.warn('[CF Webhook] Could not get video dimensions:', err)
+      }
+      
       // Habilitar descargas MP4
       const enableDownloadsRes = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/${data.uid}/downloads`,
@@ -140,6 +162,8 @@ export async function POST(request: NextRequest) {
           mp4Url: mp4Url || undefined,
           hlsUrl,
           thumbnailUrl,
+          width: width || undefined,
+          height: height || undefined,
           // Priorizar HLS para Farcaster (mejor compatibilidad)
           url: hlsUrl,
         })

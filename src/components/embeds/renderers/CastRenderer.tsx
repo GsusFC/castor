@@ -10,6 +10,9 @@ interface CastRendererProps extends BaseRendererProps, RemovableProps {
   // Puede recibir el cast directamente o la URL para hacer fetch
   cast?: EmbedCast
   url?: string
+  // Navigation callbacks
+  onOpenCast?: (hash: string) => void
+  onSelectUser?: (username: string) => void
 }
 
 // Parsear URL de Farcaster para obtener username y hash
@@ -25,6 +28,8 @@ export function CastRenderer({
   className,
   onRemove,
   showRemove = false,
+  onOpenCast,
+  onSelectUser,
 }: CastRendererProps) {
   const [cast, setCast] = useState<EmbedCast | null>(initialCast || null)
   const [loading, setLoading] = useState(!initialCast && !!url)
@@ -124,11 +129,32 @@ export function CastRenderer({
 
   const author = cast.author
 
+  const handleCardClick = () => {
+    if (onOpenCast && cast?.hash) {
+      onOpenCast(cast.hash)
+    }
+  }
+
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onSelectUser && author.username) {
+      onSelectUser(author.username)
+    }
+  }
+
+  const isClickable = !!onOpenCast && !!cast?.hash
+  const isAuthorClickable = !!onSelectUser && !!author.username
+
   return (
     <div 
       ref={ref}
+      onClick={isClickable ? handleCardClick : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick() } : undefined}
       className={cn(
         'relative border border-border/50 rounded-lg p-3 bg-muted/20 hover:bg-muted/30 transition-colors group',
+        isClickable && 'cursor-pointer',
         className
       )}
     >
@@ -138,11 +164,22 @@ export function CastRenderer({
           <img 
             src={author.pfp_url}
             alt={author.username}
-            className="w-5 h-5 rounded-full"
+            onClick={isAuthorClickable ? handleAuthorClick : undefined}
+            className={cn('w-5 h-5 rounded-full', isAuthorClickable && 'cursor-pointer hover:opacity-80')}
           />
         )}
-        <span className="font-medium text-sm">{author.display_name}</span>
-        <span className="text-muted-foreground text-xs">@{author.username}</span>
+        <span 
+          onClick={isAuthorClickable ? handleAuthorClick : undefined}
+          className={cn('font-medium text-sm', isAuthorClickable && 'cursor-pointer hover:underline')}
+        >
+          {author.display_name}
+        </span>
+        <span 
+          onClick={isAuthorClickable ? handleAuthorClick : undefined}
+          className={cn('text-muted-foreground text-xs', isAuthorClickable && 'cursor-pointer hover:underline')}
+        >
+          @{author.username}
+        </span>
       </div>
 
       {/* Text */}

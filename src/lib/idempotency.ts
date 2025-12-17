@@ -8,9 +8,15 @@ type StoredIdempotencyResponse = {
 
 const isProduction = process.env.NODE_ENV === 'production'
 
-const redis = process.env.UPSTASH_REDIS_REST_URL
+const isValidRedisConfig =
+  process.env.UPSTASH_REDIS_REST_URL &&
+  process.env.UPSTASH_REDIS_REST_TOKEN &&
+  !process.env.UPSTASH_REDIS_REST_URL.includes('your-redis') &&
+  !process.env.UPSTASH_REDIS_REST_TOKEN.includes('your-token')
+
+const redis = isValidRedisConfig
   ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
+      url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
     })
   : null

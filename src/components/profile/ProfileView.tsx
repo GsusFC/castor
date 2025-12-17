@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ExternalLink, Loader2, MapPin } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Loader2, MapPin, UserPlus, UserMinus } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { CastCard } from '@/components/feed/CastCard'
@@ -33,6 +34,7 @@ interface UserProfile {
     location?: { description?: string }
     banner?: { url?: string } // Cover/banner image
   }
+  viewer_context?: { following: boolean }
 }
 
 interface Cast {
@@ -69,6 +71,8 @@ export function ProfileView({
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ProfileTab>('casts')
   const [isCastsLoading, setIsCastsLoading] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,6 +82,10 @@ export function ProfileView({
         if (profileRes.ok) {
           const data = await profileRes.json()
           setProfile(data.user)
+          // Initialize isFollowing from viewer_context
+          if (data.user?.viewer_context?.following !== undefined) {
+            setIsFollowing(data.user.viewer_context.following)
+          }
         }
       } catch (error) {
         console.error('Error fetching profile:', error)
@@ -198,17 +206,52 @@ export function ProfileView({
               )}
             </div>
 
-            {/* Actions */}
+            {/* Actions - hide follow button for own profile */}
             <div className="flex gap-2 mb-1">
-              <Button variant="outline" size="sm" className="rounded-full font-medium h-9 px-4">
-                Seguir
-              </Button>
+              {currentUserFid !== profile.fid && (
+                <Button 
+                  variant={isFollowing ? "outline" : "default"} 
+                  size="sm" 
+                  className="rounded-full font-medium h-9 px-4"
+                  disabled={isFollowLoading}
+                  onClick={async () => {
+                    if (!profile?.fid) return
+                    setIsFollowLoading(true)
+                    try {
+                      const res = await fetch('/api/users/follow', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ targetFid: profile.fid }),
+                      })
+                      if (res.ok) {
+                        setIsFollowing(true)
+                        toast.success(`Now following @${profile.username}`)
+                      } else {
+                        const data = await res.json()
+                        toast.error(data.error || 'Failed to follow')
+                      }
+                    } catch {
+                      toast.error('Failed to follow')
+                    } finally {
+                      setIsFollowLoading(false)
+                    }
+                  }}
+                >
+                  {isFollowLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isFollowing ? (
+                    <><UserMinus className="w-4 h-4 mr-1" /> Following</>
+                  ) : (
+                    <><UserPlus className="w-4 h-4 mr-1" /> Follow</>
+                  )}
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
                 size="sm"
                 className="rounded-full h-9 w-9 p-0 hover:bg-muted"
                 onClick={() => window.open(`https://warpcast.com/${profile.username}`, '_blank')}
-                title="Ver en Farcaster"
+                title="View on Farcaster"
               >
                 <ExternalLink className="w-4 h-4" />
               </Button>
@@ -248,11 +291,11 @@ export function ProfileView({
             <div className="flex items-center gap-5 pt-1">
               <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
                 <span className="font-bold text-foreground">{profile.following_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Siguiendo</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Following</span>
               </button>
               <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
                 <span className="font-bold text-foreground">{profile.follower_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Seguidores</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Followers</span>
               </button>
             </div>
           </div>

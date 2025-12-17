@@ -112,7 +112,13 @@ export function ComposeFooter({
             
             const updatedMedia = cast.media.map((m, idx) => 
               idx === video.mediaIdx 
-                ? { ...m, url: data.url, videoStatus: 'ready' as const }
+                ? { 
+                    ...m, 
+                    url: data.url, 
+                    videoStatus: 'ready' as const,
+                    width: data.width || undefined,
+                    height: data.height || undefined,
+                  }
                 : m
             )
             console.log('[Video Poll] Video ready! Updating media')
@@ -219,6 +225,8 @@ export function ComposeFooter({
                   uploading: false,
                   cloudflareId: data.cloudflareId || cloudflareId,
                   videoStatus: data.videoStatus || 'pending',
+                  width: data.width || undefined,
+                  height: data.height || undefined,
                 }
               : m
           )

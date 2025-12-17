@@ -12,8 +12,15 @@ export default {
   async fetch(request) {
     const url = new URL(request.url)
     
+    let pathname = url.pathname
+    if (pathname.endsWith('/manifest/thumbnail.jpg')) {
+      pathname = pathname.replace('/manifest/thumbnail.jpg', '/thumbnails/thumbnail.jpg')
+    } else if (pathname.endsWith('/thumbnail.jpg') && !pathname.includes('/thumbnails/')) {
+      pathname = pathname.replace('/thumbnail.jpg', '/thumbnails/thumbnail.jpg')
+    }
+
     // Construir URL de Cloudflare Stream
-    const streamUrl = `https://${CLOUDFLARE_STREAM_DOMAIN}${url.pathname}${url.search}`
+    const streamUrl = `https://${CLOUDFLARE_STREAM_DOMAIN}${pathname}${url.search}`
     
     // Hacer request a Cloudflare Stream
     const response = await fetch(streamUrl, {

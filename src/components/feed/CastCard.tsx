@@ -839,13 +839,12 @@ export function CastCard({
             <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
               {/* Quote Casts */}
               {quoteCasts.map((embed, i) => embed.cast && (
-                <button
+                <CastRenderer 
                   key={`quote-${i}`}
-                  onClick={() => onSelectUser?.(embed.cast!.author.username)}
-                  className="block w-full text-left"
-                >
-                  <CastRenderer cast={embed.cast} />
-                </button>
+                  cast={embed.cast}
+                  onOpenCast={onOpenCast}
+                  onSelectUser={onSelectUser}
+                />
               ))}
 
               {/* Media Grid */}
@@ -859,7 +858,7 @@ export function CastCard({
                             key={`media-${item.kind}-${item.url}-${i}`}
                             onClick={() => onOpenMiniApp?.(item.url, item.title)}
                             aria-label={item.title}
-                            className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
+                            className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
                           >
                             <img
                               src={item.image}
@@ -888,12 +887,12 @@ export function CastCard({
                         return (
                           <div
                             key={`media-${item.kind}-${item.url}-${i}`}
-                            className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-black overflow-hidden rounded-xl"
+                            className="relative flex-shrink-0 max-h-[400px] bg-black overflow-hidden rounded-xl flex items-center justify-center"
                           >
                             <HLSVideo
                               src={item.url}
                               poster={item.poster}
-                              className="w-full h-full object-cover"
+                              className="max-w-full max-h-[400px] object-contain"
                             />
                             <div className="pointer-events-none absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
                               VIDEO
@@ -966,7 +965,7 @@ export function CastCard({
                         key={`frame-${i}`}
                         onClick={() => onOpenMiniApp?.(item.url, item.title)}
                         aria-label={item.title}
-                        className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[16/9] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
+                        className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
                       >
                         <img
                           src={item.image}
@@ -1043,7 +1042,12 @@ export function CastCard({
 
               {/* Farcaster Cast Links */}
               {farcasterCastLinks.map((embed, i) => (
-                <CastRenderer key={`fc-${i}`} url={embed.url!} />
+                <CastRenderer 
+                  key={`fc-${i}`}
+                  url={embed.url!}
+                  onOpenCast={onOpenCast}
+                  onSelectUser={onSelectUser}
+                />
               ))}
 
               {/* Link Previews */}

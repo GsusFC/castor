@@ -11,9 +11,6 @@ interface ConversationViewProps {
   onSelectUser: (username: string) => void
   onSelectCast?: (hash: string) => void
   onQuote?: (text: string) => void
-  onReply?: (cast: any) => void
-  onOpenComposer?: () => void
-  userPfp?: string
 }
 
 interface ConversationResponse {
@@ -31,9 +28,6 @@ export function ConversationView({
   onBack,
   onSelectUser,
   onSelectCast,
-  onReply,
-  onOpenComposer,
-  userPfp,
   onQuote,
 }: ConversationViewProps) {
   const { data, isLoading, error } = useQuery<ConversationResponse>({
@@ -52,20 +46,6 @@ export function ConversationView({
     }
   }
 
-  // El último cast del thread es el target (al que respondemos)
-  const targetCast = data?.thread[data.thread.length - 1]
-
-  const handleReplyClick = () => {
-    if (!targetCast || !onReply) return
-    onReply(targetCast)
-  }
-
-  // Handler genérico para reply a cualquier cast
-  const handleCastReply = (cast: any) => {
-    if (!onReply) return
-    onReply(cast)
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -75,20 +55,12 @@ export function ConversationView({
             <button
               onClick={onBack}
               className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-              aria-label="Volver"
+              aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="font-semibold">Conversación</h1>
+            <h1 className="font-semibold">Conversation</h1>
           </div>
-          {onOpenComposer && (
-            <button
-              onClick={onOpenComposer}
-              className="px-4 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              Cast
-            </button>
-          )}
         </div>
       </div>
 
@@ -100,12 +72,12 @@ export function ConversationView({
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <p className="text-muted-foreground mb-4">No se pudo cargar el cast</p>
+            <p className="text-muted-foreground mb-4">Could not load conversation</p>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
-              Reintentar
+              Retry
             </button>
           </div>
         ) : data ? (
@@ -129,7 +101,6 @@ export function ConversationView({
                     <CastCard
                       cast={cast}
                       onSelectUser={onSelectUser}
-                      onReply={() => handleCastReply(cast)}
                       onQuote={onQuote}
                     />
                   </div>
@@ -146,7 +117,7 @@ export function ConversationView({
             {/* Replies */}
             {data.replies.casts.length > 0 && (
               <div className="mt-6 pt-4 border-t border-border mx-3">
-                <p className="text-sm text-muted-foreground mb-3">Respuestas</p>
+                <p className="text-sm text-muted-foreground mb-3">Replies</p>
                 {data.replies.casts.map((reply, index) => (
                   <div
                     key={reply.hash}
@@ -159,7 +130,6 @@ export function ConversationView({
                     <CastCard
                       cast={reply}
                       onSelectUser={onSelectUser}
-                      onReply={() => handleCastReply(reply)}
                       onQuote={onQuote}
                     />
                   </div>
@@ -169,31 +139,6 @@ export function ConversationView({
           </div>
         ) : null}
       </div>
-
-      {/* Reply input fijo abajo */}
-      {data && (
-        <div className="sticky bottom-0 bg-background border-t border-border px-4 py-3">
-          <div className="flex items-center gap-3">
-            {userPfp ? (
-              <img src={userPfp} alt="" className="w-8 h-8 rounded-full" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-muted" />
-            )}
-            <button
-              onClick={handleReplyClick}
-              className="flex-1 text-left px-4 py-2 bg-muted/50 hover:bg-muted rounded-full text-muted-foreground text-sm transition-colors"
-            >
-              Cast your reply
-            </button>
-            <button
-              onClick={handleReplyClick}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              Reply
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

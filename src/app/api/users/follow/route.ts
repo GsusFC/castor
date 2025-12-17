@@ -17,6 +17,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'targetFid is required' }, { status: 400 })
     }
 
+    // Block self-follow
+    if (targetFid === session.fid) {
+      return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
+    }
+
     // Obtener cuenta con signer aprobado
     const [account] = await db
       .select()

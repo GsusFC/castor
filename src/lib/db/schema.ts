@@ -130,6 +130,9 @@ export const castMedia = sqliteTable(
     mp4Url: text('mp4_url'), // URL del MP4 cuando esté listo
     hlsUrl: text('hls_url'), // URL HLS para streaming
     thumbnailUrl: text('thumbnail_url'), // URL del thumbnail
+    // Dimensiones del video (para aspect ratio correcto)
+    width: integer('width'),
+    height: integer('height'),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),

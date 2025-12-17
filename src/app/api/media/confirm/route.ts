@@ -80,6 +80,10 @@ export async function POST(request: NextRequest) {
 
       const video = data.result
       const isReady = video.readyToStream
+      
+      // Obtener dimensiones del video
+      const width = video.input?.width || null
+      const height = video.input?.height || null
 
       // Intentar habilitar descargas si el video está listo
       let mp4Url: string | null = null
@@ -128,6 +132,8 @@ export async function POST(request: NextRequest) {
         isReady,
         hlsUrl: finalHlsUrl,
         mp4Url,
+        width,
+        height,
       })
 
       // Farcaster requiere .m3u8 (HLS), NO mp4
@@ -145,6 +151,8 @@ export async function POST(request: NextRequest) {
         mp4Url: mp4Url || `${baseUrl}/downloads/default.mp4`,
         watchUrl,
         thumbnailUrl,
+        width,
+        height,
       })
     }
 

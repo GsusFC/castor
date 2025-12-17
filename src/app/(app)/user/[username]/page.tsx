@@ -78,11 +78,11 @@ export default function UserProfilePage() {
       return res.json()
     },
     onSuccess: () => {
-      toast.success('Siguiendo')
+      toast.success('Now following')
       queryClient.invalidateQueries({ queryKey: ['user-profile', username] })
     },
     onError: () => {
-      toast.error('Error al seguir')
+      toast.error('Failed to follow')
     },
   })
 
@@ -94,11 +94,11 @@ export default function UserProfilePage() {
       return res.json()
     },
     onSuccess: () => {
-      toast.success('Dejaste de seguir')
+      toast.success('Unfollowed')
       queryClient.invalidateQueries({ queryKey: ['user-profile', username] })
     },
     onError: () => {
-      toast.error('Error al dejar de seguir')
+      toast.error('Failed to unfollow')
     },
   })
 
@@ -113,7 +113,7 @@ export default function UserProfilePage() {
 
   const tabs: { value: ProfileTab; label: string }[] = [
     { value: 'casts', label: 'Casts' },
-    { value: 'replies', label: 'Respuestas' },
+    { value: 'replies', label: 'Replies' },
     { value: 'likes', label: 'Likes' },
   ]
 
@@ -133,11 +133,11 @@ export default function UserProfilePage() {
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Volver
+          Back
         </button>
         <div className="text-center py-12">
-          <p className="text-lg font-medium">Usuario no encontrado</p>
-          <p className="text-muted-foreground">@{username} no existe</p>
+          <p className="text-lg font-medium">User not found</p>
+          <p className="text-muted-foreground">@{username} doesn't exist</p>
         </div>
       </div>
     )
@@ -151,7 +151,7 @@ export default function UserProfilePage() {
         className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Volver
+        Back
       </button>
 
       {/* Profile Header */}
@@ -203,7 +203,7 @@ export default function UserProfilePage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
               >
                 <Pencil className="w-4 h-4" />
-                Editar
+                Edit
               </button>
             ) : (
               /* Follow/Unfollow button (only for other profiles) */
@@ -224,7 +224,7 @@ export default function UserProfilePage() {
                 ) : (
                   <UserPlus className="w-4 h-4" />
                 )}
-                {isFollowing ? 'Siguiendo' : 'Seguir'}
+                {isFollowing ? 'Following' : 'Follow'}
               </button>
             )}
             <a
@@ -286,14 +286,14 @@ export default function UserProfilePage() {
               className="hover:underline"
             >
               <span className="font-semibold">{user.following_count?.toLocaleString() || 0}</span>
-              <span className="text-muted-foreground ml-1">Siguiendo</span>
+              <span className="text-muted-foreground ml-1">Following</span>
             </button>
             <button
               onClick={() => setFollowListOpen('followers')}
               className="hover:underline"
             >
               <span className="font-semibold">{user.follower_count?.toLocaleString() || 0}</span>
-              <span className="text-muted-foreground ml-1">Seguidores</span>
+              <span className="text-muted-foreground ml-1">Followers</span>
             </button>
             {user.score !== undefined && user.score > 0 && (
               <div className="flex items-center gap-1">
@@ -335,7 +335,7 @@ export default function UserProfilePage() {
           </div>
         ) : casts.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No hay {activeTab === 'casts' ? 'casts' : activeTab === 'replies' ? 'respuestas' : 'likes'}
+            No {activeTab === 'casts' ? 'casts' : activeTab === 'replies' ? 'replies' : 'likes'} yet
           </div>
         ) : (
           <>
@@ -367,7 +367,7 @@ export default function UserProfilePage() {
                 disabled={castsQuery.isFetchingNextPage}
                 className="w-full py-3 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors"
               >
-                {castsQuery.isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
+                {castsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
               </button>
             )}
           </>

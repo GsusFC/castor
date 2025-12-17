@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { UserPlus, UserCheck, ExternalLink, User } from 'lucide-react'
 import {
@@ -29,6 +29,7 @@ interface UserProfile {
   verified_addresses?: {
     eth_addresses?: string[]
   }
+  viewer_context?: { following: boolean }
 }
 
 export function UserPopover({ fid, username, displayName, pfpUrl, children }: UserPopoverProps) {
@@ -36,6 +37,14 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
   const [isLoading, setIsLoading] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const [viewerFid, setViewerFid] = useState<number | null>(null)
+
+  // Fetch viewer FID on mount
+  useEffect(() => {
+    fetch('/api/me').then(res => res.ok ? res.json() : null).then(data => {
+      if (data?.fid) setViewerFid(data.fid)
+    }).catch(() => {})
+  }, [])
 
   const fetchProfile = async () => {
     if (profile || isLoading) return
@@ -44,7 +53,12 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
       const res = await fetch(`/api/users/${fid}`)
       if (res.ok) {
         const data = await res.json()
-        setProfile(data)
+        const user = data.user || data
+        setProfile(user)
+        // Initialize isFollowing from viewer_context
+        if (user.viewer_context?.following !== undefined) {
+          setIsFollowing(user.viewer_context.following)
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -63,13 +77,13 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
       })
       if (res.ok) {
         setIsFollowing(true)
-        toast.success(`Siguiendo a @${username}`)
+        toast.success(`Now following @${username}`)
       } else {
         const data = await res.json()
-        toast.error(data.error || 'Error al seguir')
+        toast.error(data.error || 'Failed to follow')
       }
     } catch (error) {
-      toast.error('Error al seguir')
+      toast.error('Failed to follow')
     } finally {
       setIsFollowLoading(false)
     }
@@ -115,11 +129,11 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
             <div className="flex items-center gap-4 text-sm">
               <span>
                 <strong>{(profile.following_count ?? 0).toLocaleString()}</strong>
-                <span className="text-muted-foreground ml-1">siguiendo</span>
+                <span className="text-muted-foreground ml-1">following</span>
               </span>
               <span>
                 <strong>{(profile.follower_count ?? 0).toLocaleString()}</strong>
-                <span className="text-muted-foreground ml-1">seguidores</span>
+                <span className="text-muted-foreground ml-1">followers</span>
               </span>
             </div>
           )}
@@ -140,7 +154,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <User className="w-4 h-4" />
-              Ver perfil
+              View profile
             </Link>
             <button
               onClick={(e) => {
@@ -148,13 +162,15 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
                 e.stopPropagation()
                 handleFollow()
               }}
-              disabled={isFollowing || isFollowLoading}
+              disabled={isFollowing || isFollowLoading || viewerFid === fid}
               className={`p-1.5 rounded-lg transition-colors ${
                 isFollowing 
                   ? 'bg-green-500/20 text-green-500'
-                  : 'bg-muted hover:bg-muted/80'
+                  : viewerFid === fid 
+                    ? 'bg-muted/50 text-muted-foreground cursor-not-allowed'
+                    : 'bg-muted hover:bg-muted/80'
               }`}
-              title={isFollowing ? 'Siguiendo' : 'Seguir'}
+              title={viewerFid === fid ? 'Cannot follow yourself' : isFollowing ? 'Following' : 'Follow'}
             >
               {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
             </button>
@@ -164,7 +180,7 @@ export function UserPopover({ fid, username, displayName, pfpUrl, children }: Us
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-              title="Ver en Warpcast"
+              title="View on Warpcast"
             >
               <ExternalLink className="w-4 h-4" />
             </a>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Hash, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,24 +22,37 @@ interface ChannelData {
   member_count?: number
 }
 
+interface ChannelResponse {
+  channel: ChannelData
+  viewerContext?: { following: boolean }
+}
+
 export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
 
-  const { data: channel, isLoading } = useQuery<ChannelData>({
+  const { data, isLoading } = useQuery<ChannelResponse>({
     queryKey: ['channel', channelId],
     queryFn: async () => {
       const res = await fetch(`/api/channels/${channelId}`)
       if (!res.ok) throw new Error('Failed to fetch channel')
-      const data = await res.json()
-      return data.channel
+      return res.json()
     },
     staleTime: 5 * 60 * 1000,
   })
 
+  const channel = data?.channel
+
+  // Initialize isFollowing from API response
+  useEffect(() => {
+    if (data?.viewerContext?.following !== undefined) {
+      setIsFollowing(data.viewerContext.following)
+    }
+  }, [data?.viewerContext?.following])
+
   const handleFollow = async () => {
     if (!signerUuid) {
-      toast.error('Necesitas conectar tu cuenta para seguir canales')
+      toast.error('Connect your account to follow channels')
       return
     }
 
@@ -54,12 +67,12 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
       if (res.ok) {
         setIsFollowing(!isFollowing)
-        toast.success(isFollowing ? 'Dejaste de seguir el canal' : 'Ahora sigues el canal')
+        toast.success(isFollowing ? 'Unfollowed channel' : 'Now following channel')
       } else {
-        toast.error('Error al actualizar seguimiento')
+        toast.error('Failed to update follow status')
       }
     } catch {
-      toast.error('Error de conexión')
+      toast.error('Connection error')
     } finally {
       setFollowLoading(false)
     }

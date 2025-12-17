@@ -71,6 +71,13 @@
       "when": 1765522513137,
       "tag": "0009_broken_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1765937036465,
+      "tag": "0010_cloudy_phantom_reporter",
+      "breakpoints": true
     }
   ]
 }

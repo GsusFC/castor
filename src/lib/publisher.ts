@@ -61,11 +61,38 @@ interface PublishResult {
   skipped: number
 }
 
+ interface PublishDueCastsOptions {
+  maxCasts?: number
+  maxDurationMs?: number
+  publishCastTimeoutMs?: number
+ }
+
+ function withPromiseTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  context: string
+ ): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${context} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+  })
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+}
+
 /**
  * Publica todos los casts que ya deberían haberse publicado
  */
-export async function publishDueCasts(): Promise<PublishResult> {
+export async function publishDueCasts(
+  options: PublishDueCastsOptions = {}
+): Promise<PublishResult & { stoppedEarly?: boolean; processed?: number }> {
   const timer = createTimer()
+  const cycleStartedAtMs = Date.now()
   const now = new Date()
   
   const result: PublishResult = {
@@ -73,6 +100,16 @@ export async function publishDueCasts(): Promise<PublishResult> {
     failed: 0,
     retrying: 0,
     skipped: 0,
+  }
+
+  const maxDurationMs = options.maxDurationMs
+  const maxCasts = options.maxCasts
+  const publishCastTimeoutMs = options.publishCastTimeoutMs ?? 20_000
+  const externalStatusTimeoutMs = Math.min(8_000, publishCastTimeoutMs)
+
+  const isPastDeadline = () => {
+    if (!maxDurationMs) return false
+    return Date.now() - cycleStartedAtMs >= maxDurationMs
   }
   
   publisherLogger.info({ timestamp: now.toISOString() }, 'Starting publish cycle')
@@ -83,6 +120,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
       eq(scheduledCasts.status, 'publishing'),
       lte(scheduledCasts.updatedAt, publishingStaleBefore)
     ),
+    ...(maxCasts ? { limit: maxCasts } : {}),
   })
 
   if (stalePublishing.length > 0) {
@@ -92,6 +130,22 @@ export async function publishDueCasts(): Promise<PublishResult> {
     )
 
     for (const cast of stalePublishing) {
+      if (isPastDeadline()) {
+        publisherLogger.warn(
+          {
+            maxDurationMs,
+            elapsedMs: Date.now() - cycleStartedAtMs,
+            recoveredSoFar: result.retrying + result.failed,
+          },
+          'Stopping publish cycle early during recovery due to time limit'
+        )
+        return {
+          ...result,
+          stoppedEarly: true,
+          processed: 0,
+        }
+      }
+
       const errorMessage = 'Stuck in publishing'
       const newRetryCount = cast.retryCount + 1
       const canRetry = shouldRetry(cast.retryCount, errorMessage)
@@ -107,8 +161,11 @@ export async function publishDueCasts(): Promise<PublishResult> {
             updatedAt: now,
           })
           .where(eq(scheduledCasts.id, cast.id))
+
+        result.retrying++
       } else {
         await markAsFailed(cast.id, errorMessage, newRetryCount)
+        result.failed++
       }
     }
   }
@@ -127,6 +184,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
       account: true,
     },
     orderBy: [asc(scheduledCasts.threadId), asc(scheduledCasts.threadOrder)],
+    ...(maxCasts ? { limit: maxCasts } : {}),
   })
 
   // Cargar media por separado para cada cast
@@ -143,11 +201,31 @@ export async function publishDueCasts(): Promise<PublishResult> {
   const threadHashes: Record<string, string> = {}
   const failedThreads = new Set<string>() // Track failed threads to skip subsequent casts
 
+  let processed = 0
+
   for (const cast of dueCasts) {
+    if (isPastDeadline()) {
+      publisherLogger.warn(
+        {
+          processed,
+          maxDurationMs,
+          elapsedMs: Date.now() - cycleStartedAtMs,
+          remaining: dueCasts.length - processed,
+        },
+        'Stopping publish cycle early due to time limit'
+      )
+      return {
+        ...result,
+        stoppedEarly: true,
+        processed,
+      }
+    }
+
     // Skip if part of a failed thread
     if (cast.threadId && failedThreads.has(cast.threadId)) {
       publisherLogger.warn({ castId: cast.id, threadId: cast.threadId }, 'Skipping cast due to failed thread')
       result.skipped++
+      processed++
       continue
     }
 
@@ -155,6 +233,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
       publisherLogger.error({ castId: cast.id }, 'Cast has no account')
       await markAsFailed(cast.id, 'Account not found', cast.retryCount)
       result.failed++
+      processed++
       continue
     }
 
@@ -162,6 +241,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
       publisherLogger.error({ accountId: cast.account.id }, 'Account signer not approved')
       await markAsFailed(cast.id, 'Signer not approved', cast.retryCount)
       result.failed++
+      processed++
       continue
     }
 
@@ -193,7 +273,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
               headers: {
                 'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
               },
-              timeoutMs: DEFAULT_TIMEOUTS.API,
+              timeoutMs: externalStatusTimeoutMs,
             }
           )
           
@@ -239,7 +319,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
               headers: {
                 'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
               },
-              timeoutMs: DEFAULT_TIMEOUTS.API,
+              timeoutMs: externalStatusTimeoutMs,
             }
           )
           
@@ -262,7 +342,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
                       'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({}),
-                    timeoutMs: DEFAULT_TIMEOUTS.API,
+                    timeoutMs: externalStatusTimeoutMs,
                   }
                 )
                 if (downloadRes.ok) {
@@ -309,6 +389,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
           }))
         }, 'Cast has pending videos, skipping for now')
         result.skipped++
+        processed++
         continue
       }
 
@@ -377,15 +458,19 @@ export async function publishDueCasts(): Promise<PublishResult> {
       const publishResult = await withCircuitBreaker(
         `neynar:${cast.account.id}`,
         () => retryExternalApi(
-          () => publishCast(
-            cast.account!.signerUuid,
-            cast.content,
-            {
-              embeds: embeds.length > 0 ? embeds : undefined,
-              channelId: cast.channelId || undefined,
-              parentHash,
-              idempotencyKey: `scheduled:${cast.id}`,
-            }
+          () => withPromiseTimeout(
+            publishCast(
+              cast.account!.signerUuid,
+              cast.content,
+              {
+                embeds: embeds.length > 0 ? embeds : undefined,
+                channelId: cast.channelId || undefined,
+                parentHash,
+                idempotencyKey: `scheduled:${cast.id}`,
+              }
+            ),
+            publishCastTimeoutMs,
+            'publishCast'
           ),
           'publishCast'
         ),
@@ -429,6 +514,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
           result.failed++
         }
       }
+      processed++
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       publisherLogger.error({ 
@@ -444,6 +530,8 @@ export async function publishDueCasts(): Promise<PublishResult> {
       } else {
         result.failed++
       }
+
+      processed++
     }
   }
 
@@ -452,7 +540,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
     duration: timer.elapsed() 
   }, 'Publish cycle completed')
 
-  return result
+  return { ...result, processed }
 }
 
 /**

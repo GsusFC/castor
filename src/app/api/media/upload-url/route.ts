@@ -1,9 +1,10 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-export const runtime = 'nodejs'
+// Cambiar a Edge Runtime para mejor rendimiento y compatibilidad con fetch
+export const runtime = 'edge'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
@@ -11,30 +12,51 @@ const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
 /**
  * POST /api/media/upload-url
  * Genera una URL de upload directo a Cloudflare (Images o Stream)
- * El cliente sube directamente a Cloudflare sin pasar por nuestro servidor
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación
-    const session = await getSession()
-    if (!session) {
+    console.log('[Upload URL] Starting request...')
+
+    // 1. Verificar autenticación
+    let session
+    try {
+      session = await getSession()
+      if (!session) {
+        console.warn('[Upload URL] No session found')
+        return ApiErrors.unauthorized()
+      }
+    } catch (authError) {
+      console.error('[Upload URL] Auth check failed:', authError)
       return ApiErrors.unauthorized()
     }
 
-    // Verificar configuración de Cloudflare
+    // 2. Verificar configuración de Cloudflare
     if (!CF_ACCOUNT_ID || !CF_IMAGES_TOKEN) {
-      console.error('[Upload URL] Cloudflare not configured')
+      console.error('[Upload URL] Cloudflare not configured (env vars missing)')
       return ApiErrors.operationFailed('Media upload not configured')
     }
 
-    // Rate limiting
-    const rateLimit = await checkRateLimit(`upload:${session.userId}`, 'expensive')
-    if (!rateLimit.success) {
-      console.warn('[Upload URL] Rate limit exceeded:', session.userId)
-      return ApiErrors.rateLimited()
+    // 3. Rate limiting (Defensive / Fail Open)
+    try {
+      const rateLimit = await checkRateLimit(`upload:${session.userId}`, 'expensive')
+      if (!rateLimit.success) {
+        console.warn('[Upload URL] Rate limit exceeded:', session.userId)
+        return ApiErrors.rateLimited()
+      }
+    } catch (limitError) {
+      // Si falla Redis/RateLimit, permitimos la subida (Fail Open) para no bloquear usuarios
+      console.error('[Upload URL] Rate limit check failed (ignoring):', limitError)
     }
 
-    const body = await request.json()
+    // 4. Parsear body
+    let body
+    try {
+      body = await request.json()
+    } catch (jsonError) {
+      console.error('[Upload URL] Invalid JSON body:', jsonError)
+      return ApiErrors.badRequest('Invalid JSON body')
+    }
+
     const { fileName, fileSize, fileType } = body
 
     if (!fileName || !fileSize || !fileType) {
@@ -43,7 +65,7 @@ export async function POST(request: NextRequest) {
       ])
     }
 
-    // Validar tipo de archivo
+    // 5. Validaciones
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     const validVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm']
     const isImage = validImageTypes.includes(fileType)
@@ -65,7 +87,9 @@ export async function POST(request: NextRequest) {
       }])
     }
 
+    // 6. Cloudflare API Calls
     if (isImage) {
+      console.log('[Upload URL] Requesting Image Upload URL...')
       // Cloudflare Images Direct Upload
       const formData = new FormData()
       formData.append('requireSignedURLs', 'false')
@@ -96,6 +120,7 @@ export async function POST(request: NextRequest) {
       })
 
     } else {
+      console.log('[Upload URL] Requesting Video Upload URL...')
       // Cloudflare Stream Direct Upload
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
@@ -147,7 +172,8 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('[Upload URL] Error:', error)
-    return ApiErrors.operationFailed('Failed to create upload URL')
+    console.error('[Upload URL] Critical Error:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    return ApiErrors.operationFailed(`Failed to create upload URL: ${message}`)
   }
 }

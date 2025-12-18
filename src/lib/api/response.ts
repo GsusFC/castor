@@ -9,18 +9,18 @@ export const ErrorCodes = {
   AUTH_REQUIRED: 'AUTH_REQUIRED',
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
   FORBIDDEN: 'FORBIDDEN',
-  
+
   // Validation
   VALIDATION_ERROR: 'VALIDATION_ERROR',
-  
+
   // Resources
   NOT_FOUND: 'NOT_FOUND',
   ALREADY_EXISTS: 'ALREADY_EXISTS',
-  
+
   // Operations
   OPERATION_FAILED: 'OPERATION_FAILED',
   RATE_LIMITED: 'RATE_LIMITED',
-  
+
   // External
   EXTERNAL_API_ERROR: 'EXTERNAL_API_ERROR',
 } as const
@@ -70,27 +70,30 @@ export function error(
 // ============================================
 
 export const ApiErrors = {
-  unauthorized: () => 
+  unauthorized: () =>
     error('Authentication required', ErrorCodes.AUTH_REQUIRED, 401),
-  
-  forbidden: (message = 'Access denied') => 
+
+  forbidden: (message = 'Access denied') =>
     error(message, ErrorCodes.FORBIDDEN, 403),
 
   alreadyExists: (message = 'Already exists') =>
     error(message, ErrorCodes.ALREADY_EXISTS, 409),
-  
-  notFound: (resource = 'Resource') => 
+
+  notFound: (resource = 'Resource') =>
     error(`${resource} not found`, ErrorCodes.NOT_FOUND, 404),
-  
-  validationFailed: (details: unknown) => 
+
+  validationFailed: (details: unknown) =>
     error('Validation failed', ErrorCodes.VALIDATION_ERROR, 400, details),
-  
-  operationFailed: (message: string, details?: unknown) => 
+
+  operationFailed: (message: string, details?: unknown) =>
     error(message, ErrorCodes.OPERATION_FAILED, 500, details),
-  
-  rateLimited: () => 
+
+  rateLimited: () =>
     error('Too many requests', ErrorCodes.RATE_LIMITED, 429),
-  
-  externalError: (service: string, details?: unknown) => 
+
+  badRequest: (message: string) =>
+    error(message, ErrorCodes.VALIDATION_ERROR, 400),
+
+  externalError: (service: string, details?: unknown) =>
     error(`${service} API error`, ErrorCodes.EXTERNAL_API_ERROR, 502, details),
 }

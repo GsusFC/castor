@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import Link from 'next/link'
+import { useEffect, useState, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { 
-  Sparkles, 
-  Wand2, 
-  Languages, 
-  Loader2, 
+import {
+  Sparkles,
+  Wand2,
+  Languages,
+  Loader2,
   RefreshCw,
   Check,
   ChevronDown,
@@ -20,6 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 type AIMode = 'write' | 'improve' | 'translate'
 
@@ -49,18 +52,18 @@ interface AIAssistantProps {
 
 const TONES = [
   { value: 'casual', label: 'Casual' },
-  { value: 'professional', label: 'Profesional' },
-  { value: 'friendly', label: 'Amigable' },
-  { value: 'witty', label: 'Ingenioso' },
-  { value: 'controversial', label: 'Polémico' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'witty', label: 'Witty' },
+  { value: 'controversial', label: 'Controversial' },
 ]
 
 const LANGUAGES = [
   { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'pt', label: 'Português' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+  { value: 'pt', label: 'Portuguese' },
 ]
 
 export function AIAssistant({
@@ -73,6 +76,7 @@ export function AIAssistant({
   isPro = false,
   maxChars = 320,
 }: AIAssistantProps) {
+  const { selectedAccountId, setSelectedAccountId } = useSelectedAccount()
   const [mode, setMode] = useState<AIMode>('write')
   const [draft, setDraft] = useState(initialDraft)
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
@@ -80,8 +84,73 @@ export function AIAssistant({
   const [selectedTone, setSelectedTone] = useState('casual')
   const [targetLanguage, setTargetLanguage] = useState('es')
   const [error, setError] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<Array<{ id: string; username: string; pfpUrl?: string | null }>>([])
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
+  const [accountsError, setAccountsError] = useState<string | null>(null)
+  const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    if (selectedAccountId) return
+
+    let isActive = true
+    const loadAccounts = async () => {
+      setIsLoadingAccounts(true)
+      setAccountsError(null)
+      try {
+        const res = await fetch('/api/accounts')
+        const data = res.ok ? await res.json() : null
+        const nextAccounts = (data?.accounts as Array<{ id: string; username: string; pfpUrl?: string | null }> | undefined) ?? []
+        if (!isActive) return
+        setAccounts(nextAccounts)
+      } catch (err) {
+        if (!isActive) return
+        setAccountsError(err instanceof Error ? err.message : 'Could not load accounts')
+      } finally {
+        if (!isActive) return
+        setIsLoadingAccounts(false)
+      }
+    }
+
+    loadAccounts()
+    return () => {
+      isActive = false
+    }
+  }, [open, selectedAccountId])
+
+  useEffect(() => {
+    if (!open) return
+    if (!selectedAccountId) {
+      setIsBrandModeOn(null)
+      return
+    }
+
+    let isActive = true
+    const loadBrandMode = async () => {
+      try {
+        const res = await fetch(`/api/accounts/${selectedAccountId}/context`)
+        const data = res.ok ? await res.json() : null
+        const brandVoice = (data?.knowledgeBase?.brandVoice as string | undefined) ?? ''
+        if (!isActive) return
+        setIsBrandModeOn(brandVoice.trim().length > 0)
+      } catch {
+        if (!isActive) return
+        setIsBrandModeOn(false)
+      }
+    }
+
+    loadBrandMode()
+    return () => {
+      isActive = false
+    }
+  }, [open, selectedAccountId])
 
   const generateSuggestions = useCallback(async () => {
+    if (!selectedAccountId) {
+      setError('Select an account to use AI')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     setSuggestions([])
@@ -98,6 +167,7 @@ export function AIAssistant({
           targetTone: selectedTone,
           targetLanguage: mode === 'translate' ? targetLanguage : undefined,
           isPro,
+          accountId: selectedAccountId,
         }),
       })
 
@@ -105,21 +175,21 @@ export function AIAssistant({
 
       if (!response.ok) {
         const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
-        throw new Error(message || 'Error al generar sugerencias')
+        throw new Error(message || 'Error generating suggestions')
       }
 
       const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
       setSuggestions(nextSuggestions)
       if (nextSuggestions.length === 0) {
-        setError('No se pudieron generar sugerencias. Prueba a regenerar.')
+        setError('Could not generate suggestions. Try regenerating.')
       }
     } catch (err) {
       console.error('AI error:', err)
-      setError(err instanceof Error ? err.message : 'Error al generar sugerencias. Inténtalo de nuevo.')
+      setError(err instanceof Error ? err.message : 'Error generating suggestions. Try again.')
     } finally {
       setIsLoading(false)
     }
-  }, [mode, draft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro])
+  }, [selectedAccountId, mode, draft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro])
 
   const handleSelectSuggestion = (suggestion: AISuggestion) => {
     onSelectText(suggestion.text)
@@ -141,9 +211,62 @@ export function AIAssistant({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            Asistente IA
+            AI Assistant
           </DialogTitle>
         </DialogHeader>
+
+        {!selectedAccountId && (
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              To use the AI assistant you need to select an account.
+            </p>
+            {accountsError ? (
+              <p className="text-sm text-destructive">{accountsError}</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {isLoadingAccounts ? (
+                <div className="text-sm text-muted-foreground">Loading accounts...</div>
+              ) : accounts.length > 0 ? (
+                accounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => setSelectedAccountId(account.id)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full border border-border bg-background hover:bg-muted/50 transition-colors"
+                    aria-label={`Select account @${account.username}`}
+                  >
+                    {account.pfpUrl ? (
+                      <img
+                        src={account.pfpUrl}
+                        alt=""
+                        className="w-5 h-5 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-muted" />
+                    )}
+                    <span className="text-sm font-medium">@{account.username}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No accounts available</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {selectedAccountId && isBrandModeOn === false && (
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3 flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              Enable AI Brand Mode by completing your Brand Voice.
+            </p>
+            <Link
+              href={`/accounts/${selectedAccountId}/context`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Complete context
+            </Link>
+          </div>
+        )}
 
         {/* Mode Tabs */}
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -157,7 +280,7 @@ export function AIAssistant({
             )}
           >
             <Sparkles className="w-4 h-4" />
-            Escribir
+            Write
           </button>
           <button
             onClick={() => handleModeChange('improve')}
@@ -169,7 +292,7 @@ export function AIAssistant({
             )}
           >
             <Wand2 className="w-4 h-4" />
-            Mejorar
+            Improve
           </button>
           <button
             onClick={() => handleModeChange('translate')}
@@ -181,7 +304,7 @@ export function AIAssistant({
             )}
           >
             <Languages className="w-4 h-4" />
-            Traducir
+            Translate
           </button>
         </div>
 
@@ -189,7 +312,7 @@ export function AIAssistant({
         {(replyingTo || quotingCast) && (
           <div className="p-3 bg-muted/50 rounded-lg text-sm">
             <p className="text-muted-foreground text-xs mb-1">
-              {replyingTo ? 'Respondiendo a' : 'Citando a'} @{replyingTo?.author || quotingCast?.author}
+              {replyingTo ? 'Replying to' : 'Quoting'} @{replyingTo?.author || quotingCast?.author}
             </p>
             <p className="line-clamp-2">{replyingTo?.text || quotingCast?.text}</p>
           </div>
@@ -199,7 +322,7 @@ export function AIAssistant({
         {mode !== 'write' && (
           <div className="space-y-2">
             <Textarea
-              placeholder={mode === 'improve' ? 'Escribe tu borrador...' : 'Texto a traducir...'}
+              placeholder={mode === 'improve' ? 'Write your draft...' : 'Text to translate...'}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               className="min-h-[100px] resize-none"
@@ -217,7 +340,7 @@ export function AIAssistant({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
-                  Tono: {TONES.find(t => t.value === selectedTone)?.label}
+                  Tone: {TONES.find(t => t.value === selectedTone)?.label}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -240,7 +363,7 @@ export function AIAssistant({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
-                  Traducir a: {LANGUAGES.find(l => l.value === targetLanguage)?.label}
+                  Translate to: {LANGUAGES.find(l => l.value === targetLanguage)?.label}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -261,18 +384,18 @@ export function AIAssistant({
           {/* Generate button */}
           <Button
             onClick={generateSuggestions}
-            disabled={isLoading || (mode !== 'write' && !draft.trim())}
+            disabled={isLoading || !selectedAccountId || (mode !== 'write' && !draft.trim())}
             className="ml-auto gap-2"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Generando...
+                Generating...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                Generar
+                Generate
               </>
             )}
           </Button>
@@ -289,7 +412,7 @@ export function AIAssistant({
               onClick={generateSuggestions}
               disabled={isLoading}
             >
-              Reintentar
+              Retry
             </Button>
           </div>
         )}
@@ -298,7 +421,7 @@ export function AIAssistant({
         {suggestions.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Sugerencias</p>
+              <p className="text-sm text-muted-foreground">Suggestions</p>
               <Button
                 variant="ghost"
                 size="sm"
@@ -307,10 +430,10 @@ export function AIAssistant({
                 className="gap-1"
               >
                 <RefreshCw className={cn('w-3 h-3', isLoading && 'animate-spin')} />
-                Regenerar
+                Regenerate
               </Button>
             </div>
-            
+
             <div className="space-y-2">
               {suggestions.map((suggestion) => (
                 <button

@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
-import { Inter, Special_Elite } from 'next/font/google'
+import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { WebVitalsProvider } from '@/components/providers/WebVitalsProvider'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const specialGothic = Special_Elite({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-special-gothic'
+const specialGothic = localFont({
+  src: '../../public/Special_Gothic_Expanded_One/SpecialGothicExpandedOne-Regular.ttf',
+  variable: '--font-special-gothic',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {

@@ -15,6 +15,8 @@ const RETRY_DELAY_MINUTES = [5, 15, 60] // Backoff: 5min, 15min, 1hr
 // Dominio de Cloudflare Stream (específico de la cuenta)
 const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
 
+const STUCK_PUBLISHING_THRESHOLD_MS = 10 * 60 * 1000
+
 /**
  * Determines if a failed cast should be retried
  */
@@ -74,6 +76,42 @@ export async function publishDueCasts(): Promise<PublishResult> {
   }
   
   publisherLogger.info({ timestamp: now.toISOString() }, 'Starting publish cycle')
+
+  const publishingStaleBefore = new Date(now.getTime() - STUCK_PUBLISHING_THRESHOLD_MS)
+  const stalePublishing = await db.query.scheduledCasts.findMany({
+    where: and(
+      eq(scheduledCasts.status, 'publishing'),
+      lte(scheduledCasts.updatedAt, publishingStaleBefore)
+    ),
+  })
+
+  if (stalePublishing.length > 0) {
+    publisherLogger.warn(
+      { count: stalePublishing.length, before: publishingStaleBefore.toISOString() },
+      'Recovering stale publishing casts'
+    )
+
+    for (const cast of stalePublishing) {
+      const errorMessage = 'Stuck in publishing'
+      const newRetryCount = cast.retryCount + 1
+      const canRetry = shouldRetry(cast.retryCount, errorMessage)
+
+      if (canRetry) {
+        await db
+          .update(scheduledCasts)
+          .set({
+            status: 'retrying',
+            errorMessage,
+            retryCount: newRetryCount,
+            scheduledAt: now,
+            updatedAt: now,
+          })
+          .where(eq(scheduledCasts.id, cast.id))
+      } else {
+        await markAsFailed(cast.id, errorMessage, newRetryCount)
+      }
+    }
+  }
 
   // Buscar casts pendientes cuya hora ya pasó
   // Incluir casts en estado 'retrying' cuya hora de reintento ya pasó
@@ -346,6 +384,7 @@ export async function publishDueCasts(): Promise<PublishResult> {
               embeds: embeds.length > 0 ? embeds : undefined,
               channelId: cast.channelId || undefined,
               parentHash,
+              idempotencyKey: `scheduled:${cast.id}`,
             }
           ),
           'publishCast'

@@ -45,7 +45,7 @@ export function MobileNav() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSheetLayerActive, setIsSheetLayerActive] = useState(false)
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{
@@ -134,29 +134,29 @@ export function MobileNav() {
 
   const handleDeleteDraft = async (e: React.MouseEvent, draftId: string) => {
     e.stopPropagation()
-    if (!confirm('¿Eliminar este borrador?')) return
-    
+    if (!confirm('Delete this draft?')) return
+
     try {
       const res = await fetch(`/api/casts/${draftId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error')
       setDrafts(prev => prev.filter(d => d.id !== draftId))
-      toast.success('Borrador eliminado')
+      toast.success('Draft deleted')
     } catch {
-      toast.error('Error al eliminar')
+      toast.error('Error deleting')
     }
   }
 
   const handleDeleteTemplate = async (e: React.MouseEvent, templateId: string) => {
     e.stopPropagation()
-    if (!confirm('¿Eliminar este template?')) return
-    
+    if (!confirm('Delete this template?')) return
+
     try {
       const res = await fetch(`/api/templates/${templateId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error')
       setTemplates(prev => prev.filter(t => t.id !== templateId))
-      toast.success('Template eliminado')
+      toast.success('Template deleted')
     } catch {
-      toast.error('Error al eliminar')
+      toast.error('Error deleting')
     }
   }
 

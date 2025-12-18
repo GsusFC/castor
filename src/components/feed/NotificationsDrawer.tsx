@@ -203,7 +203,7 @@ export function NotificationsDrawer() {
 
         <div className="flex h-full min-h-0 flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-transparent">
-            <span className="text-lg font-bold tracking-tight text-foreground/90">Notificaciones</span>
+            <span className="text-lg font-bold tracking-tight text-foreground/90">Notifications</span>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
             <div className="sticky top-0 z-10 bg-background border-b border-border/20">
@@ -218,7 +218,7 @@ export function NotificationsDrawer() {
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
                     )}
-                    aria-label={`Filtrar: ${filter.label}`}
+                    aria-label={`Filter: ${filter.label}`}
                   >
                     {filter.label}
                   </button>
@@ -241,7 +241,7 @@ export function NotificationsDrawer() {
                 ))
               ) : (
                 <p className="text-center text-muted-foreground py-12">
-                  No hay notificaciones
+                  No notifications
                 </p>
               )}
 

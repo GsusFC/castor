@@ -67,7 +67,7 @@ export function ChannelDropdown({
           variant="outline"
           size="sm"
           className={cn("h-8 gap-1", !selectedChannel && "text-muted-foreground")}
-          aria-label={selectedChannel ? `Canal: ${selectedChannel.name}` : 'Seleccionar canal'}
+          aria-label={selectedChannel ? `Channel: ${selectedChannel.name}` : 'Select channel'}
         >
           {selectedChannel?.imageUrl ? (
             <img
@@ -79,7 +79,7 @@ export function ChannelDropdown({
             <Hash className="w-3 h-3" />
           )}
           <span className="max-w-[80px] truncate">
-            {selectedChannel ? selectedChannel.name : 'Canal'}
+            {selectedChannel ? selectedChannel.name : 'Channel'}
           </span>
           <ChevronDown className="w-3 h-3 opacity-50" />
         </Button>
@@ -94,7 +94,7 @@ export function ChannelDropdown({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search channel..."
               className="pl-8 h-8"
-              aria-label="Buscar canal"
+              aria-label="Search channel"
             />
           </div>
         </div>

@@ -2,16 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { UserPlus, TrendingUp, Loader2 } from 'lucide-react'
+import { TrendingUp, Loader2 } from 'lucide-react'
 import { GlobalSearch } from '@/components/feed/GlobalSearch'
-
-interface SuggestedUser {
-  fid: number
-  username: string
-  display_name: string
-  pfp_url?: string
-  follower_count?: number
-}
 
 interface TrendingCast {
   hash: string
@@ -33,7 +25,6 @@ interface RightSidebarProps {
 
 export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) {
   const router = useRouter()
-  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([])
   const [trendingCasts, setTrendingCasts] = useState<TrendingCast[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -59,7 +50,7 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
   return (
     <aside className="space-y-6">
       {/* Search */}
-      <GlobalSearch 
+      <GlobalSearch
         onSelectUser={(user) => {
           if (onSelectUser) {
             onSelectUser(user.username)
@@ -76,43 +67,6 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
           router.push(`/cast/${cast.hash}`)
         }}
       />
-      {/* Who to follow */}
-      <section className="p-4 rounded-xl bg-muted/30 border border-border">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
-          <UserPlus className="w-4 h-4 text-primary" />
-          A quién seguir
-        </h3>
-        {suggestedUsers.length > 0 ? (
-          <ul className="space-y-3">
-            {suggestedUsers.map((user) => (
-              <li key={user.fid} className="flex items-center gap-3">
-                {user.pfp_url ? (
-                  <img 
-                    src={user.pfp_url} 
-                    alt={user.username}
-                    className="w-9 h-9 rounded-full"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                    {user.display_name?.[0] || '?'}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.display_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
-                </div>
-                <button className="px-3 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
-                  Seguir
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Próximamente sugerencias personalizadas
-          </p>
-        )}
-      </section>
 
       {/* Trending */}
       <section className="p-4 rounded-xl bg-muted/30 border border-border">
@@ -138,12 +92,12 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
                     router.push(`/cast/${cast.hash}`)
                   }}
                   className="block w-full text-left p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors"
-                  aria-label={`Abrir conversación de @${cast.author.username}`}
+                  aria-label={`Open conversation by @${cast.author.username}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {cast.author.pfp_url && (
-                      <img 
-                        src={cast.author.pfp_url} 
+                      <img
+                        src={cast.author.pfp_url}
                         alt={cast.author.username}
                         className="w-4 h-4 rounded-full"
                       />
@@ -161,17 +115,17 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">No hay trending</p>
+          <p className="text-xs text-muted-foreground">No trending casts</p>
         )}
       </section>
 
       {/* Footer links */}
       <div className="text-[10px] text-muted-foreground space-x-2 px-2">
-        <a href="#" className="hover:underline">Términos</a>
+        <a href="#" className="hover:underline">Terms</a>
         <span>·</span>
-        <a href="#" className="hover:underline">Privacidad</a>
+        <a href="#" className="hover:underline">Privacy</a>
         <span>·</span>
-        <a href="#" className="hover:underline">Ayuda</a>
+        <a href="#" className="hover:underline">Help</a>
         <span>·</span>
         <span>© 2025 Castor</span>
       </div>

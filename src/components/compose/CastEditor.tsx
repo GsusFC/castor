@@ -11,6 +11,8 @@ import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
 import { VideoValidation } from './VideoValidation'
+import { uploadMedia } from '@/lib/media-upload'
+import { ApiRequestError } from '@/lib/fetch-json'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -44,7 +46,7 @@ export function CastEditor({
     startPos: number
     position: { top: number; left: number }
   }>({ active: false, query: '', startPos: 0, position: { top: 0, left: 0 } })
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -58,19 +60,19 @@ export function CastEditor({
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const urls = extractUrls(cast.content)
-      
+
       // Filtrar URLs que ya son media (imágenes/videos directos)
       const linkUrls = urls.filter(url => !isMediaUrl(url))
-      
+
       // URLs actuales en links
       const currentLinkUrls = cast.links.map(l => l.url)
-      
+
       // Nuevas URLs a procesar
       const newUrls = linkUrls.filter(url => !currentLinkUrls.includes(url))
-      
+
       // URLs a mantener (siguen en el texto)
       const linksToKeep = cast.links.filter(l => linkUrls.includes(l.url))
-      
+
       // Si hay cambios, actualizar
       if (newUrls.length > 0 || linksToKeep.length !== cast.links.length) {
         // Añadir nuevas URLs con estado loading
@@ -78,9 +80,9 @@ export function CastEditor({
           url,
           loading: true,
         }))
-        
+
         onUpdate({ ...cast, links: [...linksToKeep, ...newLinks] })
-        
+
         // Fetch metadata para nuevas URLs
         newUrls.forEach(fetchLinkMetadata)
       }
@@ -119,7 +121,7 @@ export function CastEditor({
     } catch (error) {
       console.error('[Link Preview] Error fetching metadata:', error)
       const currentCast = castRef.current
-      
+
       // Marcar como error
       onUpdate({
         ...currentCast,
@@ -140,17 +142,17 @@ export function CastEditor({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value
     const cursorPos = e.target.selectionStart
-    
+
     onUpdate({ ...cast, content: newContent })
-    
+
     // Detectar si estamos escribiendo una mención
     const textBeforeCursor = newContent.slice(0, cursorPos)
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
-    
+
     if (mentionMatch) {
       const query = mentionMatch[1]
       const startPos = cursorPos - query.length - 1 // -1 para incluir @
-      
+
       // Calcular posición del popup
       if (cardRef.current && textareaRef.current) {
         const cardRect = cardRef.current.getBoundingClientRect()
@@ -174,10 +176,10 @@ export function CastEditor({
     const beforeMention = cast.content.slice(0, mentionState.startPos)
     const afterMention = cast.content.slice(mentionState.startPos + mentionState.query.length + 1) // +1 para @
     const newContent = `${beforeMention}@${user.username} ${afterMention}`
-    
+
     onUpdate({ ...cast, content: newContent })
     setMentionState({ active: false, query: '', startPos: 0, position: { top: 0, left: 0 } })
-    
+
     // Restaurar foco
     setTimeout(() => {
       const newCursorPos = beforeMention.length + user.username.length + 2 // @ + espacio
@@ -188,15 +190,15 @@ export function CastEditor({
 
   const insertEmoji = (emoji: string) => {
     if (!textareaRef.current) return
-    
+
     const start = textareaRef.current.selectionStart
     const end = textareaRef.current.selectionEnd
     const currentContent = cast.content
     const newContent = currentContent.substring(0, start) + emoji + currentContent.substring(end)
-    
+
     onUpdate({ ...cast, content: newContent })
     setShowEmojiPicker(false)
-    
+
     // Restaurar foco y cursor
     setTimeout(() => {
       textareaRef.current?.focus()
@@ -210,9 +212,9 @@ export function CastEditor({
 
     // Limpiar media con errores antes de añadir nuevos
     const cleanMedia = cast.media.filter(m => !m.error)
-    
+
     if (cleanMedia.length + files.length > 2) {
-      toast.error('Máximo 2 archivos por cast')
+      toast.error('Max 2 files per cast')
       return
     }
 
@@ -240,119 +242,55 @@ export function CastEditor({
       try {
         const file = mediaItem.file
         const isVideo = file.type.startsWith('video/')
-        
+
         if (isVideo) {
           // === CLOUDFLARE STREAM para videos ===
-          const urlRes = await fetch('/api/media/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-            }),
-          })
-          const urlJson = await urlRes.json()
-          if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
-          
-          const { uploadUrl, cloudflareId } = urlJson.data || urlJson
-          
-          // Subir video usando TUS protocol
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-              'Tus-Resumable': '1.0.0',
-              'Upload-Length': file.size.toString(),
-              'Content-Type': 'application/offset+octet-stream',
-            },
-            body: file,
-          })
-          if (!uploadRes.ok) throw new Error('Video upload failed')
-          
-          // Confirmar upload
-          const confirmRes = await fetch('/api/media/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              cloudflareId,
-              type: 'video',
-            }),
-          })
-          const confirmJson = await confirmRes.json()
-          if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
-          
-          const data = confirmJson.data || confirmJson
-          console.log('[Upload] Video uploaded to Cloudflare:', { cloudflareId, url: data.url })
-          
-          currentMedia = currentMedia.map(m => 
-            m.preview === mediaItem.preview 
-              ? { 
-                  ...m, 
-                  url: data.url, 
-                  uploading: false,
-                  cloudflareId: data.cloudflareId || cloudflareId,
-                  videoStatus: 'pending',
-                } 
+          const result = await uploadMedia(file)
+          if (result.type !== 'video') throw new Error('Unexpected upload result')
+
+          currentMedia = currentMedia.map(m =>
+            m.preview === mediaItem.preview
+              ? {
+                ...m,
+                url: result.url,
+                uploading: false,
+                cloudflareId: result.cloudflareId,
+                videoStatus: result.videoStatus || 'pending',
+                width: typeof result.width === 'number' ? result.width : undefined,
+                height: typeof result.height === 'number' ? result.height : undefined,
+              }
               : m
           )
         } else {
           // === CLOUDFLARE para imágenes ===
-          const urlRes = await fetch('/api/media/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-            }),
-          })
-          const urlJson = await urlRes.json()
-          if (!urlRes.ok) throw new Error(urlJson.error?.message || 'Failed to get upload URL')
-          
-          const { uploadUrl, id, cloudflareId } = urlJson.data || urlJson
-          
-          const formData = new FormData()
-          formData.append('file', file)
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
-          })
-          if (!uploadRes.ok) throw new Error('Image upload failed')
-          
-          const confirmRes = await fetch('/api/media/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              cloudflareId: cloudflareId || id,
-              type: 'image',
-            }),
-          })
-          const confirmJson = await confirmRes.json()
-          if (!confirmRes.ok) throw new Error(confirmJson.error?.message || 'Failed to confirm upload')
-          
-          const responseData = confirmJson.data || confirmJson
+          const result = await uploadMedia(file)
+          if (result.type !== 'image') throw new Error('Unexpected upload result')
 
-          currentMedia = currentMedia.map(m => 
-            m.preview === mediaItem.preview 
-              ? { 
-                  ...m, 
-                  url: responseData.url, 
-                  uploading: false,
-                  cloudflareId: responseData.cloudflareId,
-                } 
+          currentMedia = currentMedia.map(m =>
+            m.preview === mediaItem.preview
+              ? {
+                ...m,
+                url: result.url,
+                uploading: false,
+                cloudflareId: result.cloudflareId,
+              }
               : m
           )
         }
-        
+
         onUpdate({ ...cast, media: currentMedia })
 
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error al subir'
-        console.error('[Media Upload]', errorMessage)
+        const errorMessage = err instanceof Error ? err.message : 'Upload error'
+        if (err instanceof ApiRequestError) {
+          console.warn('[Media Upload] Error:', err)
+        } else {
+          console.error('[Media Upload] Error:', err)
+        }
         toast.error(errorMessage)
-        currentMedia = currentMedia.map(m => 
-          m.preview === mediaItem.preview 
-            ? { ...m, uploading: false, error: errorMessage } 
+        currentMedia = currentMedia.map(m =>
+          m.preview === mediaItem.preview
+            ? { ...m, uploading: false, error: errorMessage }
             : m
         )
         onUpdate({ ...cast, media: currentMedia })
@@ -370,7 +308,7 @@ export function CastEditor({
 
   const handleGifSelect = (gifUrl: string) => {
     if (cast.media.length >= 2) {
-      toast.error('Máximo 2 archivos por cast')
+      toast.error('Max 2 files per cast')
       return
     }
 
@@ -408,8 +346,8 @@ export function CastEditor({
             size="icon"
             onClick={onRemove}
             className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-            title="Eliminar cast"
-            aria-label="Eliminar cast"
+            title="Delete cast"
+            aria-label="Delete cast"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -420,7 +358,7 @@ export function CastEditor({
         ref={textareaRef}
         value={cast.content}
         onChange={handleChange}
-        placeholder={index === 0 ? '¿Qué quieres compartir?' : 'Continúa el thread...'}
+        placeholder={index === 0 ? 'What do you want to share?' : 'Continue the thread...'}
         rows={4}
         className="border-0 focus-visible:ring-0 p-0 resize-none shadow-none text-lg leading-relaxed placeholder:text-muted-foreground min-h-[120px]"
       />
@@ -452,21 +390,21 @@ export function CastEditor({
                 <div className="flex flex-col gap-1">
                   <video src={m.preview} className="w-20 h-20 object-cover rounded-lg border" />
                   {!m.uploading && m.url && (
-                    <VideoValidation 
-                      url={m.url} 
+                    <VideoValidation
+                      url={m.url}
                       videoStatus={m.videoStatus}
                       cloudflareId={m.cloudflareId}
                     />
                   )}
                 </div>
               )}
-              
+
               {m.uploading && (
                 <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
                 </div>
               )}
-              
+
               {m.error && (
                 <div className="absolute inset-0 bg-destructive/80 rounded-lg flex items-center justify-center p-1">
                   <span className="text-white text-[10px] text-center leading-tight font-medium">
@@ -481,7 +419,7 @@ export function CastEditor({
                   size="icon"
                   onClick={() => removeMedia(m.preview)}
                   className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity p-0 hover:bg-transparent"
-                  aria-label="Eliminar media"
+                  aria-label="Remove media"
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm">
                     <X className="w-3 h-3" />
@@ -513,8 +451,8 @@ export function CastEditor({
               "text-muted-foreground hover:text-castor-black",
               cast.media.length >= 2 && "opacity-50"
             )}
-            title="Añadir imagen o video"
-            aria-label="Añadir imagen o video"
+            title="Add image or video"
+            aria-label="Add image or video"
           >
             <Image className="w-5 h-5" />
           </Button>
@@ -532,7 +470,7 @@ export function CastEditor({
                 "text-muted-foreground hover:text-castor-black",
                 showEmojiPicker && "bg-muted text-castor-black"
               )}
-              aria-label="Abrir selector de emojis"
+              aria-label="Open emoji picker"
               title="Emojis"
             >
               <Smile className="w-5 h-5" />
@@ -540,8 +478,8 @@ export function CastEditor({
 
             {showEmojiPicker && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
+                <div
+                  className="fixed inset-0 z-10"
                   onClick={() => setShowEmojiPicker(false)}
                 />
                 <div className="absolute z-20 bottom-full mb-2 left-0 bg-card border rounded-xl shadow-xl p-2 w-72">
@@ -552,7 +490,7 @@ export function CastEditor({
                         type="button"
                         onClick={() => insertEmoji(emoji)}
                         className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-xl transition-colors"
-                        aria-label={`Insertar ${emoji}`}
+                        aria-label={`Insert ${emoji}`}
                       >
                         {emoji}
                       </button>
@@ -578,20 +516,20 @@ export function CastEditor({
                 showGifPicker && "bg-muted text-castor-black",
                 cast.media.length >= 2 && "opacity-50"
               )}
-              title="Insertar GIF"
-              aria-label="Insertar GIF"
+              title="Insert GIF"
+              aria-label="Insert GIF"
             >
               <span className="text-xs font-bold">GIF</span>
             </Button>
 
             {showGifPicker && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
+                <div
+                  className="fixed inset-0 z-10"
                   onClick={() => setShowGifPicker(false)}
                 />
                 <div className="absolute z-20 bottom-full mb-2 left-0 bg-card border rounded-xl shadow-xl overflow-hidden">
-                  <GifPicker 
+                  <GifPicker
                     onSelect={handleGifSelect}
                     onClose={() => setShowGifPicker(false)}
                   />

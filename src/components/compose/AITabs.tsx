@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -50,10 +51,10 @@ interface AITabsProps {
 
 const TONES = [
   { value: 'casual', label: 'Casual' },
-  { value: 'professional', label: 'Profesional' },
-  { value: 'friendly', label: 'Amigable' },
-  { value: 'witty', label: 'Ingenioso' },
-  { value: 'controversial', label: 'Polémico' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'witty', label: 'Witty' },
+  { value: 'controversial', label: 'Controversial' },
 ]
 
 export function AITabs({
@@ -74,6 +75,7 @@ export function AITabs({
   const [targetLanguage, setTargetLanguage] = useState<SupportedTargetLanguage>('en')
   const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (hasSelectedLanguage) return
@@ -85,6 +87,32 @@ export function AITabs({
     setHasSelectedLanguage(false)
     setTargetLanguage(defaultLanguage)
   }, [defaultLanguage, enabledLanguages, targetLanguage])
+
+  useEffect(() => {
+    if (!accountId) {
+      setIsBrandModeOn(null)
+      return
+    }
+
+    let isActive = true
+    const loadBrandMode = async () => {
+      try {
+        const res = await fetch(`/api/accounts/${accountId}/context`)
+        const data = res.ok ? await res.json() : null
+        const brandVoice = (data?.knowledgeBase?.brandVoice as string | undefined) ?? ''
+        if (!isActive) return
+        setIsBrandModeOn(brandVoice.trim().length > 0)
+      } catch {
+        if (!isActive) return
+        setIsBrandModeOn(false)
+      }
+    }
+
+    loadBrandMode()
+    return () => {
+      isActive = false
+    }
+  }, [accountId])
 
   const languageOptions = AI_LANGUAGE_OPTIONS.filter((lang) => enabledLanguages.includes(lang.value))
 
@@ -103,12 +131,17 @@ export function AITabs({
   const generateSuggestions = useCallback(async () => {
     if (!activeTab) return
 
+    if (!accountId) {
+      setError('Select an account to use AI')
+      return
+    }
+
     if (activeTab === 'translate' && !currentDraft.trim()) {
-      setError('Escribe algo primero para traducir')
+      setError('Write something first to translate')
       return
     }
     if (activeTab === 'improve' && !currentDraft.trim()) {
-      setError('Escribe un borrador primero para mejorar')
+      setError('Write a draft first to improve')
       return
     }
 
@@ -139,17 +172,17 @@ export function AITabs({
       if (!response.ok) {
         console.error('AI API error:', data)
         const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
-        throw new Error(message || 'Error al generar sugerencias')
+        throw new Error(message || 'Error generating suggestions')
       }
 
       const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
       setSuggestions(nextSuggestions)
       if (nextSuggestions.length === 0) {
-        setError('No se pudieron generar sugerencias. Prueba a regenerar.')
+        setError('Could not generate suggestions. Try regenerating.')
       }
     } catch (err) {
       console.error('AI error:', err)
-      setError(err instanceof Error ? err.message : 'Error al generar. Inténtalo de nuevo.')
+      setError(err instanceof Error ? err.message : 'Generation error. Try again.')
     } finally {
       setIsLoading(false)
     }
@@ -165,6 +198,28 @@ export function AITabs({
 
   return (
     <div className="border-b border-border">
+      {!accountId && (
+        <div className="px-3 pt-3">
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-2 text-sm text-muted-foreground">
+            Select an account to use AI.
+          </div>
+        </div>
+      )}
+
+      {accountId && isBrandModeOn === false && (
+        <div className="px-3 pt-3">
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-2 text-sm">
+            <p className="text-muted-foreground">Enable AI Brand Mode by completing your Brand Voice.</p>
+            <Link
+              href={`/accounts/${accountId}/context`}
+              className="font-medium text-primary hover:underline"
+            >
+              Complete context
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="px-3 py-2">
         <div
@@ -185,7 +240,7 @@ export function AITabs({
           >
             <span className="flex items-center justify-center gap-1.5">
               <Languages className="w-4 h-4" />
-              Traducir
+              Translate
             </span>
           </button>
 
@@ -203,7 +258,7 @@ export function AITabs({
           >
             <span className="flex items-center justify-center gap-1.5">
               <FileEdit className="w-4 h-4" />
-              Proponer
+              Propose
             </span>
           </button>
 
@@ -221,7 +276,7 @@ export function AITabs({
           >
             <span className="flex items-center justify-center gap-1.5">
               <Wand2 className="w-4 h-4" />
-              Mejorar
+              Improve
             </span>
           </button>
         </div>
@@ -253,7 +308,7 @@ export function AITabs({
                   size="icon"
                   onClick={onClearReply}
                   className="h-6 w-6 shrink-0 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
-                  aria-label="Quitar respuesta"
+                  aria-label="Remove reply"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
                     <X className="w-4 h-4" />
@@ -269,7 +324,7 @@ export function AITabs({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                    Tono: {TONES.find(t => t.value === selectedTone)?.label}
+                    Tone: {TONES.find(t => t.value === selectedTone)?.label}
                     <ChevronDown className="w-3 h-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -313,19 +368,19 @@ export function AITabs({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generando...
+                  Generating...
                 </>
               ) : suggestions.length > 0 ? (
                 <>
                   <RefreshCw className="w-4 h-4" />
-                  Regenerar
+                  Regenerate
                 </>
               ) : (
                 <>
                   {activeTab === 'translate' && <Languages className="w-4 h-4" />}
                   {activeTab === 'propose' && <FileEdit className="w-4 h-4" />}
                   {activeTab === 'improve' && <Wand2 className="w-4 h-4" />}
-                  {activeTab === 'translate' ? 'Traducir' : activeTab === 'propose' ? 'Proponer' : 'Mejorar'}
+                  {activeTab === 'translate' ? 'Translate' : activeTab === 'propose' ? 'Propose' : 'Improve'}
                 </>
               )}
             </Button>
@@ -341,7 +396,7 @@ export function AITabs({
                 onClick={generateSuggestions}
                 disabled={isLoading}
               >
-                Reintentar
+                Retry
               </Button>
             </div>
           )}

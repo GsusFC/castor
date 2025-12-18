@@ -21,15 +21,15 @@ interface AccountSelectorProps {
   isLoading: boolean
 }
 
-export function AccountSelector({ 
-  accounts, 
-  selectedAccountId, 
-  onSelect, 
-  isLoading 
+export function AccountSelector({
+  accounts,
+  selectedAccountId,
+  onSelect,
+  isLoading
 }: AccountSelectorProps) {
   return (
     <Card className="p-4">
-      <label className="block text-sm font-medium text-foreground mb-3">Cuenta</label>
+      <label className="block text-sm font-medium text-foreground mb-3">Account</label>
       {isLoading ? (
         <div className="text-center py-6">
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
@@ -37,10 +37,10 @@ export function AccountSelector({
       ) : accounts.length === 0 ? (
         <div className="text-center py-6 text-muted-foreground">
           <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No hay cuentas conectadas</p>
+          <p className="text-sm">No connected accounts</p>
           <Button variant="link" asChild className="mt-1">
             <Link href="/accounts?connect=true">
-              Añadir cuenta
+              Add account
             </Link>
           </Button>
         </div>
@@ -53,8 +53,8 @@ export function AccountSelector({
               onClick={() => onSelect(account.id)}
               className={cn(
                 "p-3 rounded-lg border text-left transition-all duration-200",
-                selectedAccountId === account.id 
-                  ? "border-castor-black bg-muted ring-1 ring-castor-black/10" 
+                selectedAccountId === account.id
+                  ? "border-castor-black bg-muted ring-1 ring-castor-black/10"
                   : "hover:border-gray-300 hover:bg-muted/50"
               )}
             >

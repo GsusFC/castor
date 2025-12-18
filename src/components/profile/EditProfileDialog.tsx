@@ -25,12 +25,12 @@ interface EditProfileDialogProps {
   onSave?: () => void
 }
 
-export function EditProfileDialog({ 
-  open, 
-  onOpenChange, 
+export function EditProfileDialog({
+  open,
+  onOpenChange,
   currentProfile,
   isPro = false,
-  onSave 
+  onSave
 }: EditProfileDialogProps) {
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
@@ -66,14 +66,14 @@ export function EditProfileDialog({
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Error al guardar')
+        throw new Error(data.error || 'Error saving')
       }
 
-      toast.success('Perfil actualizado')
+      toast.success('Profile updated')
       onSave?.()
       onOpenChange(false)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al guardar perfil')
+      toast.error(error instanceof Error ? error.message : 'Error saving profile')
     } finally {
       setIsSaving(false)
     }
@@ -83,7 +83,7 @@ export function EditProfileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Editar perfil</DialogTitle>
+          <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -91,8 +91,8 @@ export function EditProfileDialog({
           <div className="flex justify-center">
             <div className="relative">
               {pfpUrl ? (
-                <img 
-                  src={pfpUrl} 
+                <img
+                  src={pfpUrl}
                   alt="Avatar"
                   className="w-24 h-24 rounded-full object-cover"
                 />
@@ -106,7 +106,7 @@ export function EditProfileDialog({
 
           {/* URL de avatar */}
           <div>
-            <label className="text-sm font-medium">URL de foto de perfil</label>
+            <label className="text-sm font-medium">Profile photo URL</label>
             <input
               type="url"
               value={pfpUrl}
@@ -120,7 +120,7 @@ export function EditProfileDialog({
           {isPro && (
             <div>
               <label className="text-sm font-medium flex items-center gap-2">
-                URL de banner
+                Banner URL
                 <span className="text-xs bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-400 px-1.5 py-0.5 rounded">Pro</span>
               </label>
               {bannerUrl && (
@@ -140,12 +140,12 @@ export function EditProfileDialog({
 
           {/* Display Name */}
           <div>
-            <label className="text-sm font-medium">Nombre</label>
+            <label className="text-sm font-medium">Name</label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Tu nombre"
+              placeholder="Your name"
               maxLength={50}
               className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-border bg-background"
             />
@@ -158,7 +158,7 @@ export function EditProfileDialog({
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="Cuéntanos sobre ti..."
+              placeholder="Tell us about yourself..."
               maxLength={256}
               rows={3}
               className="w-full mt-1 px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none"
@@ -168,7 +168,7 @@ export function EditProfileDialog({
 
           {/* URL */}
           <div>
-            <label className="text-sm font-medium">Enlace</label>
+            <label className="text-sm font-medium">Link</label>
             <input
               type="url"
               value={url}
@@ -186,7 +186,7 @@ export function EditProfileDialog({
             onClick={() => onOpenChange(false)}
             disabled={isSaving}
           >
-            Cancelar
+            Cancel
           </Button>
           <Button
             onClick={handleSave}
@@ -195,10 +195,10 @@ export function EditProfileDialog({
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Guardando...
+                Saving...
               </>
             ) : (
-              'Guardar'
+              'Save'
             )}
           </Button>
         </div>

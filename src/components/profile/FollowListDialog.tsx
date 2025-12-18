@@ -25,10 +25,10 @@ interface UserItem {
   bio?: string
 }
 
-export function FollowListDialog({ 
-  open, 
-  onOpenChange, 
-  fid, 
+export function FollowListDialog({
+  open,
+  onOpenChange,
+  fid,
   type,
   username,
 }: FollowListDialogProps) {
@@ -37,7 +37,7 @@ export function FollowListDialog({
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ limit: '25' })
       if (pageParam) params.set('cursor', pageParam)
-      
+
       const res = await fetch(`/api/social/${fid}/${type}?${params}`)
       if (!res.ok) throw new Error('Failed to fetch')
       return res.json()
@@ -54,7 +54,7 @@ export function FollowListDialog({
       <DialogContent className="max-w-md max-h-[80dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {type === 'followers' ? 'Seguidores' : 'Siguiendo'} de @{username}
+            {type === 'followers' ? 'Followers' : 'Following'} of @{username}
           </DialogTitle>
         </DialogHeader>
 
@@ -65,7 +65,7 @@ export function FollowListDialog({
             </div>
           ) : users.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {type === 'followers' ? 'Sin seguidores' : 'No sigue a nadie'}
+              {type === 'followers' ? 'No followers' : 'Not following anyone'}
             </div>
           ) : (
             <div className="space-y-1">
@@ -77,8 +77,8 @@ export function FollowListDialog({
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 >
                   {user.pfp_url ? (
-                    <img 
-                      src={user.pfp_url} 
+                    <img
+                      src={user.pfp_url}
                       alt={user.username}
                       className="w-10 h-10 rounded-full"
                     />
@@ -97,7 +97,7 @@ export function FollowListDialog({
                     <p className="text-xs text-muted-foreground">@{user.username}</p>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {user.follower_count.toLocaleString()} seg.
+                    {user.follower_count.toLocaleString()} followers
                   </span>
                 </Link>
               ))}
@@ -108,7 +108,7 @@ export function FollowListDialog({
                   disabled={query.isFetchingNextPage}
                   className="w-full py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors"
                 >
-                  {query.isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
+                  {query.isFetchingNextPage ? 'Loading...' : 'Load more'}
                 </button>
               )}
             </div>

@@ -218,24 +218,24 @@ export function UnifiedDashboard({
       if (!res.ok) throw new Error('Failed to update cast')
       router.refresh()
     } catch (error) {
-      toast.error('Error al mover el cast')
+      toast.error('Error moving cast')
     }
   }
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('¿Eliminar este template?')) return
+    if (!confirm('Delete this template?')) return
     try {
       const res = await fetch(`/api/templates/${templateId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete')
-      toast.success('Template eliminado')
+      toast.success('Template deleted')
       router.refresh()
     } catch (error) {
-      toast.error('Error al eliminar template')
+      toast.error('Error deleting template')
     }
   }
 
   const handleDeleteCast = async (castId: string) => {
-    if (!confirm('¿Eliminar este cast?')) return
+    if (!confirm('Delete this cast?')) return
     try {
       const res = await fetch(`/api/casts/${castId}`, { method: 'DELETE' })
 
@@ -245,10 +245,10 @@ export function UnifiedDashboard({
       }
 
       await res.json()
-      toast.success('Cast eliminado')
+      toast.success('Cast deleted')
       router.refresh()
     } catch (error) {
-      toast.error('Error al eliminar cast')
+      toast.error('Error deleting cast')
     }
   }
 
@@ -517,8 +517,8 @@ export function UnifiedDashboard({
                             handleDeleteCast(draft.id)
                           }}
                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          title="Eliminar"
-                          aria-label="Eliminar"
+                          title="Delete"
+                          aria-label="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -573,7 +573,7 @@ export function UnifiedDashboard({
                           e.stopPropagation()
                           handleDeleteTemplate(template.id)
                         }}
-                        aria-label="Eliminar template"
+                        aria-label="Delete template"
                       >
                         <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4" />
@@ -720,13 +720,13 @@ function CastCard({
             {!isDraft && (
               <>
                 <span className="shrink-0 whitespace-nowrap">
-                  {scheduledDate.toLocaleDateString('es-ES', {
+                  {scheduledDate.toLocaleDateString('en-US', {
                     day: 'numeric',
                     month: 'short',
                     timeZone: 'Europe/Madrid',
                   })}
                   {' '}
-                  {scheduledDate.toLocaleTimeString('es-ES', {
+                  {scheduledDate.toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit',
                     timeZone: 'Europe/Madrid',
@@ -777,7 +777,7 @@ function CastCard({
             rel="noopener noreferrer"
             className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1"
             onClick={(e) => e.stopPropagation()}
-            title="Ver en Warpcast"
+            title="View on Warpcast"
           >
             <ExternalLink className="w-4 h-4" />
           </a>
@@ -794,7 +794,7 @@ function CastCard({
                 e.stopPropagation()
                 onEdit?.()
               }}
-              title="Editar"
+              title="Edit"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent">
                 <Edit className="w-3.5 h-3.5" />
@@ -808,7 +808,7 @@ function CastCard({
                 e.stopPropagation()
                 onDelete()
               }}
-              title="Eliminar"
+              title="Delete"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-destructive/10">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -869,7 +869,7 @@ function CastCard({
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              Ver en Warpcast
+              View on Warpcast
               <ExternalLink className="w-3 h-3" />
             </a>
           )}

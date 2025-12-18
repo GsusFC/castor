@@ -46,46 +46,46 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    
+
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
-    
+
     const days: Date[] = []
-    
+
     // Días del mes anterior para completar la primera semana
     const startDayOfWeek = firstDay.getDay()
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       days.push(new Date(year, month, -i))
     }
-    
+
     // Días del mes actual
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push(new Date(year, month, i))
     }
-    
+
     // Días del mes siguiente para completar la última semana
     const remainingDays = 42 - days.length // 6 semanas * 7 días
     for (let i = 1; i <= remainingDays; i++) {
       days.push(new Date(year, month + 1, i))
     }
-    
+
     return days
   }, [currentDate])
 
   // Agrupar casts por día
   const castsByDay = useMemo(() => {
     const map = new Map<string, Cast[]>()
-    
+
     casts.forEach((cast) => {
       const date = new Date(cast.scheduledAt)
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-      
+
       if (!map.has(key)) {
         map.set(key, [])
       }
       map.get(key)!.push(cast)
     })
-    
+
     return map
   }, [casts])
 
@@ -98,20 +98,20 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveCast(null)
-    
+
     const { active, over } = event
-    
+
     if (!over) return
-    
+
     const castId = active.id as string
     const targetDateStr = over.id as string
-    
+
     // Parsear la fecha del día destino
     const [year, month, day] = targetDateStr.split('-').map(Number)
     const cast = casts.find((c) => c.id === castId)
-    
+
     if (!cast) return
-    
+
     // Mantener la hora original, solo cambiar el día
     const originalDate = new Date(cast.scheduledAt)
     const newDate = new Date(
@@ -121,7 +121,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
       originalDate.getHours(),
       originalDate.getMinutes()
     )
-    
+
     // Solo mover si es un cast programado (no publicado)
     if (cast.status === 'scheduled') {
       await onMoveCast(castId, newDate)
@@ -153,7 +153,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold text-lg">
-            {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -166,7 +166,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
               onClick={() => setCurrentDate(new Date())}
               className="px-3 py-1.5 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
             >
-              Hoy
+              Today
             </button>
             <button
               onClick={nextMonth}
@@ -179,7 +179,7 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
 
         {/* Días de la semana */}
         <div className="grid grid-cols-7 border-b">
-          {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
               className="py-2 text-center text-sm font-medium text-muted-foreground"
@@ -237,18 +237,16 @@ function CalendarDay({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[120px] border-b border-r p-1 ${
-        !isCurrentMonth ? 'bg-muted' : ''
-      } ${isOver ? 'bg-castor-light' : ''}`}
+      className={`min-h-[120px] border-b border-r p-1 ${!isCurrentMonth ? 'bg-muted' : ''
+        } ${isOver ? 'bg-castor-light' : ''}`}
     >
       <div
-        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
-          isToday
+        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday
             ? 'bg-castor-black text-white'
             : !isCurrentMonth
-            ? 'text-muted-foreground'
-            : 'text-foreground'
-        }`}
+              ? 'text-muted-foreground'
+              : 'text-foreground'
+          }`}
       >
         {date.getDate()}
       </div>
@@ -258,7 +256,7 @@ function CalendarDay({
         ))}
         {casts.length > 3 && (
           <div className="text-xs text-muted-foreground pl-1">
-            +{casts.length - 3} más
+            +{casts.length - 3} more
           </div>
         )}
       </div>
@@ -291,7 +289,7 @@ function CastCard({ cast, isDragging }: { cast: Cast; isDragging?: boolean }) {
     failed: 'bg-red-500/10 border-red-500/20 dark:bg-red-500/20 dark:border-red-500/30',
   }
 
-  const time = new Date(cast.scheduledAt).toLocaleTimeString('es-ES', {
+  const time = new Date(cast.scheduledAt).toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Europe/Madrid',
@@ -299,11 +297,9 @@ function CastCard({ cast, isDragging }: { cast: Cast; isDragging?: boolean }) {
 
   return (
     <div
-      className={`p-1.5 rounded border text-xs cursor-grab active:cursor-grabbing ${
-        statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
-      } ${isDragging ? 'shadow-lg rotate-2' : ''} ${
-        cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
-      }`}
+      className={`p-1.5 rounded border text-xs cursor-grab active:cursor-grabbing ${statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
+        } ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
+        }`}
     >
       <div className="flex items-center gap-1 mb-0.5">
         <Clock className="w-3 h-3 text-muted-foreground" />

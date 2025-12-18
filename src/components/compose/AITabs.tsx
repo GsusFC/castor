@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { 
-  Languages, 
-  FileEdit, 
-  Wand2, 
-  Loader2, 
+import {
+  Languages,
+  FileEdit,
+  Wand2,
+  Loader2,
   RefreshCw,
   ChevronDown,
   Check,
@@ -135,7 +135,7 @@ export function AITabs({
       })
 
       const data = await response.json()
-      
+
       if (!response.ok) {
         console.error('AI API error:', data)
         const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
@@ -169,7 +169,7 @@ export function AITabs({
       <div className="px-3 py-2">
         <div
           role="tablist"
-          className="flex w-full items-center gap-1 rounded-full bg-muted/30 p-1"
+          className="flex w-full items-center gap-1 rounded-full bg-muted/50 p-1"
         >
           <button
             type="button"
@@ -177,10 +177,10 @@ export function AITabs({
             aria-selected={activeTab === 'translate'}
             onClick={() => handleTabClick('translate')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
               activeTab === 'translate'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
             )}
           >
             <span className="flex items-center justify-center gap-1.5">
@@ -195,10 +195,10 @@ export function AITabs({
             aria-selected={activeTab === 'propose'}
             onClick={() => handleTabClick('propose')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
               activeTab === 'propose'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
             )}
           >
             <span className="flex items-center justify-center gap-1.5">
@@ -213,10 +213,10 @@ export function AITabs({
             aria-selected={activeTab === 'improve'}
             onClick={() => handleTabClick('improve')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
               activeTab === 'improve'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
             )}
           >
             <span className="flex items-center justify-center gap-1.5">

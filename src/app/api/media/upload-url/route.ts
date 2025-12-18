@@ -3,8 +3,8 @@ import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-// Cambiar a Edge Runtime para mejor rendimiento y compatibilidad con fetch
-export const runtime = 'edge'
+// Usar Node.js runtime para compatibilidad con librerías de logging (pino) y DB
+export const runtime = 'nodejs'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY

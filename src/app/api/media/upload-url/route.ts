@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         console.error('[Upload URL] Cloudflare Images fetch failed:', message)
-        return ApiErrors.externalError('Cloudflare Images', { message })
+        return ApiErrors.operationFailed('Cloudflare Images API error', { message })
       }
 
       const responseText = await response.text()
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok || !data?.success) {
         console.error('[Upload URL] Cloudflare Images failed:', response.status, responseText.slice(0, 500))
-        return ApiErrors.externalError('Cloudflare Images', {
+        return ApiErrors.operationFailed('Cloudflare Images API error', {
           status: response.status,
           body: responseText.slice(0, 500),
         })
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       const cloudflareId = data?.result?.id
 
       if (!uploadUrl || !cloudflareId) {
-        return ApiErrors.externalError('Cloudflare Images', {
+        return ApiErrors.operationFailed('Cloudflare Images API error', {
           status: response.status,
           body: responseText.slice(0, 500),
         })
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         console.error('[Upload URL] Cloudflare Stream fetch failed:', message)
-        return ApiErrors.externalError('Cloudflare Stream', { message })
+        return ApiErrors.operationFailed('Cloudflare Stream API error', { message })
       }
 
       const responseText = await response.text()
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok || !data?.success) {
         console.error('[Upload URL] Cloudflare Stream failed:', response.status, responseText.slice(0, 500))
-        return ApiErrors.externalError('Cloudflare Stream', {
+        return ApiErrors.operationFailed('Cloudflare Stream API error', {
           status: response.status,
           body: responseText.slice(0, 500),
         })

@@ -43,19 +43,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'castorapp.xyz',
-      },
-      {
-        protocol: 'https',
-        hostname: 'imagedelivery.net',
-      },
-      {
-        protocol: 'https',
-        hostname: 'i.imgur.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.warpcast.com',
+        hostname: '**',
       },
     ],
   },

@@ -45,7 +45,11 @@ export async function GET(request: NextRequest) {
     const lockResult = await withLock(
       CRON_LOCK_KEY,
       async () => {
-        return await publishDueCasts()
+        return await publishDueCasts({
+          maxCasts: 5,
+          maxDurationMs: 20_000,
+          publishCastTimeoutMs: 18_000,
+        })
       },
       { ttlSeconds: CRON_LOCK_TTL }
     )

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Hash, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
+import { Hash, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ViewHeader } from '@/components/ui/ViewHeader'
 import { toast } from 'sonner'
 
 interface ChannelHeaderProps {
@@ -42,6 +43,9 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
   })
 
   const channel = data?.channel
+  const channelName = channel?.name
+    ? channel.name.charAt(0).toUpperCase() + channel.name.slice(1).replace(/-/g, ' ')
+    : ''
 
   // Initialize isFollowing from API response
   useEffect(() => {
@@ -90,36 +94,30 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
   return (
     <div className="mb-6 relative">
-      {/* Sticky header con botón volver */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-3 -mx-4 px-4 mb-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-medium">{channel.name}</span>
-        </button>
-      </div>
+      <ViewHeader
+        title={channelName}
+        onBack={onBack}
+      />
 
       {/* Banner/Header Image */}
       <div className="h-32 sm:h-40 w-full bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg">
         {channel.header_image_url && (
-          <img 
-            src={channel.header_image_url} 
-            alt="" 
+          <img
+            src={channel.header_image_url}
+            alt=""
             className="w-full h-full object-cover"
           />
         )}
       </div>
 
       {/* Content below banner */}
-      <div className="px-2 sm:px-4 pb-4 bg-card border-x border-b border-border rounded-b-lg">
+      <div className="px-4 sm:px-0 pb-4 bg-card border-x border-b border-border rounded-b-lg">
         {/* Avatar superpuesto + Stats */}
         <div className="flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
           {/* Avatar */}
           {channel.image_url ? (
-            <img 
-              src={channel.image_url} 
+            <img
+              src={channel.image_url}
               alt={channel.name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-card bg-card"
             />
@@ -151,7 +149,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
           <div className="flex items-start justify-between gap-2">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-tight">
-                {channel.name.charAt(0).toUpperCase() + channel.name.slice(1).replace(/-/g, ' ')}
+                {channelName}
               </h1>
               <p className="text-muted-foreground text-sm">/{channel.id}</p>
             </div>
@@ -159,7 +157,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {signerUuid && (
-                <Button 
+                <Button
                   variant={isFollowing ? "outline" : "default"}
                   size="sm"
                   className="rounded-full h-9 px-4 font-medium"
@@ -175,8 +173,8 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
                   )}
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 className="rounded-full h-9 w-9 p-0 hover:bg-muted"
                 onClick={() => window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')}

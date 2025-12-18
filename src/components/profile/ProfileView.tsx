@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ExternalLink, Loader2, MapPin, UserPlus, UserMinus } from 'lucide-react'
+import { ExternalLink, Loader2, MapPin, UserPlus, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { CastCard } from '@/components/feed/CastCard'
+import { ViewHeader } from '@/components/ui/ViewHeader'
 import { cn } from '@/lib/utils'
 
 interface ProfileViewProps {
@@ -55,11 +57,11 @@ interface Cast {
 
 type ProfileTab = 'casts' | 'replies' | 'likes'
 
-export function ProfileView({ 
-  username, 
-  onBack, 
-  onSelectUser, 
-  onReply, 
+export function ProfileView({
+  username,
+  onBack,
+  onSelectUser,
+  onReply,
   onQuote,
   onOpenCast,
   currentUserFid,
@@ -82,7 +84,6 @@ export function ProfileView({
         if (profileRes.ok) {
           const data = await profileRes.json()
           setProfile(data.user)
-          // Initialize isFollowing from viewer_context
           if (data.user?.viewer_context?.following !== undefined) {
             setIsFollowing(data.user.viewer_context.following)
           }
@@ -152,55 +153,52 @@ export function ProfileView({
 
   if (!profile) {
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Usuario no encontrado</p>
-        <Button variant="ghost" onClick={onBack} className="mt-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
+      <div className="text-center py-20 px-4">
+        <p className="text-muted-foreground mb-4">User not found</p>
+        <Button variant="outline" onClick={onBack}>
+          Go Back
         </Button>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl relative">
-      {/* Sticky Header with Back button */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-3 -mx-4 px-4 mb-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-medium">{profile.display_name}</span>
-        </button>
-      </div>
+    <div className="w-full max-w-2xl mx-auto flex flex-col min-h-screen">
+      <ViewHeader
+        title={profile.display_name}
+        onBack={onBack}
+      />
 
       {/* Header Area */}
       <div className="relative mb-6">
         {/* Cover Image */}
-        <div className="h-32 sm:h-48 w-full bg-muted overflow-hidden rounded-lg">
+        <div className="h-32 sm:h-48 w-full bg-muted overflow-hidden sm:rounded-xl sm:mt-2">
           {coverImage && (
-            <img 
-              src={coverImage} 
-              alt="Cover" 
+            <Image
+              src={coverImage}
+              alt="Cover"
+              fill
               className="w-full h-full object-cover"
             />
           )}
         </div>
 
         {/* Avatar & Actions Row */}
-        <div className="px-2 sm:px-4">
+        <div className="px-4 sm:px-0">
           <div className="relative flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
             {/* Avatar with border */}
             <div className="relative">
               {profile.pfp_url ? (
-                <img 
-                  src={profile.pfp_url} 
+                <Image
+                  src={profile.pfp_url}
                   alt={profile.username}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-background bg-background"
+                  width={96}
+                  height={96}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-background bg-background shadow-sm"
+                  priority
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-background flex items-center justify-center">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-background flex items-center justify-center shadow-sm">
                   <span className="text-2xl font-bold">{profile.display_name?.[0]}</span>
                 </div>
               )}
@@ -209,19 +207,19 @@ export function ProfileView({
             {/* Actions - hide follow button for own profile */}
             <div className="flex gap-2 mb-1">
               {currentUserFid !== profile.fid && (
-                <Button 
-                  variant={isFollowing ? "outline" : "default"} 
-                  size="sm" 
+                <Button
+                  variant={isFollowing ? "outline" : "default"}
+                  size="sm"
                   className="rounded-full font-medium h-9 px-4"
                   disabled={isFollowLoading}
                   onClick={async () => {
-                    if (!profile?.fid) return
+                    const targetFid = profile.fid
                     setIsFollowLoading(true)
                     try {
                       const res = await fetch('/api/users/follow', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ targetFid: profile.fid }),
+                        body: JSON.stringify({ targetFid }),
                       })
                       if (res.ok) {
                         setIsFollowing(true)
@@ -240,14 +238,14 @@ export function ProfileView({
                   {isFollowLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : isFollowing ? (
-                    <><UserMinus className="w-4 h-4 mr-1" /> Following</>
+                    'Following'
                   ) : (
-                    <><UserPlus className="w-4 h-4 mr-1" /> Follow</>
+                    'Follow'
                   )}
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 className="rounded-full h-9 w-9 p-0 hover:bg-muted"
                 onClick={() => window.open(`https://warpcast.com/${profile.username}`, '_blank')}
@@ -272,7 +270,7 @@ export function ProfileView({
 
             {/* Bio */}
             {bio && (
-              <p className="text-[15px] leading-relaxed whitespace-pre-wrap max-w-2xl text-foreground/90">
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/90">
                 {bio}
               </p>
             )}
@@ -289,49 +287,51 @@ export function ProfileView({
 
             {/* Stats */}
             <div className="flex items-center gap-5 pt-1">
-              <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
+              <div className="flex items-center gap-1.5 group">
                 <span className="font-bold text-foreground">{profile.following_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Following</span>
-              </button>
-              <button className="hover:underline decoration-muted-foreground/50 underline-offset-4 flex items-center gap-1.5 group">
+                <span className="text-muted-foreground text-sm">Following</span>
+              </div>
+              <div className="flex items-center gap-1.5 group">
                 <span className="font-bold text-foreground">{profile.follower_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">Followers</span>
-              </button>
+                <span className="text-muted-foreground text-sm">Followers</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs - sticky below header */}
-      <div className="sticky top-12 z-10 bg-background/95 backdrop-blur-sm flex border-b border-border mb-4 -mx-4 px-4">
-        {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "flex-1 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
-              activeTab === tab
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {tab === 'casts' && 'Casts'}
-            {tab === 'replies' && 'Respuestas'}
-            {tab === 'likes' && 'Likes'}
-          </button>
-        ))}
+      {/* Tabs - unificado con estilo de Pills del Feed */}
+      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3 px-4 sm:px-0">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
+          {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "relative flex-1 h-9 px-3 text-sm rounded-full transition-all",
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-md border border-border/10 font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+              )}
+            >
+              {tab === 'casts' && 'Casts'}
+              {tab === 'replies' && 'Respuestas'}
+              {tab === 'likes' && 'Likes'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Casts */}
-      <div className="space-y-4">
+      <div className="space-y-4 pt-2 px-4 sm:px-0">
         {isCastsLoading ? (
-          <div className="flex items-center justify-center py-10">
+          <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : casts.length > 0 ? (
           casts.map((cast) => (
-            <CastCard 
-              key={cast.hash} 
+            <CastCard
+              key={cast.hash}
               cast={cast}
               onOpenCast={handleOpenCast}
               onSelectUser={onSelectUser}
@@ -342,7 +342,7 @@ export function ProfileView({
             />
           ))
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-8">
+          <p className="text-sm text-muted-foreground text-center py-20 px-4">
             {activeTab === 'casts' ? 'No hay casts' : activeTab === 'replies' ? 'No hay respuestas' : 'No hay likes'}
           </p>
         )}

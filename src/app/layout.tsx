@@ -1,11 +1,15 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Special_Elite } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { WebVitalsProvider } from '@/components/providers/WebVitalsProvider'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const specialGothic = Special_Elite({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-special-gothic'
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://castorapp.xyz'),
@@ -61,11 +65,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#AE997A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Expanded+One&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${specialGothic.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider>
           <WebVitalsProvider>
             {children}

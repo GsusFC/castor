@@ -1,8 +1,9 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { CastCard } from '@/components/feed/CastCard'
+import { ViewHeader } from '@/components/ui/ViewHeader'
 import { cn } from '@/lib/utils'
 
 interface ConversationViewProps {
@@ -47,25 +48,14 @@ export function ConversationView({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="font-semibold">Conversation</h1>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col w-full max-w-2xl mx-auto">
+      <ViewHeader
+        title="Conversation"
+        onBack={onBack}
+      />
 
       {/* Content */}
-      <div className="flex-1">
+      <div className="flex-1 px-4 sm:px-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -81,59 +71,65 @@ export function ConversationView({
             </button>
           </div>
         ) : data ? (
-          <div className="pt-3 pb-4">
+          <div className="py-4">
             {/* Thread lineal completo */}
-            {data.thread.map((cast, index) => {
-              const isTarget = cast.hash === data.targetHash
-              const isLast = index === data.thread.length - 1
-              
-              return (
-                <div key={cast.hash}>
-                  <div
-                    onClick={() => !isTarget && handleCastClick(cast.hash)}
-                    className={cn(
-                      "mx-3 rounded-xl border",
-                      isTarget 
-                        ? "bg-muted/30 border-primary/40" 
-                        : "border-border/50 cursor-pointer hover:bg-muted/20 transition-colors"
-                    )}
-                  >
-                    <CastCard
-                      cast={cast}
-                      onSelectUser={onSelectUser}
-                      onQuote={onQuote}
-                    />
-                  </div>
-                  {/* Línea conectora bajo el avatar */}
-                  {!isLast && (
-                    <div className="ml-[3.1rem] py-1">
-                      <div className="w-0.5 h-4 bg-border" />
+            <div className="space-y-1">
+              {data.thread.map((cast, index) => {
+                const isTarget = cast.hash === data.targetHash
+                const isLast = index === data.thread.length - 1
+
+                return (
+                  <div key={cast.hash}>
+                    <div
+                      onClick={() => !isTarget && handleCastClick(cast.hash)}
+                      className={cn(
+                        "rounded-xl border transition-all",
+                        isTarget
+                          ? "bg-muted/30 border-primary/40 shadow-sm"
+                          : "border-border/50 cursor-pointer hover:bg-muted/20"
+                      )}
+                    >
+                      <CastCard
+                        cast={cast}
+                        onSelectUser={onSelectUser}
+                        onQuote={onQuote}
+                      />
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                    {/* Línea conectora bajo el avatar */}
+                    {!isLast && (
+                      <div className="ml-[3.1rem] py-1">
+                        <div className="w-0.5 h-4 bg-border/60" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
 
             {/* Replies */}
             {data.replies.casts.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-border mx-3">
-                <p className="text-sm text-muted-foreground mb-3">Replies</p>
-                {data.replies.casts.map((reply, index) => (
-                  <div
-                    key={reply.hash}
-                    onClick={() => handleCastClick(reply.hash)}
-                    className={cn(
-                      "rounded-xl border border-border/50 cursor-pointer hover:bg-muted/20 transition-colors",
-                      index > 0 && "mt-3"
-                    )}
-                  >
-                    <CastCard
-                      cast={reply}
-                      onSelectUser={onSelectUser}
-                      onQuote={onQuote}
-                    />
-                  </div>
-                ))}
+              <div className="mt-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-px flex-1 bg-border/50" />
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Replies</p>
+                  <div className="h-px flex-1 bg-border/50" />
+                </div>
+
+                <div className="space-y-3">
+                  {data.replies.casts.map((reply) => (
+                    <div
+                      key={reply.hash}
+                      onClick={() => handleCastClick(reply.hash)}
+                      className="rounded-xl border border-border/50 cursor-pointer hover:bg-muted/20 transition-colors"
+                    >
+                      <CastCard
+                        cast={reply}
+                        onSelectUser={onSelectUser}
+                        onQuote={onQuote}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

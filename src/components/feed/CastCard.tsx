@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
+import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image as ImageIcon, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
@@ -10,15 +11,16 @@ import { GifPicker } from '@/components/compose/GifPicker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AIReplyDialog } from './AIReplyDialog'
 import { useRouter } from 'next/navigation'
-import { 
-  CastRenderer, 
-  TweetRenderer, 
-  YouTubeRenderer, 
+import {
+  CastRenderer,
+  TweetRenderer,
+  YouTubeRenderer,
   LinkRenderer,
   extractYouTubeId,
   isFarcasterCastUrl,
 } from '@/components/embeds'
 import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
@@ -67,9 +69,9 @@ interface CastEmbed {
   metadata?: {
     content_type?: string
     image?: { width_px: number; height_px: number }
-    video?: { 
+    video?: {
       streams?: { codec_name?: string }[]
-      duration_s?: number 
+      duration_s?: number
     }
     html?: {
       ogImage?: { url: string }[]
@@ -109,8 +111,8 @@ interface CastCardProps {
   isPro?: boolean
 }
 
-export function CastCard({ 
-  cast, 
+export function CastCard({
+  cast,
   onOpenMiniApp,
   onOpenCast,
   onQuote,
@@ -121,6 +123,7 @@ export function CastCard({
   isPro = false,
 }: CastCardProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { openTicker } = useTickerDrawer()
   const { selectedAccountId } = useSelectedAccount()
   const [translation, setTranslation] = useState<string | null>(null)
@@ -156,15 +159,15 @@ export function CastCard({
   const lightboxDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const lightboxDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const lightboxDidSwipeRef = useRef(false)
-  
+
   const isOwnCast = currentUserFid === cast.author.fid
   const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
-  
+
   // Truncar texto largo (> 280 caracteres)
   const MAX_TEXT_LENGTH = 280
   const needsTruncation = cast.text.length > MAX_TEXT_LENGTH
-  const displayText = showFullText || !needsTruncation 
-    ? cast.text 
+  const displayText = showFullText || !needsTruncation
+    ? cast.text
     : cast.text.slice(0, MAX_TEXT_LENGTH) + '...'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -188,13 +191,13 @@ export function CastCard({
   // Cerrar al hacer click fuera
   useEffect(() => {
     if (!isExpanded) return
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setIsExpanded(false)
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isExpanded])
@@ -237,17 +240,17 @@ export function CastCard({
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     // Validar tipo
     if (!file.type.startsWith('image/')) {
       toast.error('Solo se permiten imágenes')
       return
     }
-    
+
     // Crear preview
     const preview = URL.createObjectURL(file)
     setReplyMedia({ preview, uploading: true })
-    
+
     try {
       // Obtener URL de subida
       const urlRes = await fetch('/api/media/upload-url', {
@@ -261,9 +264,9 @@ export function CastCard({
       })
       const urlJson = await urlRes.json()
       if (!urlRes.ok) throw new Error(urlJson.error || 'Error al obtener URL')
-      
+
       const { uploadUrl, cloudflareId } = urlJson.data
-      
+
       // Subir imagen
       const formData = new FormData()
       formData.append('file', file)
@@ -272,7 +275,7 @@ export function CastCard({
         body: formData,
       })
       if (!uploadRes.ok) throw new Error('Error al subir imagen')
-      
+
       // Confirmar subida
       const confirmRes = await fetch('/api/media/confirm', {
         method: 'POST',
@@ -281,14 +284,14 @@ export function CastCard({
       })
       const confirmJson = await confirmRes.json()
       if (!confirmRes.ok) throw new Error(confirmJson.error || 'Error al confirmar')
-      
+
       setReplyMedia({ preview, url: confirmJson.data.url, uploading: false })
     } catch (error) {
       console.error('Upload error:', error)
       toast.error('Error al subir imagen')
       setReplyMedia(null)
     }
-    
+
     // Limpiar input
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -311,7 +314,7 @@ export function CastCard({
       toast.error('Selecciona una cuenta para publicar')
       return
     }
-    
+
     setIsSendingReply(true)
     try {
       if (!replyIdempotencyKeyRef.current) {
@@ -319,7 +322,7 @@ export function CastCard({
       }
 
       const embeds = replyMedia?.url ? [{ url: replyMedia.url }] : undefined
-      
+
       const res = await fetch('/api/casts/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,14 +334,14 @@ export function CastCard({
           idempotencyKey: replyIdempotencyKeyRef.current,
         }),
       })
-      
+
       if (!res.ok) throw new Error('Error al publicar')
-      
+
       toast.success('Respuesta publicada')
       setReplyText('')
       setReplyMedia(null)
       replyIdempotencyKeyRef.current = null
-      
+
       // Recargar replies
       const repliesRes = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
       const data = await repliesRes.json()
@@ -353,16 +356,16 @@ export function CastCard({
   // Unificado: bocadillo también expande el cast
   const handleToggleReplies = async (e?: React.MouseEvent) => {
     e?.stopPropagation()
-    
+
     if (isExpanded) {
       // Si ya está expandido, colapsar
       setIsExpanded(false)
       return
     }
-    
+
     // Expandir y cargar replies
     setIsExpanded(true)
-    
+
     if (replies.length === 0 && cast.replies.count > 0) {
       setLoadingReplies(true)
       try {
@@ -381,7 +384,7 @@ export function CastCard({
     const wasLiked = isLiked
     setIsLiked(!wasLiked)
     setLikesCount(prev => wasLiked ? prev - 1 : prev + 1)
-    
+
     try {
       const res = await fetch('/api/feed/reaction', {
         method: wasLiked ? 'DELETE' : 'POST',
@@ -403,7 +406,7 @@ export function CastCard({
     const wasRecasted = isRecasted
     setIsRecasted(!wasRecasted)
     setRecastsCount(prev => wasRecasted ? prev - 1 : prev + 1)
-    
+
     try {
       const res = await fetch('/api/feed/reaction', {
         method: wasRecasted ? 'DELETE' : 'POST',
@@ -433,9 +436,9 @@ export function CastCard({
 
   const handleDelete = async () => {
     if (!onDelete || isDeleting) return
-    
+
     if (!confirm('¿Estás seguro de que quieres eliminar este cast?')) return
-    
+
     setIsDeleting(true)
     try {
       onDelete(cast.hash)
@@ -471,7 +474,7 @@ export function CastCard({
 
   const handleShare = async () => {
     const url = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
-    
+
     try {
       await navigator.clipboard.writeText(url)
       toast.success('Enlace copiado')
@@ -487,12 +490,12 @@ export function CastCard({
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
-    
+
     if (diffMins < 60) return `${diffMins}m`
     if (diffHours < 24) return `${diffHours}h`
     return `${diffDays}d`
   }
-  
+
   const timeAgo = getShortTimeAgo(cast.timestamp)
 
   const handleOpenCast = () => {
@@ -616,12 +619,12 @@ export function CastCard({
   }, [videoModal])
 
   return (
-    <div 
+    <div
       ref={cardRef}
       className={cn(
         "p-4 border rounded-lg bg-card transition-all",
-        isExpanded 
-          ? "border-primary/50 shadow-lg ring-1 ring-primary/20" 
+        isExpanded
+          ? "border-primary/50 shadow-lg ring-1 ring-primary/20"
           : "border-border hover:bg-muted/30"
       )}
     >
@@ -632,12 +635,22 @@ export function CastCard({
             e.stopPropagation()
             onSelectUser?.(cast.author.username)
           }}
+          onMouseEnter={() => {
+            // Prefetch user profile
+            queryClient.prefetchQuery({
+              queryKey: ['user', cast.author.username],
+              queryFn: () => fetch(`/api/users/${cast.author.username}`).then(res => res.json()),
+              staleTime: 5 * 60 * 1000,
+            })
+          }}
           className="cursor-pointer"
         >
           {cast.author.pfp_url ? (
-            <img 
-              src={cast.author.pfp_url} 
+            <Image
+              src={cast.author.pfp_url}
               alt={cast.author.username}
+              width={40}
+              height={40}
               className="w-10 h-10 rounded-full object-cover hover:opacity-80 transition-opacity"
             />
           ) : (
@@ -648,7 +661,7 @@ export function CastCard({
             </div>
           )}
         </button>
-        
+
         <div className="flex-1 min-w-0">
           {/* name [pro?] [in canal?] tiempo */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -665,7 +678,7 @@ export function CastCard({
             {cast.channel && (
               <>
                 <span className="text-muted-foreground text-sm">in</span>
-                <a 
+                <a
                   href={`https://farcaster.xyz/~/channel/${cast.channel.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -673,7 +686,13 @@ export function CastCard({
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
                   {cast.channel.image_url && (
-                    <img src={cast.channel.image_url} alt="" className="w-3.5 h-3.5 rounded-full" />
+                    <Image
+                      src={cast.channel.image_url}
+                      alt=""
+                      width={14}
+                      height={14}
+                      className="w-3.5 h-3.5 rounded-full"
+                    />
                   )}
                   <span>{cast.channel.name || cast.channel.id}</span>
                 </a>
@@ -703,14 +722,14 @@ export function CastCard({
               <span>Traducido</span>
             </div>
           )}
-          
+
           {/* Texto con efecto Morph */}
-          <MorphText 
-            text={showTranslation && translation ? translation : displayText} 
+          <MorphText
+            text={showTranslation && translation ? translation : displayText}
             className={cn(
               "text-[15px] leading-relaxed whitespace-pre-wrap break-words transition-colors duration-300",
-              showTranslation && translation 
-                ? "text-primary/90 font-medium" 
+              showTranslation && translation
+                ? "text-primary/90 font-medium"
                 : "text-foreground"
             )}
             render={(text) => renderCastText(text, {
@@ -722,7 +741,7 @@ export function CastCard({
               },
             })}
           />
-          
+
           {/* Botón ver más/menos */}
           {needsTruncation && (
             <button
@@ -740,26 +759,26 @@ export function CastCard({
             </button>
           )}
         </div>
-        
+
         {/* Embeds (images, videos, frames, links, quote casts) */}
         {cast.embeds && cast.embeds.length > 0 && (() => {
           // Helpers para detectar por URL cuando no hay metadata
           const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url)
-          const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url) || 
+          const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url) ||
             url.includes('stream.warpcast.com') || url.includes('cloudflarestream.com')
-          
+
           const images = cast.embeds.filter(e => e.url && (
-            e.metadata?.content_type?.startsWith('image/') || 
+            e.metadata?.content_type?.startsWith('image/') ||
             (!e.metadata?.content_type && isImageUrl(e.url))
           ))
           const videos = cast.embeds.filter(e => e.url && (
-            e.metadata?.content_type?.startsWith('video/') || 
+            e.metadata?.content_type?.startsWith('video/') ||
             e.metadata?.video ||
             (!e.metadata?.content_type && isVideoUrl(e.url))
           ))
           // Frames/Miniapps
           const frames = cast.embeds.filter(e => e.url && (
-            e.metadata?.frame?.version || 
+            e.metadata?.frame?.version ||
             e.metadata?.frame?.image
           ))
           const quoteCasts = cast.embeds.filter(e => e.cast)
@@ -811,16 +830,16 @@ export function CastCard({
             ...videos.map(e => e.url),
             ...frames.map(e => e.url),
           ])
-          const links = cast.embeds.filter(e => 
-            e.url && 
+          const links = cast.embeds.filter(e =>
+            e.url &&
             !e.cast &&
             !processedUrls.has(e.url) &&
             !e.metadata?.content_type?.startsWith('image/') &&
             !e.metadata?.content_type?.startsWith('video/')
           )
-          
+
           // Separar tweets, youtube, farcaster casts y otros links
-          const tweets = links.filter(e => 
+          const tweets = links.filter(e =>
             e.url && (e.url.includes('twitter.com/') || e.url.includes('x.com/')) && e.url.includes('/status/')
           )
           const youtubeLinks = links.filter(e =>
@@ -829,17 +848,17 @@ export function CastCard({
           const farcasterCastLinks = links.filter(e =>
             e.url && isFarcasterCastUrl(e.url)
           )
-          const regularLinks = links.filter(e => 
+          const regularLinks = links.filter(e =>
             !tweets.some(t => t.url === e.url) &&
             !youtubeLinks.some(y => y.url === e.url) &&
             !farcasterCastLinks.some(f => f.url === e.url)
           )
-          
+
           return (
             <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
               {/* Quote Casts */}
               {quoteCasts.map((embed, i) => embed.cast && (
-                <CastRenderer 
+                <CastRenderer
                   key={`quote-${i}`}
                   cast={embed.cast}
                   onOpenCast={onOpenCast}
@@ -858,25 +877,20 @@ export function CastCard({
                             key={`media-${item.kind}-${item.url}-${i}`}
                             onClick={() => onOpenMiniApp?.(item.url, item.title)}
                             aria-label={item.title}
-                            className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
+                            className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-border shadow-sm"
                           >
-                            <img
+                            <Image
                               src={item.image}
                               alt={item.title}
+                              fill
                               className="absolute inset-0 w-full h-full object-cover"
                               loading="lazy"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                            <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
-                              MINI APP
-                            </div>
                             <div className="absolute inset-x-0 bottom-0 p-2">
-                              <div className="space-y-2">
-                                <div className="text-white text-sm font-semibold truncate text-left">{item.title}</div>
-                                <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
-                                  Jugar / abrir
-                                  <ExternalLink className="w-4 h-4" />
-                                </div>
+                              <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
+                                {item.title}
+                                <ExternalLink className="w-4 h-4" />
                               </div>
                             </div>
                           </button>
@@ -887,12 +901,12 @@ export function CastCard({
                         return (
                           <div
                             key={`media-${item.kind}-${item.url}-${i}`}
-                            className="relative flex-shrink-0 max-h-[400px] bg-black overflow-hidden rounded-xl flex items-center justify-center"
+                            className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 overflow-hidden rounded-xl flex items-center justify-center"
                           >
                             <HLSVideo
                               src={item.url}
                               poster={item.poster}
-                              className="max-w-full max-h-[400px] object-contain"
+                              className="w-auto h-full object-contain"
                             />
                             <div className="pointer-events-none absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
                               VIDEO
@@ -915,9 +929,10 @@ export function CastCard({
                             "relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl"
                           )}
                         >
-                          <img
+                          <Image
                             src={item.url}
                             alt=""
+                            fill
                             className="absolute inset-0 w-full h-full object-cover"
                             loading="lazy"
                           />
@@ -965,25 +980,20 @@ export function CastCard({
                         key={`frame-${i}`}
                         onClick={() => onOpenMiniApp?.(item.url, item.title)}
                         aria-label={item.title}
-                        className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-purple-500/30 ring-1 ring-purple-500/20 shadow-sm"
+                        className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-border shadow-sm"
                       >
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.title}
+                          fill
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                        <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
-                          MINI APP
-                        </div>
                         <div className="absolute inset-x-0 bottom-0 p-2">
-                          <div className="space-y-2">
-                            <div className="text-white text-sm font-semibold truncate text-left">{item.title}</div>
-                            <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
-                              Jugar / abrir
-                              <ExternalLink className="w-4 h-4" />
-                            </div>
+                          <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
+                            {item.title}
+                            <ExternalLink className="w-4 h-4" />
                           </div>
                         </div>
                       </button>
@@ -1019,7 +1029,7 @@ export function CastCard({
                   </div>
                 </div>
               )}
-              
+
               {/* Tweet Embeds */}
               {tweets.map((embed, i) => {
                 const tweetId = embed.url?.match(/status\/(\d+)/)?.[1]
@@ -1042,7 +1052,7 @@ export function CastCard({
 
               {/* Farcaster Cast Links */}
               {farcasterCastLinks.map((embed, i) => (
-                <CastRenderer 
+                <CastRenderer
                   key={`fc-${i}`}
                   url={embed.url!}
                   onOpenCast={onOpenCast}
@@ -1066,8 +1076,8 @@ export function CastCard({
           onClick={handleLike}
           className={cn(
             "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-            isLiked 
-              ? "text-pink-500" 
+            isLiked
+              ? "text-pink-500"
               : "text-muted-foreground hover:text-pink-500"
           )}
         >
@@ -1082,8 +1092,8 @@ export function CastCard({
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-                isRecasted 
-                  ? "text-green-500" 
+                isRecasted
+                  ? "text-green-500"
                   : "text-muted-foreground hover:text-green-500"
               )}
             >
@@ -1110,7 +1120,7 @@ export function CastCard({
         </Popover>
 
         {/* Reply */}
-        <button 
+        <button
           onClick={(e) => {
             if (onOpenCast) {
               handleToggleReplies(e)
@@ -1125,10 +1135,18 @@ export function CastCard({
 
             handleToggleReplies(e)
           }}
+          onMouseEnter={() => {
+            // Prefetch replies
+            queryClient.prefetchQuery({
+              queryKey: ['replies', cast.hash],
+              queryFn: () => fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`).then(res => res.json()),
+              staleTime: 60 * 1000,
+            })
+          }}
           className={cn(
             "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-            isExpanded 
-              ? "text-blue-500" 
+            isExpanded
+              ? "text-blue-500"
               : "text-muted-foreground hover:text-blue-500"
           )}
         >
@@ -1142,8 +1160,8 @@ export function CastCard({
           disabled={isTranslating}
           className={cn(
             "group flex items-center px-2 py-1.5 rounded-md transition-colors",
-            showTranslation 
-              ? "text-blue-500" 
+            showTranslation
+              ? "text-blue-500"
               : "text-muted-foreground hover:text-foreground"
           )}
           title="Traducir"
@@ -1218,9 +1236,11 @@ export function CastCard({
                         displayName={reply.author.display_name}
                         pfpUrl={reply.author.pfp_url}
                       >
-                        <img 
-                          src={reply.author.pfp_url || `https://avatar.vercel.sh/${reply.author.username}`} 
+                        <Image
+                          src={reply.author.pfp_url || `https://avatar.vercel.sh/${reply.author.username}`}
                           alt={reply.author.username}
+                          width={24}
+                          height={24}
                           className="w-6 h-6 rounded-full hover:opacity-80 object-cover mt-0.5"
                         />
                       </UserPopover>
@@ -1236,20 +1256,22 @@ export function CastCard({
                           {getShortTimeAgo(reply.timestamp)}
                         </span>
                       </div>
-                      
+
                       <p className="text-[15px] leading-relaxed text-foreground mt-0.5 break-words">{reply.text}</p>
-                      
+
                       {/* Imágenes en respuestas */}
                       {reply.embeds && reply.embeds.length > 0 && (
                         <div className="mt-2 flex gap-2 overflow-x-auto">
                           {reply.embeds
                             .filter((e: any) => e.metadata?.content_type?.startsWith('image/') || e.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i))
                             .map((e: any, idx: number) => (
-                              <img 
+                              <Image
                                 key={idx}
-                                src={e.url} 
-                                alt="" 
-                                className="h-24 rounded-lg object-cover border border-border"
+                                src={e.url}
+                                alt=""
+                                width={200}
+                                height={96}
+                                className="h-24 w-auto rounded-lg object-cover border border-border"
                               />
                             ))
                           }
@@ -1257,7 +1279,7 @@ export function CastCard({
                       )}
 
                       <div className="mt-1.5 flex items-center gap-4 text-xs text-muted-foreground opacity-70 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           className="flex items-center gap-1.5 hover:text-pink-500 transition-colors"
                           onClick={async (e) => {
                             e.stopPropagation()
@@ -1276,7 +1298,7 @@ export function CastCard({
                           <Heart className="w-4 h-4" />
                           {reply.reactions?.likes_count || 0}
                         </button>
-                        <button 
+                        <button
                           className="flex items-center gap-1.5 hover:text-green-500 transition-colors"
                           onClick={async (e) => {
                             e.stopPropagation()
@@ -1295,7 +1317,7 @@ export function CastCard({
                           <Repeat2 className="w-4 h-4" />
                           {reply.reactions?.recasts_count || 0}
                         </button>
-                        <button 
+                        <button
                           className="flex items-center gap-1.5 hover:text-blue-500 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation()
@@ -1312,7 +1334,7 @@ export function CastCard({
                         >
                           <MessageCircle className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           className="flex items-center gap-1.5 hover:text-foreground transition-colors"
                           onClick={(e) => {
                             e.stopPropagation()
@@ -1329,7 +1351,7 @@ export function CastCard({
                 </div>
               ))}
               {replies.length > 5 && (
-                <button 
+                <button
                   className="w-full text-xs text-muted-foreground text-center py-2 hover:text-primary transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -1378,7 +1400,7 @@ export function CastCard({
 
       {/* Lightbox para imágenes */}
       {lightbox && (
-        <div 
+        <div
           role="dialog"
           aria-modal="true"
           aria-label="Visor de imágenes"

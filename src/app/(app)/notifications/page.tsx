@@ -147,7 +147,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 sm:px-0">
         <div className="py-4">
           <h1 className="text-xl font-semibold">Notifications</h1>
         </div>
@@ -158,10 +158,10 @@ export default function NotificationsPage() {
               key={filter.value}
               onClick={() => setNotificationFilter(filter.value)}
               className={cn(
-                'px-3 py-1.5 text-sm rounded-md whitespace-nowrap transition-colors',
+                'px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all',
                 notificationFilter === filter.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                  ? "bg-background text-foreground shadow-md border border-border/10 font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
               )}
               aria-label={`Filtrar: ${filter.label}`}
             >
@@ -171,7 +171,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="space-y-4 mt-4">
+      <div className="space-y-4 mt-4 px-4 sm:px-0">
         {isLoading ? (
           Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
         ) : notifications.length > 0 ? (

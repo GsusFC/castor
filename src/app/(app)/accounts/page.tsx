@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function AccountsPage() {
   const session = await getSession()
-  
+
   if (!session) {
     redirect('/login')
   }
@@ -50,7 +50,7 @@ export default async function AccountsPage() {
       {/* Main Content */}
       <div className="w-full">
         {/* Header */}
-        <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
+        <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 sm:px-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -66,7 +66,7 @@ export default async function AccountsPage() {
         </div>
 
         {/* Content */}
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-6 px-4 sm:px-0">
           {accountsList.length === 0 ? (
             <EmptyState />
           ) : (
@@ -80,9 +80,9 @@ export default async function AccountsPage() {
                   </div>
                   <div className="space-y-3">
                     {proAccounts.map((account) => (
-                      <AccountCard 
-                        key={account.id} 
-                        account={account} 
+                      <AccountCard
+                        key={account.id}
+                        account={account}
                         currentUserId={session.userId}
                         isAdmin={session.role === 'admin'}
                       />
@@ -102,9 +102,9 @@ export default async function AccountsPage() {
                   )}
                   <div className="space-y-3">
                     {standardAccounts.map((account) => (
-                      <AccountCard 
-                        key={account.id} 
-                        account={account} 
+                      <AccountCard
+                        key={account.id}
+                        account={account}
                         currentUserId={session.userId}
                         isAdmin={session.role === 'admin'}
                       />
@@ -143,7 +143,7 @@ export default async function AccountsPage() {
             <p className="text-sm text-muted-foreground mb-3">
               10,000 caracteres, 4 embeds, banners y más.
             </p>
-            <Link 
+            <Link
               href="https://farcaster.xyz/~/settings/pro"
               target="_blank"
               className="text-sm text-purple-500 hover:text-purple-400 font-medium"

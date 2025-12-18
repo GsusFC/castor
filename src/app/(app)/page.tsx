@@ -3,6 +3,8 @@
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
+import Image from 'next/image'
+import { Virtuoso } from 'react-virtuoso'
 import { CastCard } from '@/components/feed/CastCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { ChannelHeader } from '@/components/feed/ChannelHeader'
@@ -167,7 +169,7 @@ function FeedPageInner() {
 
     setSelectedProfileUsername(null)
   }, [castHashFromUrl, usernameFromUrl])
-  
+
   useEffect(() => {
     if (!channelIdFromUrl) {
       // Si no hay channel en URL, limpiar selección
@@ -177,11 +179,11 @@ function FeedPageInner() {
       })
       return
     }
-    
+
     // Si el canal ya está seleccionado, no hacer nada
     setSelectedChannel(prev => {
       if (prev?.id === channelIdFromUrl) return prev
-      
+
       // Fetch channel info async
       fetch(`/api/channels/${channelIdFromUrl}`)
         .then(res => res.ok ? res.json() : null)
@@ -197,7 +199,7 @@ function FeedPageInner() {
         .catch(() => {
           setSelectedChannel({ id: channelIdFromUrl, name: channelIdFromUrl })
         })
-      
+
       setActiveTab('channel')
       // Retornar placeholder mientras carga
       return { id: channelIdFromUrl, name: channelIdFromUrl }
@@ -312,10 +314,10 @@ function FeedPageInner() {
   // Flatten and dedupe casts by hash
   const allCasts = feedQuery.data?.pages.flatMap((page) => page.casts) || []
   const casts = allCasts.filter(
-    (cast: Cast, index: number, self: Cast[]) => 
+    (cast: Cast, index: number, self: Cast[]) =>
       cast?.hash && self.findIndex((c: Cast) => c?.hash === cast.hash) === index
   )
-  
+
   const isLoading = feedQuery.isLoading
   const isFetchingNextPage = feedQuery.isFetchingNextPage
   const hasMore = feedQuery.hasNextPage
@@ -376,183 +378,200 @@ function FeedPageInner() {
     <div className="flex gap-8 w-full">
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 max-w-2xl">
-      
-      {/* Show Conversation, Profile or Feed */}
-      {selectedConversationHash ? (
-        <ConversationView
-          castHash={selectedConversationHash}
-          onBack={() => {
-            router.back()
-          }}
-          onSelectUser={(username) => {
-            openProfile(username)
-          }}
-          onSelectCast={(hash) => openConversation(hash)}
-          onQuote={handleQuote}
-        />
-      ) : selectedProfileUsername ? (
-        <ProfileView 
-          username={selectedProfileUsername} 
-          onBack={() => closeOverlay()}
-          onSelectUser={openProfile}
-          onOpenCast={(castHash: string) => {
-            openConversation(castHash)
-          }}
-          onQuote={handleQuote}
-          onReply={(c) => {
-            setReplyToCast({
-              hash: c.hash,
-              text: c.text,
-              timestamp: c.timestamp,
-              author: {
-                fid: c.author.fid,
-                username: c.author.username,
-                displayName: c.author.display_name,
-                pfpUrl: c.author.pfp_url || null,
-              },
-            })
-            setComposeOpen(true)
-          }}
-          currentUserFid={userFid || undefined}
-          isPro={userIsPro}
-        />
-      ) : (
-      <>
-      {/* Background cover for scroll content */}
-      <div className="sticky top-0 z-30 h-6 bg-background" />
-      {/* Tabs Header - sticky maintains position */}
-      <div className="sticky top-6 z-40 pb-3 bg-background border-b border-border/50">
-        <div className="flex items-center gap-2">
-          {/* Avatar/Profile button */}
-          <button
-            onClick={() => profile.username && openProfile(profile.username)}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
-          >
-            {profile.pfpUrl ? (
-              <img src={profile.pfpUrl} alt="" className="w-10 h-10 shrink-0 rounded-full object-cover" />
-            ) : (
-              <div className="w-10 h-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
-                <User className="w-5 h-5 text-muted-foreground" />
-              </div>
-            )}
-          </button>
-
-          {/* Feed tabs */}
-          <div className="flex-1 flex items-center gap-1 bg-muted/50 rounded-full p-1">
-            {([
-              { id: 'home', label: 'Home' },
-              { id: 'following', label: 'Following' },
-              { id: 'trending', label: 'Trending' },
-            ] as { id: FeedTab; label: string }[]).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  clearChannelFromUrl()
-                  setActiveTab(tab.id)
-                  if (tab.id !== 'channel') setSelectedChannel(null)
-                }}
-                onMouseEnter={() => {
-                  // Prefetch feed data on hover
-                  if (tab.id !== activeTab) {
-                    const params = new URLSearchParams({ type: tab.id, limit: '20' })
-                    if (userFid && (tab.id === 'following' || tab.id === 'home')) {
-                      params.set('fid', userFid.toString())
-                    }
-                    queryClient.prefetchInfiniteQuery({
-                      queryKey: ['feed', tab.id, userFid, null],
-                      queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
-                      getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
-                      initialPageParam: undefined as string | undefined,
-                      staleTime: 30 * 1000,
-                    })
-                  }
-                }}
-                className={cn(
-                  "relative flex-1 h-9 px-3 text-sm font-medium rounded-full transition-colors",
-                  activeTab === tab.id && activeTab !== 'channel'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Canal seleccionado */}
-          {selectedChannel && (
-            <button
-              onClick={() => {
-                clearChannelFromUrl()
-              }}
-              className="h-9 px-3 text-sm font-medium rounded-full bg-primary text-primary-foreground"
-            >
-              #{selectedChannel.name} ✕
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Channel Header */}
-      {activeTab === 'channel' && selectedChannel && (
-        <ChannelHeader 
-          channelId={selectedChannel.id} 
-          onBack={clearChannelFromUrl}
-          signerUuid={userSignerUuid || undefined}
-        />
-      )}
-
-      {/* Content */}
-      <div className={cn("space-y-4", activeTab !== 'channel' && "mt-4")}>
-        {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => <FeedCastSkeleton key={`cast-skel-${i}`} />)
-        ) : casts.length > 0 ? (
-          casts.map((cast: Cast) => (
-            <CastCard
-              key={cast.hash}
-              cast={cast}
-              onOpenCast={(castHash) => {
-                openConversation(castHash)
-              }}
-              onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
-              onQuote={handleQuote}
-              onDelete={handleDelete}
-              onSelectUser={openProfile}
-              onReply={(c) => {
-                setReplyToCast({
-                  hash: c.hash,
-                  text: c.text,
-                  timestamp: c.timestamp,
-                  author: {
-                    fid: c.author.fid,
-                    username: c.author.username,
-                    displayName: c.author.display_name,
-                    pfpUrl: c.author.pfp_url || null,
-                  },
-                })
-                setComposeOpen(true)
-              }}
-              currentUserFid={userFid || undefined}
-              isPro={userIsPro}
-            />
-          ))
+        {/* Show Conversation, Profile or Feed */}
+        {selectedConversationHash ? (
+          <ConversationView
+            castHash={selectedConversationHash}
+            onBack={() => {
+              router.back()
+            }}
+            onSelectUser={(username) => {
+              openProfile(username)
+            }}
+            onSelectCast={(hash) => openConversation(hash)}
+            onQuote={handleQuote}
+          />
+        ) : selectedProfileUsername ? (
+          <ProfileView
+            username={selectedProfileUsername}
+            onBack={() => closeOverlay()}
+            onSelectUser={openProfile}
+            onOpenCast={(castHash: string) => {
+              openConversation(castHash)
+            }}
+            onQuote={handleQuote}
+            onReply={(c) => {
+              setReplyToCast({
+                hash: c.hash,
+                text: c.text,
+                timestamp: c.timestamp,
+                author: {
+                  fid: c.author.fid,
+                  username: c.author.username,
+                  displayName: c.author.display_name,
+                  pfpUrl: c.author.pfp_url || null,
+                },
+              })
+              setComposeOpen(true)
+            }}
+            currentUserFid={userFid || undefined}
+            isPro={userIsPro}
+          />
         ) : (
-          <p className="text-center text-muted-foreground py-12">
-            No hay casts para mostrar
-          </p>
-        )}
+          <div className="flex flex-col">
+            {/* Tabs Header - sticky at top-0 to match ViewHeader consistency */}
+            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                {/* Avatar/Profile button */}
+                <button
+                  onClick={() => profile.username && openProfile(profile.username)}
+                  className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+                >
+                  {profile.pfpUrl ? (
+                    <Image
+                      src={profile.pfpUrl}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 shrink-0 rounded-full object-cover shadow-sm bg-background border border-border/10"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-muted flex items-center justify-center border border-border/10 shadow-sm">
+                      <User className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </button>
 
-        {/* Load More - Infinite Scroll Trigger */}
-        <div ref={loadMoreRef} className="py-4">
-          {feedQuery.isFetchingNextPage && (
-            <div className="flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                {/* Feed tabs */}
+                <div className="flex-1 flex items-center gap-1 bg-muted/50 rounded-full p-1">
+                  {([
+                    { id: 'home', label: 'Home' },
+                    { id: 'following', label: 'Following' },
+                    { id: 'trending', label: 'Trending' },
+                  ] as { id: FeedTab; label: string }[]).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        clearChannelFromUrl()
+                        setActiveTab(tab.id)
+                        if (tab.id !== 'channel') setSelectedChannel(null)
+                      }}
+                      onMouseEnter={() => {
+                        // Prefetch feed data on hover
+                        if (tab.id !== activeTab) {
+                          const params = new URLSearchParams({ type: tab.id, limit: '20' })
+                          if (userFid && (tab.id === 'following' || tab.id === 'home')) {
+                            params.set('fid', userFid.toString())
+                          }
+                          queryClient.prefetchInfiniteQuery({
+                            queryKey: ['feed', tab.id, userFid, null],
+                            queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
+                            getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
+                            initialPageParam: undefined as string | undefined,
+                            staleTime: 30 * 1000,
+                          })
+                        }
+                      }}
+                      className={cn(
+                        "relative flex-1 h-9 px-3 text-sm rounded-full transition-all",
+                        activeTab === tab.id && activeTab !== 'channel'
+                          ? "bg-background text-foreground shadow-md border border-border/10 font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Canal seleccionado */}
+                {selectedChannel && (
+                  <button
+                    onClick={() => {
+                      clearChannelFromUrl()
+                    }}
+                    className="h-9 px-3 text-sm font-medium rounded-full bg-primary text-primary-foreground shadow-sm ml-1"
+                  >
+                    #{selectedChannel.name} ✕
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
-      </>
-      )}
+
+            {/* Channel Header */}
+            {activeTab === 'channel' && selectedChannel && (
+              <ChannelHeader
+                channelId={selectedChannel.id}
+                onBack={clearChannelFromUrl}
+                signerUuid={userSignerUuid || undefined}
+              />
+            )}
+
+            {/* Content Feed */}
+            <div className={cn("px-4 sm:px-0", activeTab !== 'channel' ? "mt-4" : "mt-2")}>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 6 }).map((_, i) => <FeedCastSkeleton key={`cast-skel-${i}`} />)}
+                </div>
+              ) : casts.length > 0 ? (
+                <>
+                  <Virtuoso
+                    useWindowScroll
+                    data={casts}
+                    endReached={loadMore}
+                    increaseViewportBy={400}
+                    itemContent={(index, cast: Cast) => (
+                      <div className="pb-4">
+                        <CastCard
+                          key={cast.hash}
+                          cast={cast}
+                          onOpenCast={(castHash) => {
+                            openConversation(castHash)
+                          }}
+                          onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
+                          onQuote={handleQuote}
+                          onDelete={handleDelete}
+                          onSelectUser={openProfile}
+                          onReply={(c) => {
+                            setReplyToCast({
+                              hash: c.hash,
+                              text: c.text,
+                              timestamp: c.timestamp,
+                              author: {
+                                fid: c.author.fid,
+                                username: c.author.username,
+                                displayName: c.author.display_name,
+                                pfpUrl: c.author.pfp_url || null,
+                              },
+                            })
+                            setComposeOpen(true)
+                          }}
+                          currentUserFid={userFid || undefined}
+                          isPro={userIsPro}
+                        />
+                      </div>
+                    )}
+                    components={{
+                      Footer: () => (
+                        <div className="py-4">
+                          {isFetchingNextPage && (
+                            <div className="flex items-center justify-center">
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }}
+                  />
+                </>
+              ) : (
+                <p className="text-center text-muted-foreground py-12">
+                  No hay casts para mostrar
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Sidebar - desktop only, sticky */}

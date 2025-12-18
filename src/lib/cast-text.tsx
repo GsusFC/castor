@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-type TokenType = 'text' | 'url' | 'mention' | 'channel' | 'ticker'
+type TokenType = 'text' | 'url' | 'mention' | 'channel' | 'ticker' | 'hashtag'
 
 type Token = {
   type: TokenType
@@ -28,9 +28,10 @@ type RenderOptions = {
 }
 
 const URL_REGEX = /https?:\/\/[\w\-._~:/?#[\[\]@!$&'()*+,;=%]+/gi
-const MENTION_REGEX = /@[a-zA-Z0-9_]+/g
+const MENTION_REGEX = /@[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*/g
 const CHANNEL_REGEX = /\/[a-zA-Z0-9_-]+/g
-const TICKER_REGEX = /\$[a-zA-Z][a-zA-Z0-9]{1,14}/g
+const TICKER_REGEX = /\$[a-zA-Z0-9]{1,15}/g
+const HASHTAG_REGEX = /#\w+/g
 
 const isWordChar = (char: string | undefined) => {
   if (!char) return false
@@ -87,10 +88,22 @@ const getMatchList = (text: string): Token[] => {
     }
   }
 
+  {
+    const regexCopy = new RegExp(HASHTAG_REGEX.source, HASHTAG_REGEX.flags)
+    let match: RegExpExecArray | null
+    while ((match = regexCopy.exec(text)) !== null) {
+      const start = match.index
+      const before = text[start - 1]
+      if (isWordChar(before)) continue
+      matches.push({ type: 'hashtag', value: match[0], start, end: start + match[0].length })
+    }
+  }
+
   const priority: Record<TokenType, number> = {
-    url: 4,
-    mention: 3,
-    channel: 2,
+    url: 5,
+    mention: 4,
+    channel: 3,
+    hashtag: 2,
     ticker: 1,
     text: 0,
   }
@@ -260,6 +273,34 @@ export const renderCastText = (text: string, options: RenderOptions): ReactNode 
       } else {
         nodes.push(
           <span key={`ticker-${m.start}`} className={cn('text-green-400 font-medium', className)}>
+            {m.value}
+          </span>
+        )
+      }
+      cursor = m.end
+      continue
+    }
+
+    if (m.type === 'hashtag') {
+      const tag = m.value.slice(1)
+      if (variant === 'interactive') {
+        nodes.push(
+          <button
+            key={`hashtag-${m.start}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              interactive?.onTokenClickStopPropagation?.(e)
+            }}
+            className={cn('text-orange-400 font-medium hover:underline', className)}
+            aria-label={`Search hashtag #${tag}`}
+          >
+            {m.value}
+          </button>
+        )
+      } else {
+        nodes.push(
+          <span key={`hashtag-${m.start}`} className={cn('text-orange-400 font-medium', className)}>
             {m.value}
           </span>
         )

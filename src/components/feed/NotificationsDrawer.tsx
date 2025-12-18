@@ -191,8 +191,10 @@ export function NotificationsDrawer() {
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
         className={cn(
-          'p-0 overflow-hidden',
-          isMobile ? 'w-full h-[70dvh]' : 'w-full sm:w-[20vw] sm:min-w-[320px] sm:max-w-[520px]'
+          'p-0 overflow-hidden transition-all duration-300 ease-out border-none',
+          isMobile
+            ? 'w-full h-[70dvh] rounded-t-[32px]'
+            : 'w-full sm:w-[22vw] sm:min-w-[400px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-[32px] sm:bg-card/70 sm:backdrop-blur-2xl sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] sm:ring-1 sm:ring-white/20 sm:border sm:border-white/5'
         )}
       >
         <SheetHeader className="sr-only">
@@ -200,13 +202,13 @@ export function NotificationsDrawer() {
         </SheetHeader>
 
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-            <span className="font-medium truncate pr-10">Notifications</span>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-transparent">
+            <span className="text-lg font-bold tracking-tight text-foreground/90">Notificaciones</span>
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-              <div className="flex flex-wrap items-center gap-1 px-4 py-2.5">
+            <div className="sticky top-0 z-10 bg-transparent backdrop-blur-md border-b border-border/20">
+              <div className="flex flex-wrap items-center gap-1.5 px-4 py-3">
                 {NOTIFICATION_FILTERS.map((filter) => (
                   <button
                     key={filter.value}

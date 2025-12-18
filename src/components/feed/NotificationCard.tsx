@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { MessageCircle } from 'lucide-react'
 
@@ -81,7 +82,7 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
   const mainActor = getMainActor()
   const totalCount = notification.count || 1
   const otherCount = totalCount > 1 ? totalCount - 1 : 0
-  
+
   // Solo reply abre el composer para responder directamente
   const isReplyable = notification.type === 'reply'
   const hasCast = !!notification.cast?.hash
@@ -110,14 +111,16 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
       {/* Card - siempre clickeable */}
       <div
         onClick={handleClick}
-        className="flex-1 min-w-0 p-3 border border-border rounded-lg bg-card hover:bg-muted/30 cursor-pointer transition-colors text-left"
+        className="flex-1 min-w-0 p-3 border border-border/50 rounded-xl bg-card/50 hover:bg-card/80 hover:shadow-sm cursor-pointer transition-all text-left"
       >
         <div className="flex items-center gap-2 min-w-0">
           {mainActor?.pfp_url && (
-            <img 
-              src={mainActor.pfp_url} 
+            <Image
+              src={mainActor.pfp_url}
               alt={mainActor.username}
-              className="w-6 h-6 rounded-full"
+              width={24}
+              height={24}
+              className="w-6 h-6 rounded-full object-cover"
             />
           )}
           <span className="min-w-0 font-medium text-[13px] truncate">

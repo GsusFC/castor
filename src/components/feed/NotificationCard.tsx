@@ -111,7 +111,7 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
       {/* Card - siempre clickeable */}
       <div
         onClick={handleClick}
-        className="flex-1 min-w-0 p-3 border border-border/50 rounded-xl bg-card/50 hover:bg-card/80 hover:shadow-sm cursor-pointer transition-all text-left"
+        className="flex-1 min-w-0 p-3 border border-border/50 rounded-xl bg-card hover:bg-muted/30 hover:shadow-sm cursor-pointer transition-all text-left shadow-sm"
       >
         <div className="flex items-center gap-2 min-w-0">
           {mainActor?.pfp_url && (
@@ -121,6 +121,7 @@ export function NotificationCard({ notification, onClick, onUserClick, onCastCli
               width={24}
               height={24}
               className="w-6 h-6 rounded-full object-cover"
+              unoptimized
             />
           )}
           <span className="min-w-0 font-medium text-[13px] truncate">

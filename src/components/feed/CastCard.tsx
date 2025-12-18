@@ -652,6 +652,7 @@ export function CastCard({
               width={40}
               height={40}
               className="w-10 h-10 rounded-full object-cover hover:opacity-80 transition-opacity"
+              unoptimized
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:opacity-80 transition-opacity">
@@ -692,6 +693,7 @@ export function CastCard({
                       width={14}
                       height={14}
                       className="w-3.5 h-3.5 rounded-full"
+                      unoptimized
                     />
                   )}
                   <span>{cast.channel.name || cast.channel.id}</span>
@@ -885,6 +887,7 @@ export function CastCard({
                               fill
                               className="absolute inset-0 w-full h-full object-cover"
                               loading="lazy"
+                              unoptimized
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-2">
@@ -935,6 +938,7 @@ export function CastCard({
                             fill
                             className="absolute inset-0 w-full h-full object-cover"
                             loading="lazy"
+                            unoptimized
                           />
                         </button>
                       )
@@ -1242,6 +1246,7 @@ export function CastCard({
                           width={24}
                           height={24}
                           className="w-6 h-6 rounded-full hover:opacity-80 object-cover mt-0.5"
+                          unoptimized
                         />
                       </UserPopover>
                     )}
@@ -1272,6 +1277,7 @@ export function CastCard({
                                 width={200}
                                 height={96}
                                 className="h-24 w-auto rounded-lg object-cover border border-border"
+                                unoptimized
                               />
                             ))
                           }

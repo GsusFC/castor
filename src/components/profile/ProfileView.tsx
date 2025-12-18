@@ -172,13 +172,14 @@ export function ProfileView({
       {/* Header Area */}
       <div className="relative mb-6">
         {/* Cover Image */}
-        <div className="h-32 sm:h-48 w-full bg-muted overflow-hidden sm:rounded-xl sm:mt-2">
+        <div className="relative h-32 sm:h-48 w-full bg-muted overflow-hidden sm:rounded-xl sm:mt-2">
           {coverImage && (
             <Image
               src={coverImage}
               alt="Cover"
               fill
               className="w-full h-full object-cover"
+              unoptimized
             />
           )}
         </div>
@@ -196,6 +197,7 @@ export function ProfileView({
                   height={96}
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-background bg-background shadow-sm"
                   priority
+                  unoptimized
                 />
               ) : (
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-background flex items-center justify-center shadow-sm">

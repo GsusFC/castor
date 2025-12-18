@@ -193,8 +193,8 @@ export function NotificationsDrawer() {
         className={cn(
           'p-0 overflow-hidden transition-all duration-300 ease-out border-none',
           isMobile
-            ? 'w-full h-[70dvh] rounded-t-[32px]'
-            : 'w-full sm:w-[22vw] sm:min-w-[400px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-[32px] sm:bg-card/70 sm:backdrop-blur-2xl sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] sm:ring-1 sm:ring-white/20 sm:border sm:border-white/5'
+            ? 'w-full h-[70dvh] rounded-t-xl'
+            : 'w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground'
         )}
       >
         <SheetHeader className="sr-only">
@@ -202,22 +202,21 @@ export function NotificationsDrawer() {
         </SheetHeader>
 
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-transparent">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-transparent">
             <span className="text-lg font-bold tracking-tight text-foreground/90">Notificaciones</span>
           </div>
-
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar">
-            <div className="sticky top-0 z-10 bg-transparent backdrop-blur-md border-b border-border/20">
+            <div className="sticky top-0 z-10 bg-background border-b border-border/20">
               <div className="flex flex-wrap items-center gap-1.5 px-4 py-3">
                 {NOTIFICATION_FILTERS.map((filter) => (
                   <button
                     key={filter.value}
                     onClick={() => setNotificationFilter(filter.value)}
                     className={cn(
-                      'px-2.5 py-1 text-xs rounded-md transition-colors',
+                      'px-2.5 py-1 text-xs rounded-md transition-colors font-medium',
                       notificationFilter === filter.value
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                        : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
                     )}
                     aria-label={`Filtrar: ${filter.label}`}
                   >
@@ -269,6 +268,6 @@ export function NotificationsDrawer() {
           defaultReplyTo={replyToCast}
         />
       </SheetContent>
-    </Sheet>
+    </Sheet >
   )
 }

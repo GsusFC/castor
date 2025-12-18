@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Inter, Special_Elite } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'

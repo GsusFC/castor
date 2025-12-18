@@ -1,25 +1,30 @@
-import type { Config, Context } from '@netlify/functions'
+import type { Config, Context, Handler } from '@netlify/functions'
 
 /**
  * Netlify Scheduled Function
  * Se ejecuta cada minuto para publicar casts programados
  */
-export default async (req: Request, context: Context) => {
+export const handler: Handler = async (_event, context) => {
+  const ctx = context as unknown as Context
+
   const siteUrl =
-    context.site?.url ||
+    (ctx as any).site?.url ||
     process.env.URL ||
     process.env.DEPLOY_PRIME_URL ||
     process.env.DEPLOY_URL ||
     ''
   const cronSecret = process.env.CRON_SECRET || ''
 
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
   try {
     if (!siteUrl) {
       console.error('[Netlify Cron] Missing site URL in function runtime')
-      return new Response(JSON.stringify({ error: 'Missing site URL' }), {
-        status: 500,
+      return {
+        statusCode: 500,
         headers: { 'Content-Type': 'application/json' },
-      })
+        body: JSON.stringify({ error: 'Missing site URL' }),
+      }
     }
 
     if (!cronSecret) {
@@ -27,7 +32,7 @@ export default async (req: Request, context: Context) => {
     }
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25_000)
+    timeoutId = setTimeout(() => controller.abort(), 25_000)
 
     const cronUrl = `${siteUrl.replace(/\/$/, '')}/api/cron/publish`
     const response = await fetch(cronUrl, {
@@ -38,8 +43,6 @@ export default async (req: Request, context: Context) => {
       },
       signal: controller.signal,
     })
-
-    clearTimeout(timeoutId)
 
     const rawBody = await response.text()
     let parsed: unknown = null
@@ -63,20 +66,23 @@ export default async (req: Request, context: Context) => {
       bodyPreview: rawBody.slice(0, 500),
     }
 
-    return new Response(JSON.stringify(payload), {
-      status: response.status,
+    return {
+      statusCode: response.status,
       headers: { 'Content-Type': 'application/json' },
-    })
+      body: JSON.stringify(payload),
+    }
   } catch (error) {
     const isAbort = error instanceof Error && error.name === 'AbortError'
     console.error('[Netlify Cron] Error:', error)
-    return new Response(
-      JSON.stringify({ error: isAbort ? 'Cron request timed out' : 'Failed to trigger publish' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: isAbort ? 'Cron request timed out' : 'Failed to trigger publish',
+      }),
+    }
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 }
 

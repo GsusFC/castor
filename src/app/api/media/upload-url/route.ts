@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -8,6 +8,27 @@ export const runtime = 'nodejs'
 
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+
+const CLOUDFLARE_TIMEOUT_MS = 10_000
+
+const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit, timeoutMs: number) => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+const parseJsonOrNull = (text: string) => {
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return null
+  }
+}
 
 /**
  * POST /api/media/upload-url
@@ -93,57 +114,91 @@ export async function POST(request: NextRequest) {
       // Cloudflare Images Direct Upload
       const formData = new FormData()
       formData.append('requireSignedURLs', 'false')
-      formData.append('metadata', JSON.stringify({ fileName }))
 
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/images/v2/direct_upload`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
+      let response: Response
+      try {
+        response = await fetchWithTimeout(
+          `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/images/v2/direct_upload`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${CF_IMAGES_TOKEN}`,
+            },
+            body: formData,
           },
-          body: formData,
-        }
-      )
+          CLOUDFLARE_TIMEOUT_MS
+        )
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        console.error('[Upload URL] Cloudflare Images fetch failed:', message)
+        return ApiErrors.externalError('Cloudflare Images', { message })
+      }
 
-      const data = await response.json()
+      const responseText = await response.text()
+      const data = parseJsonOrNull(responseText) as any
 
-      if (!response.ok || !data.success) {
-        console.error('[Upload URL] Cloudflare Images failed:', response.status, data)
-        return ApiErrors.externalError('Cloudflare Images', data.errors)
+      if (!response.ok || !data?.success) {
+        console.error('[Upload URL] Cloudflare Images failed:', response.status, responseText.slice(0, 500))
+        return ApiErrors.externalError('Cloudflare Images', {
+          status: response.status,
+          body: responseText.slice(0, 500),
+        })
+      }
+
+      const uploadUrl = data?.result?.uploadURL
+      const cloudflareId = data?.result?.id
+
+      if (!uploadUrl || !cloudflareId) {
+        return ApiErrors.externalError('Cloudflare Images', {
+          status: response.status,
+          body: responseText.slice(0, 500),
+        })
       }
 
       return success({
         type: 'image',
-        uploadUrl: data.result.uploadURL,
-        id: data.result.id,
+        uploadUrl,
+        id: cloudflareId,
+        cloudflareId,
       })
 
     } else {
       console.log('[Upload URL] Requesting Video Upload URL...')
       // Cloudflare Stream Direct Upload
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${CF_IMAGES_TOKEN}`,
-            'Content-Type': 'application/json',
+      let response: Response
+      try {
+        response = await fetchWithTimeout(
+          `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${CF_IMAGES_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              maxDurationSeconds: 3600,
+              allowedOrigins: ['*'],
+              requireSignedURLs: false,
+              meta: { name: fileName },
+            }),
           },
-          body: JSON.stringify({
-            maxDurationSeconds: 3600,
-            allowedOrigins: ['*'],
-            requireSignedURLs: false,
-            meta: { name: fileName },
-          }),
-        }
-      )
+          CLOUDFLARE_TIMEOUT_MS
+        )
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        console.error('[Upload URL] Cloudflare Stream fetch failed:', message)
+        return ApiErrors.externalError('Cloudflare Stream', { message })
+      }
 
-      const data = await response.json()
+      const responseText = await response.text()
+      const data = parseJsonOrNull(responseText) as any
 
-      if (!response.ok || !data.success) {
-        console.error('[Upload URL] Cloudflare Stream failed:', response.status, data)
-        return ApiErrors.externalError('Cloudflare Stream', data?.errors?.[0]?.message || 'Unknown error')
+      if (!response.ok || !data?.success) {
+        console.error('[Upload URL] Cloudflare Stream failed:', response.status, responseText.slice(0, 500))
+        return ApiErrors.externalError('Cloudflare Stream', {
+          status: response.status,
+          body: responseText.slice(0, 500),
+        })
       }
 
       const uploadUrl = data.result?.uploadURL

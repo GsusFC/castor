@@ -44,10 +44,10 @@ interface ComposeModalProps {
   defaultReplyTo?: ReplyToCast | null // Cast al que se responde
 }
 
-export function ComposeModal({ 
-  open, 
-  onOpenChange, 
-  defaultAccountId, 
+export function ComposeModal({
+  open,
+  onOpenChange,
+  defaultAccountId,
   editCast,
   defaultContent,
   defaultEmbed,
@@ -117,19 +117,19 @@ export function ComposeModal({
           links: defaultEmbed ? [{ url: defaultEmbed }] : [],
         }])
       }, 50)
-      
+
       if (defaultChannelId) {
         setSelectedChannel({ id: defaultChannelId, name: defaultChannelId })
       }
-      
+
       // Cargar replyTo si viene de prop
       if (defaultReplyTo) {
         setReplyTo(defaultReplyTo)
       }
-      
+
       return () => clearTimeout(timeoutId)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultContent, defaultEmbed, defaultChannelId, defaultReplyTo])
 
   // Cargar datos del cast en modo edición
@@ -175,7 +175,7 @@ export function ComposeModal({
       media,
       links: [],
     }])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editCast])
 
   // Reset form
@@ -208,11 +208,11 @@ export function ComposeModal({
       const submitIdempotencyKey = submitIdempotencyKeyRef.current
 
       const scheduledAt = schedule.toISO()
-      if (!scheduledAt) throw new Error('Fecha inválida')
+      if (!scheduledAt) throw new Error('Invalid date')
 
       const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
-        throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
+        throw new Error('Please wait for uploads to finish or remove failed files')
       }
 
       if (thread.isThread) {
@@ -240,7 +240,7 @@ export function ComposeModal({
         })
 
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Error al programar thread')
+        if (!res.ok) throw new Error(data.error || 'Error scheduling thread')
       } else {
         const cast = thread.casts[0]
         const embeds = [
@@ -280,21 +280,21 @@ export function ComposeModal({
         })
 
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Error al programar')
+        if (!res.ok) throw new Error(data.error || 'Error scheduling cast')
       }
 
       const successMsg = isEditMode
-        ? 'Cast actualizado correctamente'
+        ? 'Cast updated successfully'
         : thread.isThread
-          ? 'Thread programado correctamente'
-          : 'Cast programado correctamente'
+          ? 'Thread scheduled successfully'
+          : 'Cast scheduled successfully'
       toast.success(successMsg)
       submitIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       setError(msg)
       toast.error(msg)
     } finally {
@@ -307,7 +307,7 @@ export function ComposeModal({
     setError(null)
 
     if (!selectedAccountId) {
-      toast.error('Selecciona una cuenta')
+      toast.error('Please select an account')
       return
     }
 
@@ -322,7 +322,7 @@ export function ComposeModal({
 
       const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
-        throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
+        throw new Error('Please wait for uploads to finish or remove failed files')
       }
 
       const cast = thread.casts[0]
@@ -353,15 +353,15 @@ export function ComposeModal({
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error al guardar borrador')
+      if (!res.ok) throw new Error(data.error || 'Error saving draft')
 
-      toast.success('Borrador guardado')
+      toast.success('Draft saved')
       saveDraftIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       setError(msg)
       toast.error(msg)
     } finally {
@@ -393,17 +393,17 @@ export function ComposeModal({
 
       const hasMediaErrors = thread.casts.some(c => c.media.some(m => m.error || m.uploading))
       if (hasMediaErrors) {
-        throw new Error('Por favor espera a que se suban todos los archivos o elimina los errores')
+        throw new Error('Please wait for uploads to finish or remove failed files')
       }
 
       console.log('[Publish] Cast media:', cast.media)
       console.log('[Publish] Cast links:', cast.links)
-      
+
       const embeds = [
         ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
         ...cast.links.map(l => ({ url: l.url })),
       ]
-      
+
       console.log('[Publish] Final embeds:', embeds)
 
       const res = await fetch('/api/casts/publish', {
@@ -420,15 +420,15 @@ export function ComposeModal({
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error al publicar')
+      if (!res.ok) throw new Error(data.error || 'Error publishing cast')
 
-      toast.success('Cast publicado!')
+      toast.success('Cast published!')
       publishNowIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       setError(msg)
       toast.error(msg)
     } finally {
@@ -447,17 +447,17 @@ export function ComposeModal({
     if (template.channelId) {
       setSelectedChannel({ id: template.channelId, name: template.channelId })
     }
-    toast.success(`Template "${template.name}" cargado`)
+    toast.success(`Template "${template.name}" loaded`)
   }
 
   // Guardar como template
   const handleSaveTemplate = async () => {
     if (!hasContent) {
-      toast.error('Necesitas contenido para guardar un template')
+      toast.error('You need content to save a template')
       return
     }
 
-    const name = prompt('Nombre del template:')
+    const name = prompt('Template name:')
     if (!name?.trim()) return
 
     const cast = thread.casts[0]
@@ -472,10 +472,10 @@ export function ComposeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-full p-0 gap-0 overflow-hidden flex flex-col fixed inset-0 translate-x-0 translate-y-0 rounded-none h-full md:inset-auto md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-auto md:max-h-[90dvh] md:rounded-lg [&>button]:hidden !duration-0 !animate-none data-[state=open]:!animate-none data-[state=closed]:!animate-none">
         <DialogTitle className="sr-only">
-          {isEditMode ? 'Editar Cast' : 'Nuevo Cast'}
+          {isEditMode ? 'Edit Cast' : 'New Cast'}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          {isEditMode ? 'Edita tu cast programado' : 'Crea y programa un nuevo cast para Farcaster'}
+          {isEditMode ? 'Edit your scheduled cast' : 'Create and schedule a new cast for Farcaster'}
         </DialogDescription>
 
         {/* Header móvil */}
@@ -486,10 +486,10 @@ export function ComposeModal({
             onClick={() => onOpenChange(false)}
             className="text-muted-foreground -ml-2 h-8"
           >
-            Cancelar
+            Cancel
           </Button>
           <span className="font-medium text-sm absolute left-1/2 -translate-x-1/2">
-            {isEditMode ? 'Editar Cast' : thread.isThread ? 'Nuevo Thread' : 'Nuevo Cast'}
+            {isEditMode ? 'Edit Cast' : thread.isThread ? 'New Thread' : 'New Cast'}
           </span>
           <div className="w-16" />
         </div>

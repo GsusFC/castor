@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image as ImageIcon, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { uploadMedia } from '@/lib/media-upload'
+import { ApiRequestError } from '@/lib/fetch-json'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
 import { PowerBadge } from '@/components/ui/PowerBadge'
@@ -230,7 +232,7 @@ export function CastCard({
         setReplyText(data.translation)
       }
     } catch (error) {
-      toast.error('Error al traducir')
+      toast.error('Translation error')
     } finally {
       setIsTranslatingReply(false)
     }
@@ -243,7 +245,7 @@ export function CastCard({
 
     // Validar tipo
     if (!file.type.startsWith('image/')) {
-      toast.error('Solo se permiten imágenes')
+      toast.error('Only images allowed')
       return
     }
 
@@ -252,43 +254,19 @@ export function CastCard({
     setReplyMedia({ preview, uploading: true })
 
     try {
-      // Obtener URL de subida
-      const urlRes = await fetch('/api/media/upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-        }),
-      })
-      const urlJson = await urlRes.json()
-      if (!urlRes.ok) throw new Error(urlJson.error || 'Error al obtener URL')
+      const result = await uploadMedia(file)
+      if (result.type !== 'image') throw new Error('Unexpected upload result')
 
-      const { uploadUrl, cloudflareId } = urlJson.data
-
-      // Subir imagen
-      const formData = new FormData()
-      formData.append('file', file)
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-      })
-      if (!uploadRes.ok) throw new Error('Error al subir imagen')
-
-      // Confirmar subida
-      const confirmRes = await fetch('/api/media/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cloudflareId, type: 'image' }),
-      })
-      const confirmJson = await confirmRes.json()
-      if (!confirmRes.ok) throw new Error(confirmJson.error || 'Error al confirmar')
-
-      setReplyMedia({ preview, url: confirmJson.data.url, uploading: false })
+      setReplyMedia({ preview, url: result.url, uploading: false })
     } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Error al subir imagen')
+      const errorMessage = error instanceof Error ? error.message : 'Error al subir imagen'
+      if (error instanceof ApiRequestError) {
+        console.warn('Upload error:', error)
+      } else {
+        console.error('Upload error:', error)
+      }
+
+      toast.error(errorMessage)
       setReplyMedia(null)
     }
 
@@ -306,12 +284,12 @@ export function CastCard({
   const handleSendReply = async () => {
     if ((!replyText.trim() && !replyMedia?.url) || isSendingReply) return
     if (replyMedia?.uploading) {
-      toast.error('Espera a que termine de subir la imagen')
+      toast.error('Please wait for upload to finish')
       return
     }
 
     if (!selectedAccountId) {
-      toast.error('Selecciona una cuenta para publicar')
+      toast.error('Select an account to publish')
       return
     }
 
@@ -337,7 +315,7 @@ export function CastCard({
 
       if (!res.ok) throw new Error('Error al publicar')
 
-      toast.success('Respuesta publicada')
+      toast.success('Reply published')
       setReplyText('')
       setReplyMedia(null)
       replyIdempotencyKeyRef.current = null
@@ -347,7 +325,7 @@ export function CastCard({
       const data = await repliesRes.json()
       setReplies(data.replies || [])
     } catch (error) {
-      toast.error('Error al publicar respuesta')
+      toast.error('Error publishing reply')
     } finally {
       setIsSendingReply(false)
     }
@@ -430,14 +408,14 @@ export function CastCard({
       onQuote(castUrl)
     } else {
       navigator.clipboard.writeText(castUrl)
-      toast.success('URL copiada. Pégala en el composer para citar.')
+      toast.success('URL copied. Paste it in composer to quote.')
     }
   }
 
   const handleDelete = async () => {
     if (!onDelete || isDeleting) return
 
-    if (!confirm('¿Estás seguro de que quieres eliminar este cast?')) return
+    if (!confirm('Are you sure you want to delete this cast?')) return
 
     setIsDeleting(true)
     try {
@@ -477,9 +455,9 @@ export function CastCard({
 
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Enlace copiado')
+      toast.success('Link copied')
     } catch {
-      toast.error('Error al copiar')
+      toast.error('Copy error')
     }
   }
 
@@ -721,7 +699,7 @@ export function CastCard({
           {showTranslation && (
             <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded animate-in fade-in zoom-in duration-300">
               <Globe className="w-3 h-3" />
-              <span>Traducido</span>
+              <span>Translated</span>
             </div>
           )}
 
@@ -754,9 +732,9 @@ export function CastCard({
               className="text-xs text-primary hover:underline mt-1 flex items-center gap-0.5"
             >
               {showFullText ? (
-                <>ver menos <ChevronUp className="w-3 h-3" /></>
+                <>show less <ChevronUp className="w-3 h-3" /></>
               ) : (
-                <>ver más <ChevronDown className="w-3 h-3" /></>
+                <>show more <ChevronDown className="w-3 h-3" /></>
               )}
             </button>
           )}
@@ -793,7 +771,7 @@ export function CastCard({
           const frameItems: FrameItem[] = frames
             .map((embed) => {
               const frameImage = embed.metadata?.frame?.image || embed.metadata?.html?.ogImage?.[0]?.url
-              const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Abrir Mini App'
+              const frameTitle = embed.metadata?.frame?.title || embed.metadata?.html?.ogTitle || 'Open Mini App'
               if (!frameImage || !embed.url) return null
               return { kind: 'frame' as const, url: embed.url, image: frameImage, title: frameTitle }
             })
@@ -1295,9 +1273,9 @@ export function CastCard({
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ castHash: reply.hash, reactionType: 'like' }),
                               })
-                              toast.success('Like añadido')
+                              toast.success('Like added')
                             } catch {
-                              toast.error('Error al dar like')
+                              toast.error('Error liking')
                             }
                           }}
                         >
@@ -1314,9 +1292,9 @@ export function CastCard({
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ castHash: reply.hash, reactionType: 'recast' }),
                               })
-                              toast.success('Recast añadido')
+                              toast.success('Recast added')
                             } catch {
-                              toast.error('Error al recastear')
+                              toast.error('Error recasting')
                             }
                           }}
                         >
@@ -1346,7 +1324,7 @@ export function CastCard({
                             e.stopPropagation()
                             const replyUrl = `https://farcaster.xyz/${reply.author?.username}/${reply.hash.slice(0, 10)}`
                             navigator.clipboard.writeText(replyUrl)
-                            toast.success('Enlace copiado')
+                            toast.success('Link copied')
                           }}
                         >
                           <Share className="w-4 h-4" />

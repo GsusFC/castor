@@ -44,9 +44,9 @@ export function MobileNavSearchSheet({
   const [activeTab, setActiveTab] = useState<'all' | 'users' | 'channels' | 'casts'>('all')
 
   const tabs = [
-    { id: 'all', label: 'Todo' },
-    { id: 'users', label: 'Usuarios' },
-    { id: 'channels', label: 'Canales' },
+    { id: 'all', label: 'All' },
+    { id: 'users', label: 'Users' },
+    { id: 'channels', label: 'Channels' },
     { id: 'casts', label: 'Casts' },
   ] as const
 
@@ -54,14 +54,14 @@ export function MobileNavSearchSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85dvh] flex flex-col p-0" aria-describedby={undefined}>
         <SheetHeader className="sr-only">
-          <SheetTitle>Buscar</SheetTitle>
+          <SheetTitle>Search</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2">
           {!searchQuery && (
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Search</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Usuarios, canales y casts
+                Users, channels and casts
               </p>
             </div>
           )}
@@ -77,7 +77,7 @@ export function MobileNavSearchSheet({
             searchResults.channels.length === 0 &&
             searchResults.casts.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                No se encontraron resultados
+                No results found
               </div>
             )}
 
@@ -89,7 +89,7 @@ export function MobileNavSearchSheet({
                   {activeTab === 'all' && (
                     <div className="flex items-center gap-2 mb-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Usuarios</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Users</p>
                       <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
@@ -127,7 +127,7 @@ export function MobileNavSearchSheet({
                   {activeTab === 'all' && (
                     <div className="flex items-center gap-2 mb-2">
                       <Hash className="w-4 h-4 text-muted-foreground" />
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Canales</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Channels</p>
                       <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
@@ -172,7 +172,7 @@ export function MobileNavSearchSheet({
                                 })
                               }}
                               className="p-2 hover:bg-muted rounded-full transition-colors"
-                              aria-label={isFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                              aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
                             >
                               <Star className={cn('w-4 h-4', isFav ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground')} />
                             </button>
@@ -244,7 +244,7 @@ export function MobileNavSearchSheet({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               autoFocus
@@ -254,7 +254,7 @@ export function MobileNavSearchSheet({
               <button
                 onClick={() => onSearchQueryChange('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
-                aria-label="Limpiar búsqueda"
+                aria-label="Clear search"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>

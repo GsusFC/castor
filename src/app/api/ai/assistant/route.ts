@@ -51,6 +51,10 @@ export async function POST(request: NextRequest) {
       accountId?: string
     }
 
+    if (!accountId?.trim()) {
+      return NextResponse.json({ error: 'Account ID required' }, { status: 400 })
+    }
+
     if (!mode || !['write', 'improve', 'translate'].includes(mode)) {
       return NextResponse.json(
         { error: 'Invalid mode. Use: write, improve, or translate' },

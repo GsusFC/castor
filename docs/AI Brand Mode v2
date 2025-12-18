@@ -1,5 +1,42 @@
 AI Brand Mode
 Brand Context Global — Visión y Diseño (v2)
+
+TL;DR (MVP v1)
+1) IA generativa siempre trabaja con `accountId` (nunca inferido).
+2) Si el usuario está en “All accounts” (sin cuenta seleccionada): bloquear IA y pedir selección inline.
+3) Brand Mode se considera:
+   - ON si `brandVoice` existe y no está vacío.
+   - OFF si no.
+   OFF no significa “IA desactivada”: significa “outputs más genéricos” + CTA a completar contexto.
+4) Traducción:
+   - Translate literal del cast: no IA, no brand voice.
+   - Translate con voz (assistant): IA generativa + brand-aware.
+
+Comportamiento cuando Brand Mode está OFF (v1)
+- La IA generativa sigue disponible (si hay cuenta seleccionada), pero:
+  - no aplica `brandVoice`.
+  - puede sonar “genérica”.
+- UX: mostrar banner/notice con CTA a `/accounts/[id]/context`.
+
+Limitaciones y garantías (sin promesas mágicas)
+- Sin RAG (retrieval), “No inventar facts” es un objetivo, no una garantía.
+- Mitigación práctica v1:
+  - Instruir al modelo a ser conservador en claims y cifras.
+  - Si falta información, preferir redacción neutral o pedir contexto (en vez de inventar).
+- `account_documents` mejora fidelidad, pero si solo hay `documents_summary`:
+  - cubre “qué se puede decir” parcialmente y no sustituye fuentes completas.
+
+Presupuesto de latencia/coste (para que esto sea deployable)
+- Compose / AI Reply:
+  - objetivo UX: respuesta percibida rápida (p.ej. <3s en la mayoría de casos).
+  - evitar prompts gigantes; preferir `brandVoice` breve + reglas.
+- Analytics:
+  - puede tolerar más latencia; priorizar caché y resultados persistidos.
+- Cache recomendado:
+  - cachear `AccountContext` por `accountId` (KB) para no consultar DB en cada request.
+  - `documents_summary` debe precomputarse y persistirse (no generarse en cada request).
+  - `brand_voice_history` en JSONB array es válido para v1 (máx 10), pero no es “final”: si crece, migrar a tabla dedicada.
+
 Objetivo
 Habilitar que todas las features de IA generativa de Castor produzcan outputs consistentes con la voz de marca de una cuenta (brand voice) y sus reglas, sin exponer prompts editables a usuarios finales.
 Principios

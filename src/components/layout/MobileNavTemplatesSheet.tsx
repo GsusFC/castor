@@ -44,9 +44,9 @@ export function MobileNavTemplatesSheet({
         </div>
         <div className="space-y-2 max-h-[50dvh] overflow-y-auto">
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-6">Cargando...</p>
+            <p className="text-center text-muted-foreground py-6">Loading...</p>
           ) : templates.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">No hay templates</p>
+            <p className="text-center text-muted-foreground py-6">No templates</p>
           ) : (
             templates.map((template) => (
               <div
@@ -66,7 +66,7 @@ export function MobileNavTemplatesSheet({
                 <button
                   onClick={(e) => onDeleteTemplate(e, template.id)}
                   className="p-1 text-destructive hover:bg-destructive/10 rounded shrink-0"
-                  aria-label="Eliminar template"
+                  aria-label="Delete template"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

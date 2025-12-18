@@ -73,6 +73,33 @@ describe('/api/ai/assistant', () => {
     expect(castorAIMock.generateSuggestions).not.toHaveBeenCalled()
   })
 
+  it('returns 400 when accountId is missing', async () => {
+    getSessionMock.mockResolvedValueOnce({
+      userId: 'u1',
+      fid: 1,
+      role: 'member',
+      username: 'alice',
+      displayName: 'Alice',
+      pfpUrl: 'https://example.com/pfp.png',
+    })
+
+    const req = {
+      json: async () => ({ mode: 'write', targetLanguage: 'en' }),
+    } as any
+
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(String(body.error)).toContain('Account ID required')
+
+    expect(castorAIMock.getOrCreateProfile).not.toHaveBeenCalled()
+    expect(dbMock.query.accounts.findFirst).not.toHaveBeenCalled()
+    expect(dbMock.query.accountMembers.findFirst).not.toHaveBeenCalled()
+    expect(castorAIMock.getAccountContext).not.toHaveBeenCalled()
+    expect(castorAIMock.generateSuggestions).not.toHaveBeenCalled()
+  })
+
   it('returns 403 when accountId is provided but not accessible', async () => {
     getSessionMock.mockResolvedValueOnce({
       userId: 'u1',
@@ -128,7 +155,7 @@ describe('/api/ai/assistant', () => {
     })
 
     const req = {
-      json: async () => ({ mode: 'write', targetLanguage: 'xx' }),
+      json: async () => ({ mode: 'write', accountId: 'acc-1', targetLanguage: 'xx' }),
     } as any
 
     const res = await POST(req)
@@ -152,7 +179,7 @@ describe('/api/ai/assistant', () => {
     })
 
     const req = {
-      json: async () => ({ mode: 'translate', draft: 'hola' }),
+      json: async () => ({ mode: 'translate', accountId: 'acc-1', draft: 'hola' }),
     } as any
 
     const res = await POST(req)
@@ -191,11 +218,16 @@ describe('/api/ai/assistant', () => {
 
     castorAIMock.generateSuggestions.mockResolvedValueOnce(['hola', 'adios', 'buenas'])
 
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u1' })
+    dbMock.query.accountMembers.findFirst.mockResolvedValueOnce(null)
+    castorAIMock.getAccountContext.mockResolvedValueOnce(null)
+
     const req = {
       json: async () => ({
         mode: 'write',
         targetTone: 'casual',
         targetLanguage: 'es',
+        accountId: 'acc-1',
       }),
     } as any
 
@@ -215,8 +247,9 @@ describe('/api/ai/assistant', () => {
     expect(s0.targetTone).toBe('casual')
     expect(s0.targetLanguage).toBe('es')
 
-    expect(dbMock.query.accounts.findFirst).not.toHaveBeenCalled()
-    expect(dbMock.query.accountMembers.findFirst).not.toHaveBeenCalled()
+    expect(dbMock.query.accounts.findFirst).toHaveBeenCalledTimes(1)
+    expect(dbMock.query.accountMembers.findFirst).toHaveBeenCalledTimes(1)
+    expect(castorAIMock.getAccountContext).toHaveBeenCalledTimes(1)
   })
 
   it('returns 502 with code/message when AI response is invalid', async () => {
@@ -247,10 +280,15 @@ describe('/api/ai/assistant', () => {
       new Error('Invalid AI response: expected suggestions array')
     )
 
+    dbMock.query.accounts.findFirst.mockResolvedValueOnce({ ownerId: 'u1' })
+    dbMock.query.accountMembers.findFirst.mockResolvedValueOnce(null)
+    castorAIMock.getAccountContext.mockResolvedValueOnce(null)
+
     const req = {
       json: async () => ({
         mode: 'write',
         targetLanguage: 'en',
+        accountId: 'acc-1',
       }),
     } as any
 

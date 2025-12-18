@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Image, Smile, Save, Send, LayoutTemplate, Plus, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import {
   Popover,
   PopoverContent,
@@ -11,6 +12,8 @@ import {
 import { CastItem, MediaFile } from './types'
 import { GifPicker } from './GifPicker'
 import { TemplateDropdown } from './TemplateDropdown'
+import { uploadMedia } from '@/lib/media-upload'
+import { ApiRequestError } from '@/lib/fetch-json'
 
 const EMOJI_LIST = [
   '😀', '😂', '🥹', '😍', '🤩', '😎', '🤔', '😅', '🙌', '👏',
@@ -84,7 +87,7 @@ export function ComposeFooter({
 
   // Polling para videos pendientes
   useEffect(() => {
-    const pendingVideos = casts.flatMap((c, castIdx) => 
+    const pendingVideos = casts.flatMap((c, castIdx) =>
       c.media
         .map((m, mediaIdx) => ({ ...m, castIdx, mediaIdx }))
         .filter(m => m.type === 'video' && m.cloudflareId && m.videoStatus === 'pending')
@@ -102,23 +105,23 @@ export function ComposeFooter({
             body: JSON.stringify({ cloudflareId: video.cloudflareId, type: 'video' }),
           })
           if (!res.ok) continue
-          
+
           const { data } = await res.json()
           console.log('[Video Poll] Status for', video.cloudflareId, ':', data.videoStatus, data.url)
-          
+
           if (data.videoStatus === 'ready' && data.url) {
             const cast = castsRef.current[video.castIdx]
             if (!cast) continue
-            
-            const updatedMedia = cast.media.map((m, idx) => 
-              idx === video.mediaIdx 
-                ? { 
-                    ...m, 
-                    url: data.url, 
-                    videoStatus: 'ready' as const,
-                    width: data.width || undefined,
-                    height: data.height || undefined,
-                  }
+
+            const updatedMedia = cast.media.map((m, idx) =>
+              idx === video.mediaIdx
+                ? {
+                  ...m,
+                  url: data.url,
+                  videoStatus: 'ready' as const,
+                  width: data.width || undefined,
+                  height: data.height || undefined,
+                }
                 : m
             )
             console.log('[Video Poll] Video ready! Updating media')
@@ -164,111 +167,28 @@ export function ComposeFooter({
       if (!mediaItem.file) continue
       try {
         const file = mediaItem.file
-        const isVideo = file.type.startsWith('video/')
+        const result = await uploadMedia(file)
 
-        if (isVideo) {
+        if (result.type === 'video') {
           // Video upload to Cloudflare Stream
-          const urlRes = await fetch('/api/media/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-            }),
-          })
-          const urlJson = await urlRes.json()
-          if (!urlRes.ok) throw new Error(urlJson.error || 'Failed to get upload URL')
-
-          const { uploadUrl, cloudflareId } = urlJson.data
-
-          // Direct upload usando FormData (HTTP simple, sin TUS)
-          console.log('[Upload] Starting video upload to:', uploadUrl)
-          const videoFormData = new FormData()
-          videoFormData.append('file', file)
-          
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
-            body: videoFormData,
-          })
-          console.log('[Upload] Video upload response:', uploadRes.status, uploadRes.ok)
-          if (!uploadRes.ok) {
-            const errorText = await uploadRes.text()
-            console.error('[Upload] Video upload error:', errorText)
-            throw new Error('Video upload failed')
-          }
-
-          console.log('[Upload] Confirming video:', cloudflareId)
-          const confirmRes = await fetch('/api/media/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cloudflareId, type: 'video' }),
-          })
-          const confirmJson = await confirmRes.json()
-          console.log('[Upload] Confirm response:', confirmRes.status, confirmJson)
-          if (!confirmRes.ok) throw new Error(confirmJson.error || 'Failed to confirm upload')
-
-          const data = confirmJson.data
-          console.log('[Upload] Video confirmed:', {
-            url: data.url,
-            cloudflareId: data.cloudflareId || cloudflareId,
-            videoStatus: data.videoStatus,
-            hlsUrl: data.hlsUrl,
-            mp4Url: data.mp4Url,
-          })
-
           currentMedia = currentMedia.map(m =>
             m.preview === mediaItem.preview
               ? {
-                  ...m,
-                  url: data.url,
-                  uploading: false,
-                  cloudflareId: data.cloudflareId || cloudflareId,
-                  videoStatus: data.videoStatus || 'pending',
-                  width: data.width || undefined,
-                  height: data.height || undefined,
-                }
+                ...m,
+                url: result.url,
+                uploading: false,
+                cloudflareId: result.cloudflareId,
+                videoStatus: result.videoStatus || 'pending',
+                width: typeof result.width === 'number' ? result.width : undefined,
+                height: typeof result.height === 'number' ? result.height : undefined,
+              }
               : m
           )
-          console.log('[Upload] Updated media array:', currentMedia)
         } else {
           // Image upload to Cloudflare Images
-          const urlRes = await fetch('/api/media/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-            }),
-          })
-          const urlJson = await urlRes.json()
-          console.log('[Upload] Response:', urlRes.status, urlJson)
-          if (!urlRes.ok) throw new Error(urlJson.error || `Failed to get upload URL (${urlRes.status})`)
-
-          const { uploadUrl, id, cloudflareId } = urlJson.data
-
-          const formData = new FormData()
-          formData.append('file', file)
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
-          })
-          if (!uploadRes.ok) throw new Error('Image upload failed')
-
-          const confirmRes = await fetch('/api/media/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cloudflareId: cloudflareId || id, type: 'image' }),
-          })
-          const confirmJson = await confirmRes.json()
-          if (!confirmRes.ok) throw new Error(confirmJson.error || 'Failed to confirm upload')
-
-          const data = confirmJson.data
-
           currentMedia = currentMedia.map(m =>
             m.preview === mediaItem.preview
-              ? { ...m, url: data.url, uploading: false, cloudflareId: data.cloudflareId }
+              ? { ...m, url: result.url, uploading: false, cloudflareId: result.cloudflareId }
               : m
           )
         }
@@ -276,9 +196,16 @@ export function ComposeFooter({
         const latestCast = castsRef.current[0]
         onUpdateCast(0, { ...latestCast, media: currentMedia })
       } catch (err) {
-        console.error('[Upload] Error:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Error'
+        if (err instanceof ApiRequestError) {
+          console.warn('[Upload] Error:', err)
+        } else {
+          console.error('[Upload] Error:', err)
+        }
+
+        toast.error(errorMessage)
         currentMedia = currentMedia.map(m =>
-          m.preview === mediaItem.preview ? { ...m, uploading: false, error: 'Error' } : m
+          m.preview === mediaItem.preview ? { ...m, uploading: false, error: errorMessage } : m
         )
         const latestCast = castsRef.current[0]
         onUpdateCast(0, { ...latestCast, media: currentMedia })
@@ -322,7 +249,7 @@ export function ComposeFooter({
     !isSavingDraft
 
   // Verificar si hay media subiendo o videos pendientes
-  const hasMediaIssues = casts.some(c => 
+  const hasMediaIssues = casts.some(c =>
     c.media.some(m => m.uploading || m.error || m.videoStatus === 'pending')
   )
 
@@ -348,7 +275,7 @@ export function ComposeFooter({
         multiple
         onChange={handleFileSelect}
         className="hidden"
-        aria-label="Subir imagen o video"
+        aria-label="Upload image or video"
       />
 
       {/* Media button */}
@@ -404,7 +331,7 @@ export function ComposeFooter({
                 type="button"
                 onClick={() => insertEmoji(emoji)}
                 className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded text-lg transition-colors"
-                aria-label={`Insertar ${emoji}`}
+                aria-label={`Insert ${emoji}`}
               >
                 {emoji}
               </button>

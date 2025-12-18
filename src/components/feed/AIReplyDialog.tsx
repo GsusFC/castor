@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import { RefreshCw, Send, Sparkles, Globe, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Dialog,
@@ -62,7 +63,8 @@ export function AIReplyDialog({
   onPublish,
   maxChars = 1024,
 }: AIReplyDialogProps) {
-  const { selectedAccountId } = useSelectedAccount()
+  const { selectedAccountId, setSelectedAccountId } = useSelectedAccount()
+  const lastGeneratedAccountIdRef = useRef<string | null>(null)
   const [tone, setTone] = useState('friendly')
   const [language, setLanguage] = useState('en')
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
@@ -71,6 +73,66 @@ export function AIReplyDialog({
   const [replyText, setReplyText] = useState('')
   const [isTranslatingReply, setIsTranslatingReply] = useState(false)
   const [showFullText, setShowFullText] = useState(false)
+  const [accounts, setAccounts] = useState<Array<{ id: string; username: string; pfpUrl?: string | null }>>([])
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
+  const [accountsError, setAccountsError] = useState<string | null>(null)
+  const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    if (selectedAccountId) return
+
+    let isActive = true
+    const loadAccounts = async () => {
+      setIsLoadingAccounts(true)
+      setAccountsError(null)
+      try {
+        const res = await fetch('/api/accounts')
+        const data = res.ok ? await res.json() : null
+        const nextAccounts = (data?.accounts as Array<{ id: string; username: string; pfpUrl?: string | null }> | undefined) ?? []
+        if (!isActive) return
+        setAccounts(nextAccounts)
+      } catch (err) {
+        if (!isActive) return
+        setAccountsError(err instanceof Error ? err.message : 'No se pudieron cargar las cuentas')
+      } finally {
+        if (!isActive) return
+        setIsLoadingAccounts(false)
+      }
+    }
+
+    loadAccounts()
+    return () => {
+      isActive = false
+    }
+  }, [open, selectedAccountId])
+
+  useEffect(() => {
+    if (!open) return
+    if (!selectedAccountId) {
+      setIsBrandModeOn(null)
+      return
+    }
+
+    let isActive = true
+    const loadBrandMode = async () => {
+      try {
+        const res = await fetch(`/api/accounts/${selectedAccountId}/context`)
+        const data = res.ok ? await res.json() : null
+        const brandVoice = (data?.knowledgeBase?.brandVoice as string | undefined) ?? ''
+        if (!isActive) return
+        setIsBrandModeOn(brandVoice.trim().length > 0)
+      } catch {
+        if (!isActive) return
+        setIsBrandModeOn(false)
+      }
+    }
+
+    loadBrandMode()
+    return () => {
+      isActive = false
+    }
+  }, [open, selectedAccountId])
 
   const translateReply = async () => {
     if (!replyText.trim()) return
@@ -99,6 +161,10 @@ export function AIReplyDialog({
 
   const generateSuggestions = async (selectedTone?: string, selectedLanguage?: string) => {
     if (!cast) return
+    if (!selectedAccountId) {
+      setError('Selecciona una cuenta para usar IA')
+      return
+    }
 
     const toneToUse = selectedTone || tone
     const languageToUse = selectedLanguage || language
@@ -119,7 +185,7 @@ export function AIReplyDialog({
           targetTone: toneToUse,
           targetLanguage: languageToUse,
           isPro: false,
-          accountId: selectedAccountId || undefined,
+          accountId: selectedAccountId,
         }),
       })
       const data = await res.json()
@@ -156,6 +222,19 @@ export function AIReplyDialog({
     generateSuggestions(undefined, newLanguage)
   }
 
+  useEffect(() => {
+    if (!open) return
+    if (!cast) return
+    if (!selectedAccountId) return
+    if (isLoading) return
+    if (suggestions.length > 0) return
+    if (lastGeneratedAccountIdRef.current === selectedAccountId) return
+
+    lastGeneratedAccountIdRef.current = selectedAccountId
+    setError(null)
+    generateSuggestions()
+  }, [open, cast, selectedAccountId, isLoading, suggestions.length])
+
   const handlePublish = () => {
     if (replyText && cast) {
       onPublish?.(replyText, cast.hash)
@@ -173,7 +252,12 @@ export function AIReplyDialog({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && cast) {
-      generateSuggestions()
+      if (selectedAccountId) {
+        generateSuggestions()
+      } else {
+        setSuggestions([])
+        setError('Selecciona una cuenta para usar IA')
+      }
     } else if (!newOpen) {
       resetState()
     }
@@ -203,6 +287,59 @@ export function AIReplyDialog({
         </DialogHeader>
 
         <div className="px-5 pb-5 space-y-4">
+          {!selectedAccountId && (
+            <div className="p-3 bg-muted/30 rounded-lg border border-border/50 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Para usar IA necesitas seleccionar una cuenta.
+              </p>
+              {accountsError ? (
+                <p className="text-sm text-destructive">{accountsError}</p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {isLoadingAccounts ? (
+                  <div className="text-sm text-muted-foreground">Cargando cuentas...</div>
+                ) : accounts.length > 0 ? (
+                  accounts.map((account) => (
+                    <button
+                      key={account.id}
+                      type="button"
+                      onClick={() => setSelectedAccountId(account.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full border border-border bg-background hover:bg-muted/50 transition-colors"
+                      aria-label={`Seleccionar cuenta @${account.username}`}
+                    >
+                      {account.pfpUrl ? (
+                        <img
+                          src={account.pfpUrl}
+                          alt=""
+                          className="w-5 h-5 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-muted" />
+                      )}
+                      <span className="text-sm font-medium">@{account.username}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No hay cuentas disponibles</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedAccountId && isBrandModeOn === false && (
+            <div className="p-3 bg-muted/30 rounded-lg border border-border/50 flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">
+                Activa AI Brand Mode completando tu Brand Voice.
+              </p>
+              <Link
+                href={`/accounts/${selectedAccountId}/context`}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Completar contexto
+              </Link>
+            </div>
+          )}
+
           {/* Cast original - Colapsado */}
           <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
             <div className="flex items-start gap-2">

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BarChart3, Heart, Repeat2, MessageCircle, TrendingUp, Loader2, Calendar, Download, Sparkles, Clock, CalendarDays, Lightbulb, Send, MessageSquare, RefreshCw } from 'lucide-react'
@@ -7,6 +8,8 @@ import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
+
+import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 type PeriodFilter = 7 | 30 | 90
 
@@ -16,11 +19,12 @@ interface ChatMessage {
 }
 
 export default function AnalyticsPage() {
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
+  const { selectedAccountId: selectedAccount, setSelectedAccountId } = useSelectedAccount()
   const [period, setPeriod] = useState<PeriodFilter>(30)
   const [chatInput, setChatInput] = useState('')
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
   const [forceRefreshInsights, setForceRefreshInsights] = useState(false)
+  const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
   const queryClient = useQueryClient()
 
   // Limpiar historial de chat cuando cambia la cuenta
@@ -28,6 +32,32 @@ export default function AnalyticsPage() {
     setChatHistory([])
     setChatInput('')
     setForceRefreshInsights(false)
+  }, [selectedAccount])
+
+  useEffect(() => {
+    if (!selectedAccount) {
+      setIsBrandModeOn(null)
+      return
+    }
+
+    let isActive = true
+    const loadBrandMode = async () => {
+      try {
+        const res = await fetch(`/api/accounts/${selectedAccount}/context`)
+        const data = res.ok ? await res.json() : null
+        const brandVoice = (data?.knowledgeBase?.brandVoice as string | undefined) ?? ''
+        if (!isActive) return
+        setIsBrandModeOn(brandVoice.trim().length > 0)
+      } catch {
+        if (!isActive) return
+        setIsBrandModeOn(false)
+      }
+    }
+
+    loadBrandMode()
+    return () => {
+      isActive = false
+    }
   }, [selectedAccount])
 
   // Backfill mutation - importa de la cuenta seleccionada o la primera disponible
@@ -93,10 +123,16 @@ export default function AnalyticsPage() {
   // Chat mutation
   const chatMutation = useMutation({
     mutationFn: async (question: string) => {
+      const accountId = selectedAccount
+      if (!accountId) {
+        throw new Error('Selecciona una cuenta para usar AI Analytics')
+      }
+
       const res = await fetch('/api/analytics/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          accountId,
           question,
           insights: insightsQuery.data?.insights || {},
           stats: insightsQuery.data?.stats || { totalCasts: 0, avgEngagement: 0 },
@@ -195,7 +231,7 @@ export default function AnalyticsPage() {
                   </h2>
                   {selectedAccount && (
                     <button
-                      onClick={() => setSelectedAccount(null)}
+                      onClick={() => setSelectedAccountId(null)}
                       className="text-xs text-primary hover:underline"
                     >
                       Ver todas
@@ -208,7 +244,7 @@ export default function AnalyticsPage() {
                     return (
                       <button
                         key={account.id}
-                        onClick={() => setSelectedAccount(isSelected ? null : account.id)}
+                        onClick={() => setSelectedAccountId(isSelected ? null : account.id)}
                         className={cn(
                           "flex items-center gap-3 p-3 rounded-lg text-left transition-all",
                           isSelected
@@ -277,6 +313,20 @@ export default function AnalyticsPage() {
             {/* AI Chat - Siempre visible cuando hay cuenta seleccionada */}
             {selectedAccount && (
               <div className="flex flex-col gap-3 flex-1 min-h-0">
+                {isBrandModeOn === false && (
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Activa AI Brand Mode completando tu Brand Voice.
+                    </p>
+                    <Link
+                      href={`/accounts/${selectedAccount}/context`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Completar contexto
+                    </Link>
+                  </div>
+                )}
+
                 {/* Burbuja de mensajes */}
                 <div className="rounded-xl border border-border overflow-hidden flex flex-col flex-1 min-h-0 bg-card">
                   {/* Header */}
@@ -436,6 +486,12 @@ export default function AnalyticsPage() {
                     </button>
                   </form>
                 </div>
+              </div>
+            )}
+
+            {!selectedAccount && (
+              <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                Selecciona una cuenta para usar AI Analytics.
               </div>
             )}
           </>

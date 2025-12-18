@@ -45,9 +45,9 @@ export function MobileNavDraftsSheet({
         </div>
         <div className="space-y-2 max-h-[50dvh] overflow-y-auto">
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-6">Cargando...</p>
+            <p className="text-center text-muted-foreground py-6">Loading...</p>
           ) : drafts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">No hay borradores</p>
+            <p className="text-center text-muted-foreground py-6">No drafts</p>
           ) : (
             drafts.map((draft) => (
               <div
@@ -64,14 +64,14 @@ export function MobileNavDraftsSheet({
                     <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
                   )}
                   <p className="flex-1 min-w-0 text-sm truncate">
-                    {draft.content || <span className="text-muted-foreground italic">Sin contenido</span>}
+                    {draft.content || <span className="text-muted-foreground italic">Empty</span>}
                   </p>
                   <Edit className="w-4 h-4 text-muted-foreground shrink-0" />
                 </button>
                 <button
                   onClick={(e) => onDeleteDraft(e, draft.id)}
                   className="p-1 text-destructive hover:bg-destructive/10 rounded shrink-0"
-                  aria-label="Eliminar borrador"
+                  aria-label="Delete draft"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

@@ -30,7 +30,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
   const [status, setStatus] = useState<Status>('idle')
   const [signerData, setSignerData] = useState<SignerData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  
+
   const hasCreatedSigner = useRef(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -40,13 +40,13 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
       console.error('[ConnectModal] startPolling called with empty uuid!')
       return
     }
-    
+
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
     }
-    
+
     console.log('[ConnectModal] Starting polling for:', uuid)
-    
+
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch('/api/accounts/check-signer', {
@@ -107,11 +107,11 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
 
         const response = await res.json()
         const data = response.data || response
-        
+
         if (!data.signerUuid) {
           throw new Error('No signerUuid in response')
         }
-        
+
         setSignerData({
           signerUuid: data.signerUuid,
           publicKey: data.publicKey,
@@ -121,14 +121,14 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
         startPolling(data.signerUuid)
       } catch (err) {
         console.error('[ConnectModal] Error:', err)
-        setError(err instanceof Error ? err.message : 'Error desconocido')
+        setError(err instanceof Error ? err.message : 'Unknown error')
         setStatus('error')
         hasCreatedSigner.current = false
       }
     }
 
     createSigner()
-    
+
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
@@ -139,7 +139,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
   // Callback cuando se aprueba
   useEffect(() => {
     if (status !== 'approved') return
-    
+
     const timer = setTimeout(() => {
       onSuccess?.()
       onOpenChange(false)
@@ -163,9 +163,9 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Conectar cuenta de Farcaster</DialogTitle>
+          <DialogTitle>Connect Farcaster account</DialogTitle>
           <DialogDescription>
-            Escanea el código QR con la app de Farcaster
+            Scan the QR code with the Farcaster app
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +173,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
           {status === 'loading' && (
             <div className="text-center py-8">
               <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground text-sm">Generando código QR...</p>
+              <p className="text-muted-foreground text-sm">Generating QR code...</p>
             </div>
           )}
 
@@ -193,22 +193,22 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
               <div className="space-y-2 mb-4 text-left">
                 <div className="flex items-center gap-3 p-2.5 bg-muted rounded-lg text-sm">
                   <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">1</div>
-                  <p>Abre Farcaster en tu móvil</p>
+                  <p>Open Farcaster on your phone</p>
                 </div>
                 <div className="flex items-center gap-3 p-2.5 bg-muted rounded-lg text-sm">
                   <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">2</div>
-                  <p>Ve a Configuración → Apps conectadas</p>
+                  <p>Go to Settings → Connected apps</p>
                 </div>
                 <div className="flex items-center gap-3 p-2.5 bg-muted rounded-lg text-sm">
                   <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">3</div>
-                  <p>Escanea este código QR</p>
+                  <p>Scan this QR code</p>
                 </div>
               </div>
 
               {/* Status */}
               <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm mb-4">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Esperando aprobación...</span>
+                <span>Waiting for approval...</span>
               </div>
 
               {/* Mobile link */}
@@ -216,7 +216,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
                 <Button variant="outline" size="sm" asChild>
                   <a href={signerData.deepLinkUrl}>
                     <Smartphone className="w-4 h-4 mr-2" />
-                    Abrir en Farcaster
+                    Open in Farcaster
                   </a>
                 </Button>
               </div>
@@ -228,8 +228,8 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
               <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-7 h-7 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold mb-1">¡Cuenta conectada!</h3>
-              <p className="text-muted-foreground text-sm">Redirigiendo...</p>
+              <h3 className="text-lg font-semibold mb-1">Account connected!</h3>
+              <p className="text-muted-foreground text-sm">Redirecting...</p>
             </div>
           )}
 
@@ -242,7 +242,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
               <p className="text-muted-foreground text-sm mb-4">{error}</p>
               <Button onClick={handleRetry} variant="outline" size="sm">
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Reintentar
+                Retry
               </Button>
             </div>
           )}

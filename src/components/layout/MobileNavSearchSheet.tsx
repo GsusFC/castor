@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import { Hash, Loader2, Search, Star, User, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PowerBadge } from '@/components/ui/PowerBadge'
@@ -39,6 +41,15 @@ export function MobileNavSearchSheet({
   onSelectUser,
   onSelectChannel,
 }: MobileNavSearchSheetProps) {
+  const [activeTab, setActiveTab] = useState<'all' | 'users' | 'channels' | 'casts'>('all')
+
+  const tabs = [
+    { id: 'all', label: 'Todo' },
+    { id: 'users', label: 'Usuarios' },
+    { id: 'channels', label: 'Canales' },
+    { id: 'casts', label: 'Casts' },
+  ] as const
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85dvh] flex flex-col p-0" aria-describedby={undefined}>
@@ -65,55 +76,61 @@ export function MobileNavSearchSheet({
             searchResults.users.length === 0 &&
             searchResults.channels.length === 0 &&
             searchResults.casts.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              No se encontraron resultados
-            </div>
-          )}
+              <div className="text-center py-12 text-muted-foreground">
+                No se encontraron resultados
+              </div>
+            )}
 
           {!isSearching && (searchResults.users.length > 0 || searchResults.channels.length > 0 || searchResults.casts.length > 0) && (
-            <div className="space-y-6">
-              {searchResults.users.length > 0 && (
+            <div className="space-y-6 pb-4">
+              {/* Users */}
+              {(activeTab === 'all' || activeTab === 'users') && searchResults.users.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Usuarios</p>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
+                  {activeTab === 'all' && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Usuarios</p>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     {searchResults.users.map((user: any) => (
                       <button
                         key={user.fid}
                         onClick={() => onSelectUser(user.username)}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
                       >
                         {user.pfp_url ? (
-                          <img src={user.pfp_url} alt="" className="w-10 h-10 rounded-full" />
+                          <img src={user.pfp_url} alt="" className="w-10 h-10 rounded-full object-cover bg-muted" />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                             <User className="w-5 h-5 text-muted-foreground" />
                           </div>
                         )}
-                        <div className="flex-1 text-left min-w-0">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm truncate">{user.display_name}</span>
                             {user.power_badge && <PowerBadge size={14} />}
                           </div>
-                          <span className="text-xs text-muted-foreground">@{user.username}</span>
+                          <span className="text-xs text-muted-foreground truncate block">@{user.username}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0">{user.follower_count?.toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{user.follower_count?.toLocaleString()}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {searchResults.channels.length > 0 && (
+              {/* Channels */}
+              {(activeTab === 'all' || activeTab === 'channels') && searchResults.channels.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Hash className="w-4 h-4 text-muted-foreground" />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Canales</p>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
+                  {activeTab === 'all' && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <Hash className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Canales</p>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     {searchResults.channels.map((channel: any) => {
                       const isFav = favorites.some(f => f.id === channel.id)
@@ -121,39 +138,45 @@ export function MobileNavSearchSheet({
                       return (
                         <div
                           key={channel.id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                          className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors w-full overflow-hidden"
                         >
                           <button
                             onClick={() => onSelectChannel(channel.id)}
-                            className="flex-1 flex items-center gap-3 text-left"
+                            className="flex-1 flex items-center gap-3 text-left min-w-0"
                           >
                             {channel.image_url ? (
-                              <img src={channel.image_url} alt="" className="w-10 h-10 rounded-lg" />
+                              <img src={channel.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-muted shrink-0" />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                                 <Hash className="w-5 h-5 text-primary" />
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <span className="font-medium text-sm">/{channel.name || channel.id}</span>
+                              <span className="font-medium text-sm truncate block">/{channel.name || channel.id}</span>
                               {channel.description && (
                                 <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground shrink-0">{channel.follower_count?.toLocaleString()}</span>
                           </button>
-                          <button
-                            onClick={() => toggleFavorite({
-                              id: channel.id,
-                              name: channel.name || channel.id,
-                              imageUrl: channel.image_url ?? undefined,
-                              isFavorite: isFav,
-                            })}
-                            className="p-2 hover:bg-muted rounded-lg transition-colors"
-                            aria-label={isFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                          >
-                            <Star className={cn('w-4 h-4', isFav ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground')} />
-                          </button>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground tabular-nums">{channel.follower_count?.toLocaleString()}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleFavorite({
+                                  id: channel.id,
+                                  name: channel.name || channel.id,
+                                  imageUrl: channel.image_url ?? undefined,
+                                  isFavorite: isFav,
+                                })
+                              }}
+                              className="p-2 hover:bg-muted rounded-full transition-colors"
+                              aria-label={isFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                            >
+                              <Star className={cn('w-4 h-4', isFav ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground')} />
+                            </button>
+                          </div>
                         </div>
                       )
                     })}
@@ -161,30 +184,33 @@ export function MobileNavSearchSheet({
                 </div>
               )}
 
-              {searchResults.casts.length > 0 && (
+              {/* Casts */}
+              {(activeTab === 'all' || activeTab === 'casts') && searchResults.casts.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Search className="w-4 h-4 text-muted-foreground" />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Casts</p>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
+                  {activeTab === 'all' && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Casts</p>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     {searchResults.casts.map((cast: any) => (
                       <button
                         key={cast.hash}
                         onClick={() => onSelectUser(cast.author?.username)}
-                        className="w-full flex items-start gap-3 p-2 rounded-lg hover:bg-muted transition-colors text-left"
+                        className="w-full flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
                       >
                         {cast.author?.pfp_url ? (
-                          <img src={cast.author.pfp_url} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                          <img src={cast.author.pfp_url} alt="" className="w-8 h-8 rounded-full shrink-0 object-cover bg-muted" />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                             <User className="w-4 h-4 text-muted-foreground" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <span className="text-xs font-medium">@{cast.author?.username}</span>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{cast.text}</p>
+                          <span className="text-xs font-medium truncate block">@{cast.author?.username}</span>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5 break-words">{cast.text}</p>
                         </div>
                       </button>
                     ))}
@@ -195,7 +221,25 @@ export function MobileNavSearchSheet({
           )}
         </div>
 
-        <div className="shrink-0 px-4 py-3 border-t border-border bg-card">
+        <div className="shrink-0 pt-2 pb-3 px-4 border-t border-border bg-card">
+          {/* Tabs - Pills style */}
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-none pb-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap",
+                  activeTab === tab.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input

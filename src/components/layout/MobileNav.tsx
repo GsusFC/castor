@@ -14,6 +14,7 @@ import { useNotifications } from '@/context/NotificationsContext'
 import { MobileNavDraftsSheet } from '@/components/layout/MobileNavDraftsSheet'
 import { MobileNavTemplatesSheet } from '@/components/layout/MobileNavTemplatesSheet'
 import { MobileNavSearchSheet } from '@/components/layout/MobileNavSearchSheet'
+import { z } from 'zod'
 
 interface Draft {
   id: string
@@ -31,6 +32,12 @@ interface Template {
   channelId: string | null
   accountId: string
 }
+
+const searchResponseSchema = z.object({
+  users: z.array(z.any()),
+  channels: z.array(z.any()),
+  casts: z.array(z.any()),
+})
 
 export function MobileNav() {
   const pathname = usePathname()
@@ -91,19 +98,24 @@ export function MobileNav() {
       return
     }
 
+    const controller = new AbortController()
+
     const search = async () => {
       setIsSearching(true)
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`)
+        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`,
+          { signal: controller.signal }
+        )
         if (res.ok) {
-          const data = await res.json()
+          const data = searchResponseSchema.parse(await res.json())
           setSearchResults({
-            users: data.users || [],
-            channels: data.channels || [],
-            casts: data.casts || [],
+            users: data.users,
+            channels: data.channels,
+            casts: data.casts,
           })
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
         console.error('Search error:', error)
       } finally {
         setIsSearching(false)
@@ -111,6 +123,7 @@ export function MobileNav() {
     }
 
     search()
+    return () => controller.abort()
   }, [debouncedQuery])
 
   // Limpiar búsqueda al cerrar
@@ -180,6 +193,11 @@ export function MobileNav() {
   const handleSelectSearchChannel = (channelId: string) => {
     setSearchOpen(false)
     router.push(`/?channel=${channelId}`)
+  }
+
+  const handleSelectSearchCast = (castHash: string) => {
+    setSearchOpen(false)
+    router.push(`/?cast=${castHash}`)
   }
 
   const isAnySheetOpen = searchOpen || draftsOpen || templatesOpen || isNotificationsOpen
@@ -329,6 +347,7 @@ export function MobileNav() {
         toggleFavorite={toggleFavorite}
         onSelectUser={handleSelectSearchUser}
         onSelectChannel={handleSelectSearchChannel}
+        onSelectCast={handleSelectSearchCast}
       />
 
       {/* Compose Modal */}

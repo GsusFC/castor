@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
       channels: any[]
     } = { casts: [], users: [], channels: [] }
 
+    const usernameCandidate = q.startsWith('@') ? q.slice(1) : q
+    const isLikelyUsername = /^[a-z0-9_]{2,}$/i.test(usernameCandidate)
+
     // Búsqueda paralela según el tipo
     const promises: Promise<void>[] = []
 
@@ -45,7 +48,9 @@ export async function GET(request: NextRequest) {
             reactions: cast.reactions,
             replies: cast.replies,
           }))
-        }).catch(() => {})
+        }).catch((error) => {
+          console.error('[Search API] searchCasts failed:', error)
+        })
       )
     }
 
@@ -65,7 +70,9 @@ export async function GET(request: NextRequest) {
             bio: user.profile?.bio?.text,
             power_badge: user.power_badge,
           }))
-        }).catch(() => {})
+        }).catch((error) => {
+          console.error('[Search API] searchUser failed:', error)
+        })
       )
     }
 
@@ -82,7 +89,36 @@ export async function GET(request: NextRequest) {
             image_url: channel.image_url,
             follower_count: channel.follower_count,
           }))
-        }).catch(() => {})
+        }).catch((error) => {
+          console.error('[Search API] searchChannels failed:', error)
+        })
+      )
+    }
+
+    if ((type === 'all' || type === 'users') && isLikelyUsername) {
+      promises.push(
+        neynar.lookupUserByUsername({
+          username: usernameCandidate,
+          viewerFid: session?.fid,
+        }).then((res) => {
+          const user = res.user
+          if (!user) return
+
+          const alreadyPresent = results.users.some((u) => u?.fid === user.fid || u?.username === user.username)
+          if (alreadyPresent) return
+
+          results.users.unshift({
+            fid: user.fid,
+            username: user.username,
+            display_name: user.display_name,
+            pfp_url: user.pfp_url,
+            follower_count: user.follower_count,
+            bio: user.profile?.bio?.text,
+            power_badge: user.power_badge,
+          })
+        }).catch((error) => {
+          console.error('[Search API] lookupUserByUsername failed:', error)
+        })
       )
     }
 

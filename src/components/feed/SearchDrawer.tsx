@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, X, User, Hash, MessageSquare, Loader2, Star, TrendingUp } from 'lucide-react'
+import { Search, X, User, Hash, MessageSquare, Loader2, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useUserChannels } from '@/hooks/useUserChannels'
 import { useSearch } from '@/context/SearchContext'
+import { z } from 'zod'
 import {
     Sheet,
     SheetContent,
@@ -48,6 +49,12 @@ interface SearchResult {
 
 type SearchTab = 'all' | 'casts' | 'users' | 'channels'
 
+const searchResponseSchema = z.object({
+    casts: z.array(z.any()),
+    users: z.array(z.any()),
+    channels: z.array(z.any()),
+})
+
 export function SearchDrawer() {
     const router = useRouter()
     const { isOpen, close, open } = useSearch()
@@ -57,6 +64,7 @@ export function SearchDrawer() {
     const [results, setResults] = useState<SearchResult>({ casts: [], users: [], channels: [] })
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const requestIdRef = useRef(0)
 
     const debouncedQuery = useDebounce(query, 300)
 
@@ -88,24 +96,39 @@ export function SearchDrawer() {
             return
         }
 
+        const requestId = ++requestIdRef.current
+        const controller = new AbortController()
+
         const search = async () => {
             setIsLoading(true)
             try {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&type=${activeTab}&limit=20`)
-                if (res.ok) {
-                    const data = await res.json()
-                    setResults(data)
+                const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=20`, {
+                    signal: controller.signal,
+                })
+
+                if (!res.ok) {
+                    throw new Error('Search failed')
                 }
+
+                const json = await res.json()
+                const parsed = searchResponseSchema.parse(json)
+
+                if (requestId !== requestIdRef.current) return
+                setResults(parsed as unknown as SearchResult)
             } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') return
                 console.error('Search error:', error)
-                toast.error('Error al buscar')
+                toast.error('Search failed')
             } finally {
-                setIsLoading(false)
+                if (requestId === requestIdRef.current) {
+                    setIsLoading(false)
+                }
             }
         }
 
         search()
-    }, [debouncedQuery, activeTab])
+        return () => controller.abort()
+    }, [debouncedQuery])
 
     const handleClear = () => {
         setQuery('')
@@ -115,12 +138,12 @@ export function SearchDrawer() {
 
     const onSelectUser = (username: string) => {
         close()
-        window.dispatchEvent(new CustomEvent('castor:feed:open-user', { detail: { username } }))
+        router.push(`/?user=${encodeURIComponent(username)}`)
     }
 
     const onSelectCast = (castHash: string) => {
         close()
-        window.dispatchEvent(new CustomEvent('castor:feed:open-cast', { detail: { castHash } }))
+        router.push(`/?cast=${encodeURIComponent(castHash)}`)
     }
 
     const onSelectChannel = (channelId: string) => {
@@ -135,7 +158,27 @@ export function SearchDrawer() {
         { id: 'casts', label: 'Casts', icon: MessageSquare },
     ] as const
 
-    const hasResults = results.users.length > 0 || results.channels.length > 0 || results.casts.length > 0
+    const hasAnyResults = results.users.length > 0 || results.channels.length > 0 || results.casts.length > 0
+
+    const hasResultsForTab =
+        activeTab === 'all'
+            ? hasAnyResults
+            : activeTab === 'users'
+                ? results.users.length > 0
+                : activeTab === 'channels'
+                    ? results.channels.length > 0
+                    : results.casts.length > 0
+
+    const shouldShowNoResults = !isLoading && query.length >= 2 && !hasResultsForTab
+
+    const noResultsLabel =
+        activeTab === 'all'
+            ? 'No results found'
+            : activeTab === 'users'
+                ? 'No users found'
+                : activeTab === 'channels'
+                    ? 'No channels found'
+                    : 'No casts found'
 
     return (
         <Sheet open={isOpen} onOpenChange={(val) => !val && close()}>
@@ -183,11 +226,13 @@ export function SearchDrawer() {
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-none">
+                        <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-none" role="tablist" aria-label="Search filters">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as SearchTab)}
+                                    role="tab"
+                                    aria-selected={activeTab === tab.id}
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap",
                                         activeTab === tab.id
@@ -209,10 +254,10 @@ export function SearchDrawer() {
                                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
                                 <span className="text-xs">Searching...</span>
                             </div>
-                        ) : !hasResults && query.length >= 2 ? (
+                        ) : shouldShowNoResults ? (
                             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
                                 <Search className="w-10 h-10 mb-3 opacity-20" />
-                                <p className="text-sm">No results found for "{query}"</p>
+                                <p className="text-sm">{noResultsLabel} for "{query}"</p>
                             </div>
                         ) : !query ? (
                             <div className="p-4">

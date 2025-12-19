@@ -27,6 +27,7 @@ interface MobileNavSearchSheetProps {
   toggleFavorite: (channel: { id: string; name: string; imageUrl?: string; isFavorite?: boolean }) => Promise<void>
   onSelectUser: (username: string) => void
   onSelectChannel: (channelId: string) => void
+  onSelectCast: (castHash: string) => void
 }
 
 export function MobileNavSearchSheet({
@@ -40,6 +41,7 @@ export function MobileNavSearchSheet({
   toggleFavorite,
   onSelectUser,
   onSelectChannel,
+  onSelectCast,
 }: MobileNavSearchSheetProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'users' | 'channels' | 'casts'>('all')
 
@@ -49,6 +51,29 @@ export function MobileNavSearchSheet({
     { id: 'channels', label: 'Channels' },
     { id: 'casts', label: 'Casts' },
   ] as const
+
+  const hasAnyResults =
+    searchResults.users.length > 0 || searchResults.channels.length > 0 || searchResults.casts.length > 0
+
+  const hasResultsForTab =
+    activeTab === 'all'
+      ? hasAnyResults
+      : activeTab === 'users'
+        ? searchResults.users.length > 0
+        : activeTab === 'channels'
+          ? searchResults.channels.length > 0
+          : searchResults.casts.length > 0
+
+  const shouldShowNoResults = !isSearching && searchQuery.length >= 2 && !hasResultsForTab
+
+  const noResultsLabel =
+    activeTab === 'all'
+      ? 'No results found'
+      : activeTab === 'users'
+        ? 'No users found'
+        : activeTab === 'channels'
+          ? 'No channels found'
+          : 'No casts found'
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -72,16 +97,13 @@ export function MobileNavSearchSheet({
             </div>
           )}
 
-          {!isSearching && searchQuery.length >= 2 &&
-            searchResults.users.length === 0 &&
-            searchResults.channels.length === 0 &&
-            searchResults.casts.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                No results found
-              </div>
-            )}
+          {shouldShowNoResults && (
+            <div className="text-center py-12 text-muted-foreground">
+              {noResultsLabel}
+            </div>
+          )}
 
-          {!isSearching && (searchResults.users.length > 0 || searchResults.channels.length > 0 || searchResults.casts.length > 0) && (
+          {!isSearching && !shouldShowNoResults && hasAnyResults && (
             <div className="space-y-6 pb-4">
               {/* Users */}
               {(activeTab === 'all' || activeTab === 'users') && searchResults.users.length > 0 && (
@@ -198,7 +220,7 @@ export function MobileNavSearchSheet({
                     {searchResults.casts.map((cast: any) => (
                       <button
                         key={cast.hash}
-                        onClick={() => onSelectUser(cast.author?.username)}
+                        onClick={() => onSelectCast(cast.hash)}
                         className="w-full flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
                       >
                         {cast.author?.pfp_url ? (
@@ -223,11 +245,13 @@ export function MobileNavSearchSheet({
 
         <div className="shrink-0 pt-2 pb-3 px-4 border-t border-border bg-card">
           {/* Tabs - Pills style */}
-          <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-none pb-1">
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-none pb-1" role="tablist" aria-label="Search filters">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap",
                   activeTab === tab.id

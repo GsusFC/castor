@@ -55,7 +55,7 @@ export function ConversationView({
       />
 
       {/* Content */}
-      <div className="flex-1 px-4 sm:px-0">
+      <div className="flex-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

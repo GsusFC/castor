@@ -260,7 +260,7 @@ export function AIAssistant({
               Enable AI Brand Mode by completing your Brand Voice.
             </p>
             <Link
-              href={`/accounts/${selectedAccountId}/context`}
+              href={`/accounts/${selectedAccountId}/ai`}
               className="text-sm font-medium text-primary hover:underline"
             >
               Complete context

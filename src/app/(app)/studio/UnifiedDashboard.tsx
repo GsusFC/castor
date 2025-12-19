@@ -6,7 +6,8 @@ import Link from 'next/link'
 import {
   User, Clock, Calendar, ExternalLink, Edit, Trash2,
   Plus, CheckCircle, AlertCircle, List, CalendarDays,
-  FileText, LayoutTemplate, LayoutDashboard, ChevronDown, Image, Video
+  FileText, LayoutTemplate, LayoutDashboard, ChevronDown, Image, Video,
+  AlertTriangle, RotateCcw, History
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ interface Account {
   isPremium: boolean
   ownerId: string | null
   owner: AccountOwner | null
+  hasBrandVoice: boolean
 }
 
 interface CastMedia {
@@ -92,7 +94,7 @@ interface UnifiedDashboardProps {
   isAdmin: boolean
 }
 
-type Tab = 'scheduled' | 'published'
+type Tab = 'needs_attention' | 'queue' | 'activity'
 type ViewMode = 'list' | 'calendar'
 
 export function UnifiedDashboard({
@@ -128,7 +130,7 @@ export function UnifiedDashboard({
     hasInitialized.current = true
   }, [selectedAccountId, firstApprovedAccount, setSelectedAccountId])
 
-  const [activeTab, setActiveTab] = useState<Tab>('scheduled')
+  const [activeTab, setActiveTab] = useState<Tab>('needs_attention')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [showAllCasts, setShowAllCasts] = useState(false)
 
@@ -203,9 +205,20 @@ export function UnifiedDashboard({
     ? templates.filter(t => t.accountId === selectedAccountId)
     : templates
 
-  const scheduled = filteredCasts.filter(c => c.status === 'scheduled')
+  const scheduled = filteredCasts.filter(c => c.status === 'scheduled' || c.status === 'retrying')
   const drafts = filteredCasts.filter(c => c.status === 'draft')
   const published = filteredCasts.filter(c => c.status === 'published')
+  const failed = filteredCasts.filter(c => c.status === 'failed')
+  
+  // Needs attention: due casts (scheduledAt <= now) + failed casts
+  const now = new Date()
+  const dueCasts = scheduled.filter(c => new Date(c.scheduledAt) <= now)
+  const needsAttention = [...dueCasts, ...failed]
+  
+  // Business accounts with issues
+  const businessAccounts = accounts.filter(a => a.type === 'business')
+  const signerIssueAccounts = businessAccounts.filter(a => a.signerStatus !== 'approved')
+  const brandVoiceMissingAccounts = businessAccounts.filter(a => !a.hasBrandVoice)
 
   // Handlers
   const handleMoveCast = async (castId: string, newDate: Date) => {
@@ -252,12 +265,226 @@ export function UnifiedDashboard({
     }
   }
 
+  // Retry a failed/due cast (reschedule to now)
+  const handleRetryCast = async (castId: string) => {
+    try {
+      const res = await fetch(`/api/casts/${castId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt: new Date().toISOString() }),
+      })
+      if (!res.ok) throw new Error('Failed to retry cast')
+      toast.success('Cast queued for retry')
+      router.refresh()
+    } catch (error) {
+      toast.error('Error retrying cast')
+    }
+  }
+
+  // Render Needs Attention tab content
+  const renderNeedsAttention = () => {
+    // Group issues by account
+    const accountsWithIssues = businessAccounts.filter(account => {
+      const accountCasts = needsAttention.filter(c => c.accountId === account.id)
+      const hasSignerIssue = account.signerStatus !== 'approved'
+      const hasBrandVoiceIssue = !account.hasBrandVoice
+      return accountCasts.length > 0 || hasSignerIssue || hasBrandVoiceIssue
+    })
+
+    const totalWarnings = signerIssueAccounts.length + brandVoiceMissingAccounts.length
+
+    if (accountsWithIssues.length === 0 && needsAttention.length === 0) {
+      return (
+        <Card className="p-12 text-center">
+          <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+          </div>
+          <h3 className="font-medium mb-1">All clear!</h3>
+          <p className="text-muted-foreground text-sm">No issues need your attention</p>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Summary bar */}
+        <div className="flex items-center gap-4 text-sm">
+          {needsAttention.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-red-600 dark:text-red-400 font-medium">
+                Urgent: {needsAttention.length}
+              </span>
+            </div>
+          )}
+          {totalWarnings > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                Warnings: {totalWarnings}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Grouped by account */}
+        {accountsWithIssues.map(account => {
+          const accountCasts = needsAttention.filter(c => c.accountId === account.id)
+          const hasSignerIssue = account.signerStatus !== 'approved'
+          const hasBrandVoiceIssue = !account.hasBrandVoice
+          const dueCastsForAccount = accountCasts.filter(c => c.status === 'scheduled' || c.status === 'retrying')
+          const failedCastsForAccount = accountCasts.filter(c => c.status === 'failed')
+
+          return (
+            <Card key={account.id} className="overflow-hidden">
+              {/* Account header */}
+              <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {account.pfpUrl ? (
+                    <img
+                      src={account.pfpUrl}
+                      alt={account.username}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">@{account.username}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {dueCastsForAccount.length > 0 && (
+                        <span className="text-red-600 dark:text-red-400">
+                          {dueCastsForAccount.length} due
+                        </span>
+                      )}
+                      {failedCastsForAccount.length > 0 && (
+                        <span className="text-red-600 dark:text-red-400">
+                          {failedCastsForAccount.length} failed
+                        </span>
+                      )}
+                      {hasSignerIssue && (
+                        <span className="text-amber-600 dark:text-amber-400">
+                          Signer issue
+                        </span>
+                      )}
+                      {hasBrandVoiceIssue && (
+                        <span className="text-amber-600 dark:text-amber-400">
+                          No AI Brand Mode
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Issues list */}
+              <div className="divide-y divide-border">
+                {/* Signer issue warning */}
+                {hasSignerIssue && (
+                  <div className="p-3 flex items-center justify-between bg-amber-500/5">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm">Signer needs approval</span>
+                    </div>
+                    <Link
+                      href="/accounts"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Fix signer
+                    </Link>
+                  </div>
+                )}
+
+                {/* BrandVoice missing warning */}
+                {hasBrandVoiceIssue && (
+                  <div className="p-3 flex items-center justify-between bg-amber-500/5">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm">AI Brand Mode not configured</span>
+                    </div>
+                    <Link
+                      href={`/accounts/${account.id}/ai`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Configure
+                    </Link>
+                  </div>
+                )}
+
+                {/* Cast issues */}
+                {accountCasts.map(cast => (
+                  <div key={cast.id} className="p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{cast.content || 'No content'}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          cast.status === 'failed'
+                            ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {cast.status === 'failed' ? 'Failed' : 'Due'}
+                        </span>
+                        <span>
+                          {new Date(cast.scheduledAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Europe/Madrid',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRetryCast(cast.id)}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Retry
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditCast(cast)}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteCast(cast.id)}
+                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+    )
+  }
+
   // Render content based on tab
   const renderContent = () => {
-    // Si showAllCasts, mostrar todos los casts de todas las cuentas
+    // Needs attention tab - show grouped by account
+    if (activeTab === 'needs_attention') {
+      return renderNeedsAttention()
+    }
+
+    // Queue and Activity tabs
     const castsToShow = showAllCasts
       ? casts
-      : activeTab === 'scheduled'
+      : activeTab === 'queue'
         ? scheduled
         : published
 
@@ -324,7 +551,7 @@ export function UnifiedDashboard({
 
   return (
     <div className="mx-auto w-full max-w-4xl xl:max-w-6xl">
-      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 sm:px-0">
+      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
             <LayoutDashboard className="w-5 h-5 text-primary" />
@@ -336,7 +563,7 @@ export function UnifiedDashboard({
         </div>
       </div>
 
-      <div className="mt-6 space-y-6 px-4 sm:px-0">
+      <div className="mt-6 space-y-6">
         {/* Módulo de Cuentas */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -415,26 +642,37 @@ export function UnifiedDashboard({
           {/* Tabs */}
           <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
             <TabButton
-              active={activeTab === 'scheduled' && !showAllCasts}
+              active={activeTab === 'needs_attention' && !showAllCasts}
               onClick={() => {
-                setActiveTab('scheduled')
+                setActiveTab('needs_attention')
+                setShowAllCasts(false)
+              }}
+              count={needsAttention.length + signerIssueAccounts.length + brandVoiceMissingAccounts.length}
+            >
+              <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Needs attention</span>
+            </TabButton>
+            <TabButton
+              active={activeTab === 'queue' && !showAllCasts}
+              onClick={() => {
+                setActiveTab('queue')
                 setShowAllCasts(false)
               }}
               count={scheduled.length}
             >
               <Clock className="w-5 h-5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Scheduled</span>
+              <span className="hidden sm:inline">Queue</span>
             </TabButton>
             <TabButton
-              active={activeTab === 'published' && !showAllCasts}
+              active={activeTab === 'activity' && !showAllCasts}
               onClick={() => {
-                setActiveTab('published')
+                setActiveTab('activity')
                 setShowAllCasts(false)
               }}
               count={published.length}
             >
-              <CheckCircle className="w-5 h-5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Published</span>
+              <History className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Activity</span>
             </TabButton>
             {isAdmin && (
               <TabButton

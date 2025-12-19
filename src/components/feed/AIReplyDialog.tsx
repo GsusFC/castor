@@ -332,7 +332,7 @@ export function AIReplyDialog({
                 Activa AI Brand Mode completando tu Brand Voice.
               </p>
               <Link
-                href={`/accounts/${selectedAccountId}/context`}
+                href={`/accounts/${selectedAccountId}/ai`}
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Completar contexto

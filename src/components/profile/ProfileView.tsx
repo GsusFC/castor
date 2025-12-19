@@ -185,7 +185,7 @@ export function ProfileView({
         </div>
 
         {/* Avatar & Actions Row */}
-        <div className="px-4 sm:px-0">
+        <div>
           <div className="relative flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
             {/* Avatar with border */}
             <div className="relative">
@@ -303,7 +303,7 @@ export function ProfileView({
       </div>
 
       {/* Tabs - unificado con estilo de Pills del Feed */}
-      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3 px-4 sm:px-0">
+      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3">
         <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
           {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
             <button
@@ -325,7 +325,7 @@ export function ProfileView({
       </div>
 
       {/* Casts */}
-      <div className="space-y-4 pt-2 px-4 sm:px-0">
+      <div className="space-y-3 sm:space-y-4 pt-2">
         {isCastsLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

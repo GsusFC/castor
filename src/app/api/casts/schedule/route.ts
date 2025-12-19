@@ -9,6 +9,74 @@ import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
 import { calculateTextLength } from '@/lib/url-utils'
 import { withLock } from '@/lib/lock'
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
+import { fetchWithTimeout } from '@/lib/fetch'
+
+ const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
+ const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+ const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
+
+ type CloudflareVideoRef = {
+   mediaId: string
+   cloudflareId: string
+ }
+
+ type CastMediaUpdate = Partial<typeof castMedia.$inferInsert>
+
+ const bestEffortNormalizeCloudflareVideos = async (videos: CloudflareVideoRef[]) => {
+   if (videos.length === 0) return
+   if (!CF_ACCOUNT_ID || !CF_IMAGES_TOKEN) return
+
+   await Promise.all(
+     videos.map(async ({ mediaId, cloudflareId }) => {
+       try {
+         const cfResponse = await fetchWithTimeout(
+           `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/${cloudflareId}`,
+           {
+             headers: {
+               Authorization: `Bearer ${CF_IMAGES_TOKEN}`,
+             },
+             timeoutMs: 3_000,
+           }
+         )
+
+         if (!cfResponse.ok) {
+           return
+         }
+
+         const cfData = (await cfResponse.json().catch(() => null)) as any
+         if (!cfData?.success || !cfData?.result) {
+           return
+         }
+
+         const isReady = Boolean(cfData.result.readyToStream)
+         const width = typeof cfData.result?.input?.width === 'number' ? (cfData.result.input.width as number) : null
+         const height = typeof cfData.result?.input?.height === 'number' ? (cfData.result.input.height as number) : null
+
+         const updateData: CastMediaUpdate = {
+           videoStatus: isReady ? 'ready' : 'pending',
+         }
+
+         if (typeof width === 'number') updateData.width = width
+         if (typeof height === 'number') updateData.height = height
+
+         if (isReady) {
+           const baseUrl = `https://${CF_STREAM_DOMAIN}/${cloudflareId}`
+           const hlsUrl = `${baseUrl}/manifest/video.m3u8`
+           const thumbnailUrl = `${baseUrl}/thumbnails/thumbnail.jpg`
+
+           updateData.hlsUrl = hlsUrl
+           updateData.thumbnailUrl = thumbnailUrl
+           updateData.mp4Url = `${baseUrl}/downloads/default.mp4`
+           updateData.url = hlsUrl
+         }
+
+         await db.update(castMedia).set(updateData).where(eq(castMedia.id, mediaId))
+       } catch (error) {
+         console.warn('[Schedule] Cloudflare best-effort normalize failed:', error)
+       }
+     })
+   )
+ }
 
 /**
  * POST /api/casts/schedule
@@ -126,6 +194,8 @@ export async function POST(request: NextRequest) {
     const scheduleFn = async () => {
       const castId = generateId()
 
+      let cloudflareVideosToNormalize: CloudflareVideoRef[] = []
+
       await db.transaction(async (tx) => {
         // Insertar cast
         await tx.insert(scheduledCasts).values({
@@ -197,16 +267,26 @@ export async function POST(request: NextRequest) {
               if (embed.livepeerPlaybackId) {
                 mediaRecord.livepeerPlaybackId = embed.livepeerPlaybackId
               }
-              if (embed.videoStatus) {
-                mediaRecord.videoStatus = embed.videoStatus
+
+              const shouldDefaultPending = isVideo && Boolean(embed.cloudflareId || embed.livepeerAssetId)
+              const resolvedVideoStatus = embed.videoStatus ?? (shouldDefaultPending ? 'pending' : undefined)
+              if (resolvedVideoStatus) {
+                mediaRecord.videoStatus = resolvedVideoStatus
               }
               
               return mediaRecord
             })
+
+            cloudflareVideosToNormalize = mediaValues
+              .filter((m) => m.type === 'video' && typeof m.cloudflareId === 'string' && m.cloudflareId.length > 0 && !m.livepeerAssetId)
+              .map((m) => ({ mediaId: m.id, cloudflareId: m.cloudflareId! }))
+
             await tx.insert(castMedia).values(mediaValues)
           }
         }
       })
+
+      await bestEffortNormalizeCloudflareVideos(cloudflareVideosToNormalize)
 
       console.log('[Schedule] Cast created:', castId)
 

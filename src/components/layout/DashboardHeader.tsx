@@ -109,16 +109,16 @@ export function DashboardHeader() {
                 <span>Studio</span>
               </Link>
               <Link
-                href="/analytics"
+                href="/accounts"
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  pathname === '/analytics'
+                  pathname.startsWith('/accounts')
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>Analytics</span>
+                <span>Accounts</span>
               </Link>
             </nav>
           </div>

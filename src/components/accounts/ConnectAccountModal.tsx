@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Loader2, CheckCircle, RefreshCw, Smartphone } from 'lucide-react'
+import { Loader2, CheckCircle, RefreshCw, Smartphone, User, Building2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,20 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-type Status = 'idle' | 'loading' | 'pending' | 'approved' | 'error'
+type Status = 'idle' | 'loading' | 'pending' | 'choose_type' | 'saving_type' | 'error'
 
 interface SignerData {
   signerUuid: string
   publicKey: string
   deepLinkUrl: string
+}
+
+interface ApprovedAccount {
+  id: string
+  username: string
+  displayName: string | null
+  pfpUrl: string | null
+  type: 'personal' | 'business'
 }
 
 interface ConnectAccountModalProps {
@@ -29,6 +37,7 @@ interface ConnectAccountModalProps {
 export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAccountModalProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [signerData, setSignerData] = useState<SignerData | null>(null)
+  const [approvedAccount, setApprovedAccount] = useState<ApprovedAccount | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const hasCreatedSigner = useRef(false)
@@ -60,8 +69,18 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
         const data = await res.json()
 
         if (data.status === 'approved') {
-          console.log('[ConnectModal] Signer approved!')
-          setStatus('approved')
+          console.log('[ConnectModal] Signer approved!', data.account)
+          // Store approved account info for type selection UI
+          if (data.account) {
+            setApprovedAccount({
+              id: data.account.id,
+              username: data.account.username,
+              displayName: data.account.displayName,
+              pfpUrl: data.account.pfpUrl,
+              type: data.account.type || 'personal',
+            })
+          }
+          setStatus('choose_type')
           if (pollingRef.current) {
             clearInterval(pollingRef.current)
             pollingRef.current = null
@@ -80,6 +99,7 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
       hasCreatedSigner.current = false
       setStatus('idle')
       setSignerData(null)
+      setApprovedAccount(null)
       setError(null)
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
@@ -136,17 +156,40 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
     }
   }, [open])
 
-  // Callback cuando se aprueba
-  useEffect(() => {
-    if (status !== 'approved') return
+  // Handle account type selection
+  const handleSelectType = async (type: 'personal' | 'business') => {
+    if (!signerData) return
 
-    const timer = setTimeout(() => {
+    // Personal is already the default, just close
+    if (type === 'personal') {
       onSuccess?.()
       onOpenChange(false)
-    }, 1500)
+      return
+    }
 
-    return () => clearTimeout(timer)
-  }, [status, onSuccess, onOpenChange])
+    // Business requires updating the account type
+    setStatus('saving_type')
+    try {
+      const res = await fetch('/api/accounts/check-signer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signerUuid: signerData.signerUuid, type: 'business' }),
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update account type')
+      }
+
+      console.log('[ConnectModal] Account type updated to business')
+      onSuccess?.()
+      onOpenChange(false)
+    } catch (err) {
+      console.error('[ConnectModal] Error updating type:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update account type')
+      setStatus('error')
+    }
+  }
 
   const handleRetry = () => {
     hasCreatedSigner.current = false
@@ -223,13 +266,67 @@ export function ConnectAccountModal({ open, onOpenChange, onSuccess }: ConnectAc
             </div>
           )}
 
-          {status === 'approved' && (
-            <div className="text-center py-8">
+          {status === 'choose_type' && approvedAccount && (
+            <div className="text-center">
+              {/* Success indicator */}
               <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-7 h-7 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold mb-1">Account connected!</h3>
-              <p className="text-muted-foreground text-sm">Redirecting...</p>
+              
+              {/* Account info */}
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {approvedAccount.pfpUrl ? (
+                  <img
+                    src={approvedAccount.pfpUrl}
+                    alt={approvedAccount.username}
+                    className="w-6 h-6 rounded-full"
+                  />
+                ) : (
+                  <div className="w-6 h-6 bg-muted rounded-full" />
+                )}
+                <span className="font-semibold">@{approvedAccount.username}</span>
+                <span className="text-muted-foreground">connected</span>
+              </div>
+              
+              {/* Type selection */}
+              <p className="text-muted-foreground text-sm mb-4">
+                How will you use this account?
+              </p>
+              
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleSelectType('personal')}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/30 hover:bg-accent transition-all text-left group"
+                >
+                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center group-hover:bg-muted/80">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Personal</p>
+                    <p className="text-sm text-muted-foreground">Only I will have access</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => handleSelectType('business')}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/30 hover:bg-accent transition-all text-left group"
+                >
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/15">
+                    <Building2 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Business</p>
+                    <p className="text-sm text-muted-foreground">I can invite collaborators</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {status === 'saving_type' && (
+            <div className="text-center py-8">
+              <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground text-sm">Saving...</p>
             </div>
           )}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Building2, Trash2, Brain } from 'lucide-react'
+import { User, Building2, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
@@ -73,100 +73,82 @@ export function AccountCard({ account, currentUserId, isAdmin }: AccountCardProp
   }
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        {/* Info de cuenta */}
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+    <Link href={`/accounts/${account.id}/ai`} className="block h-full">
+      <Card className="p-4 hover:bg-muted/50 transition-colors cursor-pointer h-full flex flex-col">
+        {/* Header: Avatar + Info */}
+        <div className="flex items-start gap-3 mb-3">
           {account.pfpUrl ? (
             <img
               src={account.pfpUrl}
               alt={account.username}
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
+              className="w-12 h-12 rounded-full flex-shrink-0"
             />
           ) : (
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-6 h-6 text-muted-foreground" />
             </div>
           )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
               <span className="font-medium truncate">
                 {account.displayName || account.username}
               </span>
               {account.type === 'business' && (
                 <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               )}
-              {isOwner && (
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full flex-shrink-0">
-                  Tuya
-                </span>
-              )}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground truncate">@{account.username}</span>
-              {!isOwner && account.owner && (
-                <span className="text-xs text-muted-foreground truncate hidden sm:inline">
-                  · de @{account.owner.username}
-                </span>
-              )}
-            </div>
+            <span className="text-sm text-muted-foreground truncate block">@{account.username}</span>
           </div>
         </div>
 
-        {/* Acciones */}
-        <div className="flex items-center gap-2 sm:gap-3 justify-end sm:justify-start">
-        <span
-          className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[account.signerStatus]}`}
-        >
-          {statusLabels[account.signerStatus]}
-        </span>
-
-        {/* Botón Contexto - para todas las cuentas gestionadas */}
-        <Link href={`/accounts/${account.id}/context`}>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Gestionar contexto AI"
-            aria-label="Gestionar contexto AI"
-            className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-primary hover:bg-primary/10"
-          >
-            <Brain className="w-5 h-5 sm:w-4 sm:h-4" />
-          </Button>
-        </Link>
-        
-        {showConfirm ? (
+        {/* Footer: Status + Actions */}
+        <div className="flex items-center justify-between mt-auto pt-3 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-2">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[account.signerStatus]}`}
             >
-              {isDeleting ? '...' : 'Confirmar'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowConfirm(false)}
-              disabled={isDeleting}
-            >
-              Cancelar
-            </Button>
+              {statusLabels[account.signerStatus]}
+            </span>
+            {isOwner && (
+              <span className="text-xs text-muted-foreground">Owner</span>
+            )}
           </div>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowConfirm(true)}
-            className="h-10 w-10 sm:h-9 sm:w-9 touch-target text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Eliminar cuenta"
-            aria-label="Eliminar cuenta"
-          >
-            <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
-          </Button>
-        )}
+        
+          {showConfirm ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="h-7 px-2 text-xs"
+              >
+                {isDeleting ? '...' : 'Yes'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowConfirm(false)}
+                disabled={isDeleting}
+                className="h-7 px-2 text-xs"
+              >
+                No
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowConfirm(true)}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              title="Delete account"
+              aria-label="Delete account"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   )
 }

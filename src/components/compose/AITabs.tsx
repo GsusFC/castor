@@ -211,7 +211,7 @@ export function AITabs({
           <div className="rounded-lg border border-border/50 bg-muted/30 p-2 text-sm">
             <p className="text-muted-foreground">Enable AI Brand Mode by completing your Brand Voice.</p>
             <Link
-              href={`/accounts/${accountId}/context`}
+              href={`/accounts/${accountId}/ai`}
               className="font-medium text-primary hover:underline"
             >
               Complete context

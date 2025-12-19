@@ -7,12 +7,26 @@ import { getSession } from '@/lib/auth'
 
 /**
  * POST /api/accounts/check-signer
- * Verifica el estado de un signer y registra la cuenta si está aprobado
+ * Verifica el estado de un signer y registra la cuenta si está aprobado.
+ * También permite actualizar el tipo de cuenta (personal/business) post-aprobación.
+ * 
+ * Body:
+ * - signerUuid: string (required)
+ * - type?: 'personal' | 'business' (optional, for updating account type)
  */
 export async function POST(request: NextRequest) {
   try {
+    // Auth required for security
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
-    const { signerUuid } = body
+    const { signerUuid, type } = body
     
     console.log('[check-signer] Received body:', JSON.stringify(body))
 
@@ -20,6 +34,14 @@ export async function POST(request: NextRequest) {
       console.log('[check-signer] ERROR: signerUuid is missing from body')
       return NextResponse.json(
         { error: 'signerUuid is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate type if provided
+    if (type !== undefined && type !== 'personal' && type !== 'business') {
+      return NextResponse.json(
+        { error: 'Invalid type. Must be "personal" or "business"' },
         { status: 400 }
       )
     }
@@ -58,19 +80,35 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingAccount) {
-        // Obtener sesión actual
-        const session = await getSession()
+        // Authorization: only owner or admin can update an existing account
+        const isOwner = existingAccount.ownerId === session.userId
+        const isAdmin = session.role === 'admin'
+        const hasNoOwner = !existingAccount.ownerId
         
-        // Actualizar cuenta: signer, status, isPremium, y ownerId si no tiene
+        if (!isOwner && !isAdmin && !hasNoOwner) {
+          console.log('[check-signer] Forbidden: user', session.userId, 'tried to update account owned by', existingAccount.ownerId)
+          return NextResponse.json(
+            { error: 'You do not have permission to update this account' },
+            { status: 403 }
+          )
+        }
+        
+        // Actualizar cuenta: signer, status, isPremium, type (if provided), y ownerId si no tiene
         const updates: Record<string, unknown> = {
           signerUuid,
           signerStatus: 'approved',
-          isPremium: user.isPremium || false, // Sincronizar estado Pro
+          isPremium: user.isPremium || false,
           updatedAt: new Date(),
         }
         
-        // Si la cuenta no tiene owner y hay sesión, asignar el owner actual
-        if (!existingAccount.ownerId && session?.userId) {
+        // Update type if provided
+        if (type) {
+          updates.type = type
+          console.log('[check-signer] Updating account type to:', type)
+        }
+        
+        // Si la cuenta no tiene owner, asignar el usuario actual
+        if (!existingAccount.ownerId) {
           updates.ownerId = session.userId
           console.log('[check-signer] Assigning ownerId to existing account:', session.userId)
         }
@@ -89,10 +127,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Obtener usuario actual para asignar como owner
-      const session = await getSession()
-
-      // Crear nueva cuenta
+      // Crear nueva cuenta (type defaults to 'personal' - safe default)
       const newAccount = {
         id: generateId(),
         fid: signer.fid,
@@ -103,7 +138,7 @@ export async function POST(request: NextRequest) {
         signerStatus: 'approved' as const,
         type: 'personal' as const,
         isPremium: user.isPremium || false,
-        ownerId: session?.userId || null,
+        ownerId: session.userId,
       }
 
       await db.insert(accounts).values(newAccount)

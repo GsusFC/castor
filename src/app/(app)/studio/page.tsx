@@ -1,4 +1,4 @@
-import { db, accounts as accountsTable, accountMembers } from '@/lib/db'
+import { db, accounts as accountsTable, accountMembers, accountKnowledgeBase } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
 import { and, eq, exists, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   // Obtener IDs de las cuentas del usuario
   const accountIds = accounts.map(a => a.id)
 
-  const [allCasts, allTemplates] = await Promise.all([
+  const [allCasts, allTemplates, knowledgeBases] = await Promise.all([
     // Obtener solo los casts de las cuentas del usuario
     accountIds.length > 0
       ? db.query.scheduledCasts.findMany({
@@ -65,7 +65,22 @@ export default async function DashboardPage() {
     accountIds.length > 0
       ? db.select().from(templates).where(inArray(templates.accountId, accountIds))
       : Promise.resolve([]),
+    // Obtener knowledge bases para verificar BrandVoice
+    accountIds.length > 0
+      ? db.query.accountKnowledgeBase.findMany({
+          where: inArray(accountKnowledgeBase.accountId, accountIds),
+          columns: {
+            accountId: true,
+            brandVoice: true,
+          },
+        })
+      : Promise.resolve([]),
   ])
+
+  // Map account -> hasBrandVoice
+  const brandVoiceMap = new Map(
+    knowledgeBases.map(kb => [kb.accountId, (kb.brandVoice?.trim().length || 0) > 0])
+  )
 
   // Serializar datos para el cliente
   const serializedAccounts = accounts.map(account => ({
@@ -79,6 +94,7 @@ export default async function DashboardPage() {
     isPremium: account.isPremium,
     ownerId: account.ownerId,
     owner: account.owner,
+    hasBrandVoice: brandVoiceMap.get(account.id) ?? false,
   }))
 
   const serializedCasts = allCasts.map(cast => ({

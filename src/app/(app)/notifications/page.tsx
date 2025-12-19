@@ -147,7 +147,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 sm:px-0">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50">
         <div className="py-4">
           <h1 className="text-xl font-semibold">Notifications</h1>
         </div>
@@ -171,7 +171,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="space-y-4 mt-4 px-4 sm:px-0">
+      <div className="space-y-3 sm:space-y-4 mt-4">
         {isLoading ? (
           Array.from({ length: 8 }).map((_, i) => <NotificationSkeleton key={`notif-skel-${i}`} />)
         ) : notifications.length > 0 ? (

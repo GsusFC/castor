@@ -29,7 +29,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header */}
-      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 sm:px-0">
+      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
             <Settings className="w-5 h-5 text-primary" />
@@ -42,7 +42,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Content */}
-      <div className="mt-6 space-y-6 px-4 sm:px-0">
+      <div className="mt-6 space-y-6">
         {/* Theme Section */}
         <section className="p-4 rounded-xl border border-border/50 bg-card/50">
           <h2 className="text-sm font-medium mb-4">Appearance</h2>

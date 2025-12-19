@@ -600,7 +600,7 @@ export function CastCard({
     <div
       ref={cardRef}
       className={cn(
-        "p-4 border rounded-lg bg-card transition-all",
+        "p-3 sm:p-4 border rounded-lg bg-card transition-all",
         isExpanded
           ? "border-primary/50 shadow-lg ring-1 ring-primary/20"
           : "border-border hover:bg-muted/30"

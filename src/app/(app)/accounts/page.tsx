@@ -48,7 +48,7 @@ export default async function AccountsPage() {
   return (
     <div className="mx-auto w-full max-w-4xl xl:max-w-6xl">
       {/* Header */}
-      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 sm:px-0">
+      <div className="sticky top-0 z-40 py-4 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -64,7 +64,7 @@ export default async function AccountsPage() {
       </div>
 
       {/* Content */}
-      <div className="mt-6 space-y-6 px-4 sm:px-0">
+      <div className="mt-6 space-y-6">
         {accountsList.length === 0 ? (
           <EmptyState />
         ) : (
@@ -76,7 +76,7 @@ export default async function AccountsPage() {
                   <Star className="w-4 h-4 text-purple-500" />
                   <h2 className="text-sm font-medium text-muted-foreground">Cuentas Pro</h2>
                 </div>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                   {proAccounts.map((account) => (
                     <AccountCard
                       key={account.id}
@@ -98,7 +98,7 @@ export default async function AccountsPage() {
                     <h2 className="text-sm font-medium text-muted-foreground">Cuentas estándar</h2>
                   </div>
                 )}
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                   {standardAccounts.map((account) => (
                     <AccountCard
                       key={account.id}

@@ -508,9 +508,9 @@ function FeedPageInner() {
             )}
 
             {/* Content Feed */}
-            <div className={cn("px-4 sm:px-0", activeTab !== 'channel' ? "mt-4" : "mt-2")}>
+            <div className={cn(activeTab !== 'channel' ? "mt-4" : "mt-2")}>
               {isLoading ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {Array.from({ length: 6 }).map((_, i) => <FeedCastSkeleton key={`cast-skel-${i}`} />)}
                 </div>
               ) : casts.length > 0 ? (
@@ -521,7 +521,7 @@ function FeedPageInner() {
                     endReached={loadMore}
                     increaseViewportBy={400}
                     itemContent={(index, cast: Cast) => (
-                      <div className="pb-4">
+                      <div className="pb-3 sm:pb-4">
                         <CastCard
                           key={cast.hash}
                           cast={cast}

@@ -22,7 +22,6 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: any; showUnreadBadge
   { href: '/', label: 'Feed', icon: Newspaper },
   { href: '/notifications', label: 'Notifications', icon: Bell, showUnreadBadge: true },
   { href: '/studio', label: 'Studio', icon: Calendar },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/accounts', label: 'Accounts', icon: Users },
 ]
 

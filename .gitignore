@@ -40,6 +40,8 @@ next-env.d.ts
 # Vercel
 .vercel
 
+.netlify/
+
 # Playwright
 test-results/
 playwright-report/

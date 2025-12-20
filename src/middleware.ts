@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { env } from '@/lib/env'
 
 const AUTH_COOKIE = 'castor_session'
 
@@ -35,9 +36,9 @@ const authPostApis = [
 ]
 
 function getSecretKey() {
-  const secret = process.env.SESSION_SECRET
+  const secret = env.SESSION_SECRET
   if (!secret) {
-    if (process.env.NODE_ENV === 'development') {
+    if (env.NODE_ENV === 'development') {
       return new TextEncoder().encode('castor-dev-secret-key-min-32-chars!')
     }
     throw new Error('SESSION_SECRET is required')

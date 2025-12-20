@@ -4,8 +4,9 @@ import { db, accounts, castAnalytics, analyticsInsightsCache, accountMembers } f
 import { eq, or, and, desc, inArray, gt } from 'drizzle-orm'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { nanoid } from 'nanoid'
+import { env } from '@/lib/env'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 // Cache válido por 24 horas
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000

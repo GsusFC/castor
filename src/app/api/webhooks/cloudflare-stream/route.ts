@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, castMedia } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
+import { env } from '@/lib/env'
 
-const CF_WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
-const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+const CF_WEBHOOK_SECRET = env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
+const CF_ACCOUNT_ID = env.CLOUDFLARE_ACCOUNT_ID
+const CF_IMAGES_TOKEN = env.CLOUDFLARE_IMAGES_API_KEY
 // Dominio de Cloudflare Stream (específico de la cuenta)
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
+const CF_STREAM_DOMAIN = env.CLOUDFLARE_STREAM_DOMAIN
 
 /**
  * Verifica la firma del webhook de Cloudflare

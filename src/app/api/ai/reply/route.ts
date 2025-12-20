@@ -4,8 +4,11 @@ import { canAccess, getSession } from '@/lib/auth'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
+import { buildBrandContext, sanitizePromptInput } from '@/lib/ai/prompt-utils'
+import { env } from '@/lib/env'
+import { aiReplySchema, validate } from '@/lib/validations'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 type Tone = 'professional' | 'casual' | 'friendly' | 'witty' | 'controversial'
 
@@ -17,17 +20,6 @@ const toneDescriptions: Record<Tone, string> = {
   controversial: 'polémico y provocador, que genere debate',
 }
 
-const buildBrandContext = (accountContext: Awaited<ReturnType<typeof castorAI.getAccountContext>>): string => {
-  if (!accountContext) return ''
-
-  let context = ''
-  if (accountContext.brandVoice) context += `\n\nVOZ DE MARCA:\n${accountContext.brandVoice}`
-  if (accountContext.alwaysDo?.length) context += `\n\nSIEMPRE HACER:\n- ${accountContext.alwaysDo.join('\n- ')}`
-  if (accountContext.neverDo?.length) context += `\n\nNUNCA HACER:\n- ${accountContext.neverDo.join('\n- ')}`
-
-  return context.trim() ? `\n\nCONTEXTO DE MARCA:${context}` : ''
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
@@ -35,22 +27,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { 
-      accountId,
-      originalText, 
-      authorUsername,
-      tone = 'friendly',
-      language = 'English',
-      context = '',
-    } = await request.json()
+    const parsedBody = validate(aiReplySchema, await request.json())
+    if (!parsedBody.success) return parsedBody.error
 
-    if (!accountId?.trim()) {
-      return NextResponse.json({ error: 'Account ID required' }, { status: 400 })
-    }
+    const { accountId, originalText, authorUsername, tone, language, context } = parsedBody.data
 
-    if (!originalText) {
-      return NextResponse.json({ error: 'originalText is required' }, { status: 400 })
-    }
+    const safeOriginalText = sanitizePromptInput(originalText)
+    const safeAuthor = sanitizePromptInput(authorUsername || 'usuario')
+    const safeContext = sanitizePromptInput(context)
 
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.id, accountId),
@@ -82,9 +66,9 @@ export async function POST(request: NextRequest) {
     const prompt = `Eres un asistente que ayuda a escribir respuestas para Farcaster (red social descentralizada similar a Twitter).
 
 Contexto del cast original:
-- Autor: @${authorUsername || 'usuario'}
-- Contenido: "${originalText}"
-${context ? `- Contexto adicional: ${context}` : ''}
+- Autor: @${safeAuthor || 'usuario'}
+- Contenido: "${safeOriginalText}"
+${safeContext ? `- Contexto adicional: ${safeContext}` : ''}
 
 ${brandContext}
 
@@ -109,16 +93,26 @@ Devuelve SOLO un JSON con el siguiente formato (sin markdown, sin explicaciones)
     const response = await generation.response
 
     const responseText = response.text().trim() || '{}'
-    
+
     // Limpiar posibles marcadores de código
     const cleanJson = responseText
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim()
 
-    const parsed = JSON.parse(cleanJson)
-
-    return NextResponse.json(parsed)
+    try {
+      const parsed = JSON.parse(cleanJson)
+      return NextResponse.json(parsed)
+    } catch (parseError) {
+      console.warn('[AI Reply] Invalid JSON from Gemini', { responseText, cleanJson, parseError })
+      return NextResponse.json(
+        {
+          error: 'Invalid AI response format',
+          suggestions: [],
+        },
+        { status: 502 }
+      )
+    }
   } catch (error) {
     console.error('[AI Reply] Error:', error)
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
+import { env } from '@/lib/env'
 
 /**
  * GET /api/casts/[id]/conversation
@@ -152,7 +153,7 @@ export async function GET(
       const repliesResponse = await fetch(repliesUrl.toString(), {
         headers: {
           'accept': 'application/json',
-          'x-api-key': process.env.NEYNAR_API_KEY || '',
+          'x-api-key': env.NEYNAR_API_KEY,
         },
       })
 

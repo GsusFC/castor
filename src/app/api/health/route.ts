@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db, users } from '@/lib/db'
 import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
 import { getCircuitBreakerStatus } from '@/lib/retry'
+import { env } from '@/lib/env'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -39,7 +40,7 @@ async function checkNeynar(): Promise<CheckResult> {
   const start = Date.now()
   try {
     const response = await fetchWithTimeout('https://api.neynar.com/v2/farcaster/user/bulk?fids=1', {
-      headers: { 'api_key': process.env.NEYNAR_API_KEY || '' },
+      headers: { 'api_key': env.NEYNAR_API_KEY },
       timeoutMs: DEFAULT_TIMEOUTS.HEALTH,
     })
     
@@ -61,9 +62,9 @@ async function checkCloudflare(): Promise<CheckResult> {
   const start = Date.now()
   try {
     const response = await fetchWithTimeout(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream`,
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream`,
       {
-        headers: { 'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}` },
+        headers: { 'Authorization': `Bearer ${env.CLOUDFLARE_IMAGES_API_KEY}` },
         timeoutMs: DEFAULT_TIMEOUTS.HEALTH,
       }
     )

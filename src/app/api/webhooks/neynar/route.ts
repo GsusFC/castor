@@ -3,8 +3,9 @@ import crypto from 'crypto'
 import { db, accounts } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { notificationEmitter } from '@/lib/notifications/events'
+import { env } from '@/lib/env'
 
-const NEYNAR_WEBHOOK_SECRET = process.env.NEYNAR_WEBHOOK_SECRET
+const NEYNAR_WEBHOOK_SECRET = env.NEYNAR_WEBHOOK_SECRET
 
 /**
  * Verificar firma del webhook de Neynar

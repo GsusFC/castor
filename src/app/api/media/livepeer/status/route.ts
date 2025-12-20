@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
+import { env } from '@/lib/env'
 
-const LIVEPEER_API_KEY = process.env.LIVEPEER_API_KEY
+const LIVEPEER_API_KEY = env.LIVEPEER_API_KEY
 
 /**
  * GET /api/media/livepeer/status?assetId=xxx

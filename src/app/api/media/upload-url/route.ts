@@ -2,12 +2,13 @@ import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { env } from '@/lib/env'
 
 // Usar Node.js runtime para compatibilidad con librerías de logging (pino) y DB
 export const runtime = 'nodejs'
 
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
-const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+const CF_ACCOUNT_ID = env.CLOUDFLARE_ACCOUNT_ID
+const CF_IMAGES_TOKEN = env.CLOUDFLARE_IMAGES_API_KEY
 
 const CLOUDFLARE_TIMEOUT_MS = 10_000
 

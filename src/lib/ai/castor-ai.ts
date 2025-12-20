@@ -8,18 +8,19 @@ import {
   toSpanishLanguageName,
   type SupportedTargetLanguage,
 } from './languages'
+import { env } from '@/lib/env'
 
 export { assertSupportedTargetLanguage, toEnglishLanguageName, toSpanishLanguageName }
 export type { SupportedTargetLanguage }
 
 // Initialize Google AI with the stable SDK
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 // Configuración según entorno
 const AI_CONFIG = {
   model: 'gemini-2.0-flash', // Modelo de alto rendimiento (2k RPM en plan pago)
-  analysisPromptSize: process.env.NODE_ENV === 'production' ? 25 : 15, // Aumentamos contexto
-  cacheProfileDays: process.env.NODE_ENV === 'production' ? 7 : 30,
+  analysisPromptSize: env.NODE_ENV === 'production' ? 25 : 15, // Aumentamos contexto
+  cacheProfileDays: env.NODE_ENV === 'production' ? 7 : 30,
 }
 
 const resolveWritingLanguage = (
@@ -135,7 +136,7 @@ export class CastorAI {
         `https://api.neynar.com/v2/farcaster/feed/user/${fid}/casts?limit=25`,
         {
           headers: {
-            'x-api-key': process.env.NEYNAR_API_KEY || '',
+            'x-api-key': env.NEYNAR_API_KEY,
           },
         }
       )

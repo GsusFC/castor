@@ -5,17 +5,18 @@
 
 import { Redis } from '@upstash/redis'
 import { logger } from './logger'
+import { env } from '@/lib/env'
 
 const isValidRedisConfig =
-  process.env.UPSTASH_REDIS_REST_URL &&
-  process.env.UPSTASH_REDIS_REST_TOKEN &&
-  !process.env.UPSTASH_REDIS_REST_URL.includes('your-redis') &&
-  !process.env.UPSTASH_REDIS_REST_TOKEN.includes('your-token')
+  env.UPSTASH_REDIS_REST_URL &&
+  env.UPSTASH_REDIS_REST_TOKEN &&
+  !env.UPSTASH_REDIS_REST_URL.includes('your-redis') &&
+  !env.UPSTASH_REDIS_REST_TOKEN.includes('your-token')
 
 const redis = isValidRedisConfig
   ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+      url: env.UPSTASH_REDIS_REST_URL!,
+      token: env.UPSTASH_REDIS_REST_TOKEN!,
     })
   : null
 

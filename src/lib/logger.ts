@@ -1,13 +1,14 @@
 import pino from 'pino'
+import { env } from '@/lib/env'
 
 // ============================================
 // Logger Configuration
 // ============================================
 
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = env.NODE_ENV === 'development'
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
+  level: env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
   
   // En desarrollo, formato legible
   ...(isDev && {
@@ -40,7 +41,7 @@ export const logger = pino({
 
   // Campos base
   base: {
-    env: process.env.NODE_ENV,
+    env: env.NODE_ENV,
     service: 'castor',
   },
 })

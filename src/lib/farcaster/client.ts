@@ -1,6 +1,7 @@
 import { NeynarAPIClient } from '@neynar/nodejs-sdk'
+import { env } from '@/lib/env'
 
-export const neynar = new NeynarAPIClient({ apiKey: process.env.NEYNAR_API_KEY! })
+export const neynar = new NeynarAPIClient({ apiKey: env.NEYNAR_API_KEY })
 
 /**
  * Valida formato básico de mnemonic BIP39
@@ -86,7 +87,7 @@ export async function publishCast(
  */
 export async function createSigner() {
   try {
-    const mnemonic = process.env.FARCASTER_DEVELOPER_MNEMONIC
+    const mnemonic = env.FARCASTER_DEVELOPER_MNEMONIC
     
     if (!mnemonic) {
       throw new Error('FARCASTER_DEVELOPER_MNEMONIC not configured')

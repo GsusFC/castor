@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, castMedia } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
-import { env } from '@/lib/env'
-
-const CF_WEBHOOK_SECRET = env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
-const CF_ACCOUNT_ID = env.CLOUDFLARE_ACCOUNT_ID
-const CF_IMAGES_TOKEN = env.CLOUDFLARE_IMAGES_API_KEY
-// Dominio de Cloudflare Stream (específico de la cuenta)
-const CF_STREAM_DOMAIN = env.CLOUDFLARE_STREAM_DOMAIN
+import { env, requireCloudflareEnv } from '@/lib/env'
 
 /**
  * Verifica la firma del webhook de Cloudflare
@@ -59,6 +53,10 @@ interface CloudflareStreamWebhookPayload {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { CLOUDFLARE_ACCOUNT_ID: CF_ACCOUNT_ID, CLOUDFLARE_IMAGES_API_KEY: CF_IMAGES_TOKEN, CLOUDFLARE_STREAM_DOMAIN: CF_STREAM_DOMAIN } = requireCloudflareEnv()
+    const CF_WEBHOOK_SECRET = env.CLOUDFLARE_STREAM_WEBHOOK_SECRET
+    // Dominio de Cloudflare Stream (específico de la cuenta)
+
     const payload = await request.text()
     const signature = request.headers.get('webhook-signature')
     

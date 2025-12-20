@@ -8,14 +8,12 @@ import {
   toSpanishLanguageName,
   type SupportedTargetLanguage,
 } from './languages'
-import { env } from '@/lib/env'
+import { env, requireGeminiEnv } from '@/lib/env'
 
 export { assertSupportedTargetLanguage, toEnglishLanguageName, toSpanishLanguageName }
 export type { SupportedTargetLanguage }
 
 // Initialize Google AI with the stable SDK
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
-
 // Configuración según entorno
 const AI_CONFIG = {
   model: 'gemini-2.0-flash', // Modelo de alto rendimiento (2k RPM en plan pago)
@@ -84,10 +82,17 @@ export interface SuggestionContext {
 export type AIMode = 'write' | 'improve' | 'translate'
 
 export class CastorAI {
-  private model
-
   constructor() {
+  }
+
+  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
+
+  private getModel() {
+    if (this.model) return this.model
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
     this.model = genAI.getGenerativeModel({ model: AI_CONFIG.model })
+    return this.model
   }
 
   /**
@@ -95,7 +100,8 @@ export class CastorAI {
    */
   private async generate(prompt: string): Promise<string> {
     try {
-      const result = await this.model.generateContent(prompt)
+      const model = this.getModel()
+      const result = await model.generateContent(prompt)
       const response = await result.response
       return response.text().trim()
     } catch (error) {

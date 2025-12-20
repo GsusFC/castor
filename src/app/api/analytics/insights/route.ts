@@ -4,9 +4,7 @@ import { db, accounts, castAnalytics, analyticsInsightsCache, accountMembers } f
 import { eq, or, and, desc, inArray, gt } from 'drizzle-orm'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { nanoid } from 'nanoid'
-import { env } from '@/lib/env'
-
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
+import { requireGeminiEnv } from '@/lib/env'
 
 // Cache válido por 24 horas
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000
@@ -18,6 +16,9 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000
  */
 export async function GET(request: NextRequest) {
   try {
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

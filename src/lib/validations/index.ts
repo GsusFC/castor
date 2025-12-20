@@ -111,7 +111,7 @@ export const updateTemplateSchema = z.object({
 export const aiReplySchema = z.object({
   accountId: z.string().min(1, 'accountId is required'),
   originalText: z.string().min(1, 'originalText is required').max(2000, 'originalText too long'),
-  authorUsername: z.string().trim().min(1, 'authorUsername is required').max(80, 'authorUsername too long').default('usuario'),
+  authorUsername: z.string().trim().max(80, 'authorUsername too long').optional().default('usuario'),
   tone: z.enum(['professional', 'casual', 'friendly', 'witty', 'controversial']).default('friendly'),
   language: z.string().trim().min(2, 'language is required').max(40, 'language too long').default('English'),
   context: z.string().trim().max(500, 'context too long').optional().default(''),

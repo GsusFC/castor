@@ -3,13 +3,14 @@ import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { validateFileMagicBytes, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES } from '@/lib/media-validation'
+import { env } from '@/lib/env'
 
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
-const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+const CF_ACCOUNT_ID = env.CLOUDFLARE_ACCOUNT_ID
+const CF_IMAGES_TOKEN = env.CLOUDFLARE_IMAGES_API_KEY
 
 // Configuración de webhooks de Cloudflare Stream
-const WEBHOOK_URL = process.env.NEXT_PUBLIC_APP_URL 
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/cloudflare-stream`
+const WEBHOOK_URL = env.NEXT_PUBLIC_APP_URL
+  ? `${env.NEXT_PUBLIC_APP_URL}/api/webhooks/cloudflare-stream`
   : null
 
 export async function POST(request: NextRequest) {

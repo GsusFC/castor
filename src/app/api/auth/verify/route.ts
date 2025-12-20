@@ -3,6 +3,7 @@ import { createSession } from '@/lib/auth'
 import { neynar } from '@/lib/farcaster/client'
 import { db, users } from '@/lib/db'
 import { eq } from 'drizzle-orm'
+import { env } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si el FID está en la whitelist (Beta)
-    const allowedFids = process.env.ALLOWED_FIDS?.split(',').map(Number) ?? []
+    const allowedFids = env.ALLOWED_FIDS?.split(',').map(Number) ?? []
     if (allowedFids.length > 0 && !allowedFids.includes(fid)) {
       return NextResponse.json(
         { error: 'Access restricted to beta users' },

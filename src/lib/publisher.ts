@@ -5,6 +5,7 @@ import { publisherLogger, createTimer } from '@/lib/logger'
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
 import { auditCast } from '@/lib/audit'
+import { env } from '@/lib/env'
 
 // ============================================
 // Configuration
@@ -13,7 +14,7 @@ import { auditCast } from '@/lib/audit'
 const MAX_RETRY_COUNT = 3
 const RETRY_DELAY_MINUTES = [5, 15, 60] // Backoff: 5min, 15min, 1hr
 // Dominio de Cloudflare Stream (específico de la cuenta)
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
+const CF_STREAM_DOMAIN = env.CLOUDFLARE_STREAM_DOMAIN
 
 const STUCK_PUBLISHING_THRESHOLD_MS = 10 * 60 * 1000
 
@@ -271,7 +272,7 @@ export async function publishDueCasts(
             `https://livepeer.studio/api/asset/${video.livepeerAssetId}`,
             {
               headers: {
-                'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
+                'Authorization': `Bearer ${env.LIVEPEER_API_KEY}`,
               },
               timeoutMs: externalStatusTimeoutMs,
             }
@@ -314,10 +315,10 @@ export async function publishDueCasts(
       for (const video of cloudflareVideos) {
         try {
           const cfResponse = await fetchWithTimeout(
-            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}`,
+            `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}`,
             {
               headers: {
-                'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
+                'Authorization': `Bearer ${env.CLOUDFLARE_IMAGES_API_KEY}`,
               },
               timeoutMs: externalStatusTimeoutMs,
             }
@@ -334,11 +335,11 @@ export async function publishDueCasts(
               let mp4Url: string | null = null
               try {
                 const downloadRes = await fetchWithTimeout(
-                  `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}/downloads`,
+                  `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/${video.cloudflareId}/downloads`,
                   {
                     method: 'POST',
                     headers: {
-                      'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_KEY}`,
+                      'Authorization': `Bearer ${env.CLOUDFLARE_IMAGES_API_KEY}`,
                       'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({}),

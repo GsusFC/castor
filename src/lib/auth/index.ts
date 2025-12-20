@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
+import { env } from '@/lib/env'
 
 // ============================================
 // Types
@@ -28,10 +29,10 @@ const AUTH_COOKIE = 'castor_session'
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 días
 
 function getSecretKey() {
-  const secret = process.env.SESSION_SECRET
+  const secret = env.SESSION_SECRET
   if (!secret) {
     // En desarrollo, usar un secret por defecto (NO usar en producción)
-    if (process.env.NODE_ENV === 'development') {
+    if (env.NODE_ENV === 'development') {
       return new TextEncoder().encode('castor-dev-secret-key-min-32-chars!')
     }
     throw new Error('SESSION_SECRET environment variable is required')
@@ -107,7 +108,7 @@ export async function createSession(user: AuthUser): Promise<void> {
 
   cookieStore.set(AUTH_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     expires: expiresAt,
     path: '/',

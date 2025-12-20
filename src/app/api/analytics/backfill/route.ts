@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { db, castAnalytics, accounts, accountMembers } from '@/lib/db'
 import { eq, and, or, inArray } from 'drizzle-orm'
+import { env } from '@/lib/env'
 
 /**
  * POST /api/analytics/backfill
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${account.fid}&limit=${Math.min(limit, 100)}&include_replies=false`,
       {
         headers: {
-          'x-api-key': process.env.NEYNAR_API_KEY || '',
+          'x-api-key': env.NEYNAR_API_KEY,
         },
       }
     )

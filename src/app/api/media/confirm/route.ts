@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
+import { env } from '@/lib/env'
 
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
-const CF_IMAGES_TOKEN = process.env.CLOUDFLARE_IMAGES_API_KEY
+const CF_ACCOUNT_ID = env.CLOUDFLARE_ACCOUNT_ID
+const CF_IMAGES_TOKEN = env.CLOUDFLARE_IMAGES_API_KEY
 // Dominio de Cloudflare Stream personalizado (validado por Farcaster)
-const CF_STREAM_DOMAIN = process.env.CLOUDFLARE_STREAM_DOMAIN || 'video.castorapp.xyz'
+const CF_STREAM_DOMAIN = env.CLOUDFLARE_STREAM_DOMAIN
 
 /**
  * POST /api/media/confirm

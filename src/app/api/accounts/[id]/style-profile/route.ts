@@ -4,8 +4,9 @@ import { db, accounts, accountMembers, userStyleProfiles } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { env } from '@/lib/env'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 const CASTS_PER_PAGE = 100
 const MAX_PAGES = 10 // 1000 casts total
 const BATCH_SIZE = 100 // casts por batch para análisis
@@ -30,7 +31,7 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
     const response = await fetch(url, {
       headers: {
         'accept': 'application/json',
-        'x-api-key': process.env.NEYNAR_API_KEY || '',
+        'x-api-key': env.NEYNAR_API_KEY,
       },
     })
 

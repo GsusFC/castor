@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publishDueCasts } from '@/lib/publisher'
 import { withLock } from '@/lib/lock'
+import { env } from '@/lib/env'
 
-const isProduction = process.env.NODE_ENV === 'production'
+const isProduction = env.NODE_ENV === 'production'
 const CRON_LOCK_KEY = 'cron:publish'
 const CRON_LOCK_TTL = 300 // 5 minutes max execution time
 
@@ -13,7 +14,7 @@ const CRON_LOCK_TTL = 300 // 5 minutes max execution time
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = env.CRON_SECRET
 
   // En producción, CRON_SECRET es obligatorio
   if (isProduction && !cronSecret) {

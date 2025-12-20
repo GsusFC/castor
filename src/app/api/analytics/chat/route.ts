@@ -4,8 +4,9 @@ import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { env } from '@/lib/env'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 interface ChatMessage {
   role: 'user' | 'assistant'

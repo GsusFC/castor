@@ -1,6 +1,7 @@
 import { createSigner } from '@/lib/farcaster'
 import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
+import { env } from '@/lib/env'
 
 /**
  * POST /api/accounts/create-signer
@@ -26,7 +27,7 @@ export async function POST() {
     }
 
     // Log sin datos sensibles en producción
-    if (process.env.NODE_ENV === 'development') {
+    if (env.NODE_ENV === 'development') {
       console.log('[API] Signer created for user:', session.userId)
     }
     

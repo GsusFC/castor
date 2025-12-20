@@ -111,7 +111,7 @@ export const updateTemplateSchema = z.object({
 export const aiReplySchema = z.object({
   accountId: z.string().min(1, 'accountId is required'),
   originalText: z.string().min(1, 'originalText is required').max(2000, 'originalText too long'),
-  authorUsername: z.string().trim().max(80, 'authorUsername too long').optional().default('usuario'),
+  authorUsername: z.string().trim().min(1, 'authorUsername is required').max(80, 'authorUsername too long').default('usuario'),
   tone: z.enum(['professional', 'casual', 'friendly', 'witty', 'controversial']).default('friendly'),
   language: z.string().trim().min(2, 'language is required').max(40, 'language too long').default('English'),
   context: z.string().trim().max(500, 'context too long').optional().default(''),
@@ -128,10 +128,10 @@ export type ValidationResult<T> =
 /**
  * Valida datos con un schema Zod y retorna respuesta de error si falla
  */
-export function validate<T>(
-  schema: z.ZodSchema<T>,
+export function validate<S extends z.ZodTypeAny>(
+  schema: S,
   data: unknown
-): ValidationResult<T> {
+): ValidationResult<z.output<S>> {
   const result = schema.safeParse(data)
 
   if (!result.success) {
@@ -159,10 +159,10 @@ export function validate<T>(
 /**
  * Valida query params de URL
  */
-export function validateQuery<T>(
-  schema: z.ZodSchema<T>,
+export function validateQuery<S extends z.ZodTypeAny>(
+  schema: S,
   searchParams: URLSearchParams
-): ValidationResult<T> {
+): ValidationResult<z.output<S>> {
   const params: Record<string, string> = {}
   searchParams.forEach((value, key) => {
     params[key] = value

@@ -1,7 +1,7 @@
 import type { AccountContext } from './castor-ai'
 
-export const sanitizePromptInput = (value?: string): string =>
-  (value ?? '')
+export const sanitizePromptInput = (value: string): string =>
+  value
     .replace(/[<>]/g, '')
     .replace(/[\u0000-\u001F\u007F]/g, '')
     .trim()

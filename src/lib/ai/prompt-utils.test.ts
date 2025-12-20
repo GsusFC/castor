@@ -20,10 +20,6 @@ describe('sanitizePromptInput', () => {
 
     expect(sanitized.length).toBe(2000)
   })
-
-  it('tolera entradas indefinidas retornando cadena vacía', () => {
-    expect(sanitizePromptInput(undefined)).toBe('')
-  })
 })
 
 describe('buildBrandContext', () => {

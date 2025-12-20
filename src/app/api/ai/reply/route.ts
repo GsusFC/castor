@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { accountId, originalText, authorUsername, tone, language, context } = parsedBody.data
 
     const safeOriginalText = sanitizePromptInput(originalText)
-    const safeAuthor = sanitizePromptInput(authorUsername || 'usuario')
+    const safeAuthor = sanitizePromptInput(authorUsername)
     const safeContext = sanitizePromptInput(context)
 
     const account = await db.query.accounts.findFirst({

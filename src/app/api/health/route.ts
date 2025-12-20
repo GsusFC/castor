@@ -59,6 +59,10 @@ async function checkNeynar(): Promise<CheckResult> {
 }
 
 async function checkCloudflare(): Promise<CheckResult> {
+  if (!env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_IMAGES_API_KEY) {
+    return { status: 'error', error: 'Not configured' }
+  }
+
   const start = Date.now()
   try {
     const response = await fetchWithTimeout(

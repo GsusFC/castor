@@ -4,9 +4,7 @@ import { db, accounts, accountMembers, userStyleProfiles } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { env } from '@/lib/env'
-
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
+import { env, requireGeminiEnv } from '@/lib/env'
 const CASTS_PER_PAGE = 100
 const MAX_PAGES = 10 // 1000 casts total
 const BATCH_SIZE = 100 // casts por batch para análisis
@@ -60,7 +58,7 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
 }
 
 // Función para analizar un batch de casts
-async function analyzeBatch(model: ReturnType<typeof genAI.getGenerativeModel>, casts: string[], batchNum: number): Promise<string> {
+async function analyzeBatch(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, casts: string[], batchNum: number): Promise<string> {
   const prompt = `Analiza estos ${casts.length} posts de redes sociales (batch ${batchNum}). Resume en 2-3 oraciones:
 - Tono predominante
 - Temas principales
@@ -83,7 +81,7 @@ Responde en español, máximo 100 palabras.`
 }
 
 // Función para sintetizar todos los análisis en Brand Voice completo
-async function synthesizeBrandVoice(model: ReturnType<typeof genAI.getGenerativeModel>, batchAnalyses: string[], totalCasts: number): Promise<{
+async function synthesizeBrandVoice(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, batchAnalyses: string[], totalCasts: number): Promise<{
   brandVoice: string
   tone: string
   topics: string[]
@@ -135,6 +133,9 @@ Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

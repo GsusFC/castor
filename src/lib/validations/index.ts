@@ -128,10 +128,10 @@ export type ValidationResult<T> =
 /**
  * Valida datos con un schema Zod y retorna respuesta de error si falla
  */
-export function validate<T>(
-  schema: z.ZodSchema<T>,
+export function validate<S extends z.ZodTypeAny>(
+  schema: S,
   data: unknown
-): ValidationResult<T> {
+): ValidationResult<z.output<S>> {
   const result = schema.safeParse(data)
 
   if (!result.success) {
@@ -159,10 +159,10 @@ export function validate<T>(
 /**
  * Valida query params de URL
  */
-export function validateQuery<T>(
-  schema: z.ZodSchema<T>,
+export function validateQuery<S extends z.ZodTypeAny>(
+  schema: S,
   searchParams: URLSearchParams
-): ValidationResult<T> {
+): ValidationResult<z.output<S>> {
   const params: Record<string, string> = {}
   searchParams.forEach((value, key) => {
     params[key] = value

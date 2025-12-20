@@ -5,10 +5,8 @@ import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
 import { buildBrandContext, sanitizePromptInput } from '@/lib/ai/prompt-utils'
-import { env } from '@/lib/env'
+import { requireGeminiEnv } from '@/lib/env'
 import { aiReplySchema, validate } from '@/lib/validations'
-
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 type Tone = 'professional' | 'casual' | 'friendly' | 'witty' | 'controversial'
 
@@ -22,6 +20,9 @@ const toneDescriptions: Record<Tone, string> = {
 
 export async function POST(request: NextRequest) {
   try {
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const safeOriginalText = sanitizePromptInput(originalText)
     const safeAuthor = sanitizePromptInput(authorUsername)
-    const safeContext = context ? sanitizePromptInput(context) : ''
+    const safeContext = sanitizePromptInput(context)
 
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.id, accountId),

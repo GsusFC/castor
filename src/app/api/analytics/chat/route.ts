@@ -4,9 +4,7 @@ import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { env } from '@/lib/env'
-
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
+import { requireGeminiEnv } from '@/lib/env'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -46,6 +44,9 @@ const buildBrandContext = (accountContext: Awaited<ReturnType<typeof castorAI.ge
  */
 export async function POST(request: NextRequest) {
   try {
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

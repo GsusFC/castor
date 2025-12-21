@@ -1,48 +1,80 @@
 'use client'
 
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { SignInButton, useProfile } from '@farcaster/auth-kit'
+import Script from 'next/script'
 import { Loader2, Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { cn } from '@/lib/utils'
+ 
+
+declare global {
+  interface Window {
+    onSignInSuccess?: (data: unknown) => void
+  }
+}
 
 export default function HomePage() {
   const router = useRouter()
-  const { isAuthenticated, profile } = useProfile()
+  const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSuccess = useCallback(async () => {
-    if (!profile?.fid) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: profile.fid }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Verification failed')
-      }
-
-      router.push('/')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setIsLoading(false)
-    }
-  }, [profile, router])
-
   useEffect(() => {
-    if (isAuthenticated && profile?.fid) {
-      handleSuccess()
+    if (!clientId) {
+      setError('Missing NEXT_PUBLIC_NEYNAR_CLIENT_ID')
+      return
     }
-  }, [isAuthenticated, profile, handleSuccess])
+
+    window.onSignInSuccess = async (payload: unknown) => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const data = payload as any
+
+        if (data?.statusCode && data?.statusCode !== 200) {
+          const code = data?.errorResponse?.code
+          const message = code ? `SIWN error: ${code}` : 'SIWN error'
+          throw new Error(message)
+        }
+
+        const signerUuid = data?.signer_uuid
+        const fid = data?.fid
+
+        if (!signerUuid || !fid) {
+          throw new Error('Invalid SIWN response')
+        }
+
+        const res = await fetch('/api/auth/siwn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signerUuid, fid }),
+        })
+
+        const json = await res.json().catch(() => null)
+
+        if (!res.ok) {
+          const details = json?.error || json?.message
+          throw new Error(details || 'Authentication failed')
+        }
+
+        if (json?.success === false) {
+          throw new Error(json?.error || 'Authentication failed')
+        }
+
+        router.push('/')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        setIsLoading(false)
+      }
+    }
+
+    return () => {
+      window.onSignInSuccess = undefined
+    }
+  }, [clientId, router])
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">
@@ -55,10 +87,13 @@ export default function HomePage() {
         <div className="text-center space-y-6 mb-16 max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
           {/* Logo */}
           <div className="flex justify-center mb-2">
-            <img 
-              src="/brand/logo.png" 
-              alt="Castor" 
+            <Image
+              src="/brand/logo.png"
+              alt="Castor"
+              width={96}
+              height={96}
               className="w-20 h-20 md:w-24 md:h-24"
+              priority
             />
           </div>
           
@@ -83,7 +118,19 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="scale-110 transition-transform hover:scale-115">
-                <SignInButton />
+                {clientId && (
+                  <>
+                    <div
+                      className="neynar_signin"
+                      data-client_id={clientId}
+                      data-success-callback="onSignInSuccess"
+                    />
+                    <Script
+                      src="https://neynarxyz.github.io/siwn/raw/1.2.0/index.js"
+                      strategy="afterInteractive"
+                    />
+                  </>
+                )}
               </div>
             )}
             

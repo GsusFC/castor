@@ -19,6 +19,7 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().optional(),
+  NEXT_PUBLIC_NEYNAR_CLIENT_ID: z.string().min(1, 'NEXT_PUBLIC_NEYNAR_CLIENT_ID is required'),
   NEXT_PUBLIC_GIPHY_API_KEY: z.string().optional(),
   ALLOWED_FIDS: z.string().optional(),
   LOG_LEVEL: z.string().optional(),

@@ -1,19 +1,23 @@
 'use client'
 
 import { useCallback, useEffect } from 'react'
-import { SignInButton as FarcasterSignIn, useProfile } from '@farcaster/auth-kit'
+import { SignInButton as FarcasterSignIn, useProfile, useSignInMessage } from '@farcaster/auth-kit'
 
 export function SignInButton() {
   const { isAuthenticated, profile } = useProfile()
+  const { message, signature } = useSignInMessage()
 
   const handleAuth = useCallback(async () => {
+    if (!isAuthenticated) return
     if (!profile?.fid) return
+    if (!message) return
+    if (!signature) return
 
     try {
       const res = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: profile.fid }),
+        body: JSON.stringify({ message, signature }),
       })
 
       if (res.ok) {
@@ -22,13 +26,13 @@ export function SignInButton() {
     } catch (err) {
       console.error('Auth error:', err)
     }
-  }, [profile])
+  }, [isAuthenticated, message, profile?.fid, signature])
 
   useEffect(() => {
-    if (isAuthenticated && profile?.fid) {
+    if (isAuthenticated && profile?.fid && message && signature) {
       handleAuth()
     }
-  }, [isAuthenticated, profile, handleAuth])
+  }, [handleAuth, isAuthenticated, message, profile?.fid, signature])
 
   return <FarcasterSignIn />
 }

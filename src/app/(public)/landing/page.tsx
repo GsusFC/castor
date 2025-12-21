@@ -1,98 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import Script from 'next/script'
-import { Loader2, Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
+import { Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
- 
-
- const SIWN_SUCCESS_EVENT = 'castor:siwn-success'
-
-declare global {
-  interface Window {
-    onSignInSuccess?: (data: unknown) => void
-  }
-}
-
- if (typeof window !== 'undefined' && !window.onSignInSuccess) {
-   window.onSignInSuccess = (payload: unknown) => {
-     window.dispatchEvent(new CustomEvent(SIWN_SUCCESS_EVENT, { detail: payload }))
-   }
- }
+import { SignInButton } from '@/app/SignInButton'
 
 export default function HomePage() {
-  const router = useRouter()
-  const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const handleSiwnSuccess = async (event: Event) => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const data = (event as CustomEvent).detail as any
-
-        if (data?.statusCode && data?.statusCode !== 200) {
-          const code = data?.errorResponse?.code
-          const message = code ? `SIWN error: ${code}` : 'SIWN error'
-          throw new Error(message)
-        }
-
-        const signerUuid = data?.signer_uuid
-        const fid = data?.fid
-
-        if (!signerUuid || !fid) {
-          throw new Error('Invalid SIWN response')
-        }
-
-        const res = await fetch('/api/auth/siwn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ signerUuid, fid }),
-        })
-
-        const json = await res.json().catch(() => null)
-
-        if (!res.ok) {
-          const details = json?.error || json?.message
-          throw new Error(details || 'Authentication failed')
-        }
-
-        if (json?.success === false) {
-          throw new Error(json?.error || 'Authentication failed')
-        }
-
-        router.push('/')
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-        setIsLoading(false)
-      }
-    }
-
-    window.addEventListener(SIWN_SUCCESS_EVENT, handleSiwnSuccess)
-
-    if (!clientId) {
-      setError('Missing NEXT_PUBLIC_NEYNAR_CLIENT_ID')
-    }
-
-    return () => {
-      window.removeEventListener(SIWN_SUCCESS_EVENT, handleSiwnSuccess)
-    }
-  }, [clientId, router])
-
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">
       {/* Dot Pattern Background */}
       <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
-
-      <Script id="castor-siwn-success-callback" strategy="beforeInteractive">
-        {`window.onSignInSuccess = function(payload) { window.dispatchEvent(new CustomEvent('${SIWN_SUCCESS_EVENT}', { detail: payload })); };`}
-      </Script>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 max-w-5xl mx-auto w-full">
         
@@ -124,34 +42,9 @@ export default function HomePage() {
           </p>
 
           <div className="pt-4 flex flex-col items-center gap-4">
-            {isLoading ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-muted rounded-xl border border-border text-muted-foreground animate-pulse">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="font-medium">Signing in...</span>
-              </div>
-            ) : (
-              <div className="scale-110 transition-transform hover:scale-115">
-                {clientId && (
-                  <>
-                    <div
-                      className="neynar_signin"
-                      data-client_id={clientId}
-                      data-success-callback="onSignInSuccess"
-                    />
-                    <Script
-                      src="https://neynarxyz.github.io/siwn/raw/1.2.0/index.js"
-                      strategy="afterInteractive"
-                    />
-                  </>
-                )}
-              </div>
-            )}
-            
-            {error && (
-              <p className="text-destructive text-sm font-medium bg-destructive/10 px-4 py-2 rounded-lg">
-                {error}
-              </p>
-            )}
+            <div className="scale-110 transition-transform hover:scale-115">
+              <SignInButton />
+            </div>
           </div>
         </div>
 

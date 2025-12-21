@@ -9,11 +9,19 @@ import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
  
 
+ const SIWN_SUCCESS_EVENT = 'castor:siwn-success'
+
 declare global {
   interface Window {
     onSignInSuccess?: (data: unknown) => void
   }
 }
+
+ if (typeof window !== 'undefined' && !window.onSignInSuccess) {
+   window.onSignInSuccess = (payload: unknown) => {
+     window.dispatchEvent(new CustomEvent(SIWN_SUCCESS_EVENT, { detail: payload }))
+   }
+ }
 
 export default function HomePage() {
   const router = useRouter()
@@ -22,17 +30,12 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!clientId) {
-      setError('Missing NEXT_PUBLIC_NEYNAR_CLIENT_ID')
-      return
-    }
-
-    window.onSignInSuccess = async (payload: unknown) => {
+    const handleSiwnSuccess = async (event: Event) => {
       try {
         setIsLoading(true)
         setError(null)
 
-        const data = payload as any
+        const data = (event as CustomEvent).detail as any
 
         if (data?.statusCode && data?.statusCode !== 200) {
           const code = data?.errorResponse?.code
@@ -71,8 +74,14 @@ export default function HomePage() {
       }
     }
 
+    window.addEventListener(SIWN_SUCCESS_EVENT, handleSiwnSuccess)
+
+    if (!clientId) {
+      setError('Missing NEXT_PUBLIC_NEYNAR_CLIENT_ID')
+    }
+
     return () => {
-      window.onSignInSuccess = undefined
+      window.removeEventListener(SIWN_SUCCESS_EVENT, handleSiwnSuccess)
     }
   }, [clientId, router])
 
@@ -80,6 +89,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">
       {/* Dot Pattern Background */}
       <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
+
+      <Script id="castor-siwn-success-callback" strategy="beforeInteractive">
+        {`window.onSignInSuccess = function(payload) { window.dispatchEvent(new CustomEvent('${SIWN_SUCCESS_EVENT}', { detail: payload })); };`}
+      </Script>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 max-w-5xl mx-auto w-full">
         

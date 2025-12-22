@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
-    middlewareClientMaxBodySize: '100mb',
+    proxyClientMaxBodySize: '100mb',
   },
   // Evitar bundling de pino (causa errores con thread-stream)
   serverExternalPackages: ['pino', 'pino-pretty'],
@@ -43,11 +43,51 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'imagedelivery.net',
       },
       {
-        protocol: 'http',
-        hostname: '**',
+        protocol: 'https',
+        hostname: 'videodelivery.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'watch.cloudflarestream.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatar.vercel.sh',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.imgur.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'imgur.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pbs.twimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'media.giphy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.giphy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'giphy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com',
       },
     ],
   },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
-import { env } from '@/lib/env'
+import { requireNeynarEnv } from '@/lib/env'
+import { fetchWithTimeout } from '@/lib/fetch'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
 /**
  * GET /api/casts/[id]/conversation
@@ -41,6 +43,10 @@ interface FormattedCast {
     name: string
     image_url?: string
   }
+}
+
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,6 +91,7 @@ export async function GET(
 ) {
   try {
     const { id: hash } = await params
+    const { NEYNAR_API_KEY } = requireNeynarEnv()
     const { searchParams } = new URL(request.url)
     const cursor = searchParams.get('cursor')
     const limit = parseInt(searchParams.get('limit') || '25')
@@ -97,10 +104,12 @@ export async function GET(
     }
 
     // 1. Obtener el cast principal
-    const castResponse = await neynar.lookupCastByHashOrWarpcastUrl({
-      identifier: hash,
-      type: 'hash',
-    })
+    const castResponse = await callNeynar('neynar:casts:lookup', () =>
+      neynar.lookupCastByHashOrWarpcastUrl({
+        identifier: hash,
+        type: 'hash',
+      })
+    )
 
     if (!castResponse.cast) {
       return NextResponse.json(
@@ -119,10 +128,12 @@ export async function GET(
     
     while (currentCast?.parent_hash) {
       try {
-        const parentResponse = await neynar.lookupCastByHashOrWarpcastUrl({
-          identifier: currentCast.parent_hash,
-          type: 'hash',
-        })
+        const parentResponse = await callNeynar('neynar:casts:lookup', () =>
+          neynar.lookupCastByHashOrWarpcastUrl({
+            identifier: currentCast.parent_hash,
+            type: 'hash',
+          })
+        )
         if (parentResponse.cast) {
           ancestors.unshift(parentResponse.cast) // Añadir al principio
           currentCast = parentResponse.cast
@@ -150,12 +161,14 @@ export async function GET(
         repliesUrl.searchParams.set('cursor', cursor)
       }
 
-      const repliesResponse = await fetch(repliesUrl.toString(), {
-        headers: {
-          'accept': 'application/json',
-          'x-api-key': env.NEYNAR_API_KEY,
-        },
-      })
+      const repliesResponse = await callNeynar('neynar:casts:conversation', () =>
+        fetchWithTimeout(repliesUrl.toString(), {
+          headers: {
+            'accept': 'application/json',
+            'x-api-key': NEYNAR_API_KEY,
+          },
+        })
+      )
 
       if (repliesResponse.ok) {
         const repliesData = await repliesResponse.json()
@@ -171,7 +184,7 @@ export async function GET(
     // Thread completo: ancestors + mainCast (en orden cronológico)
     const thread = [...ancestors.map(formatCast), formatCast(mainCast)]
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       thread,
       targetHash: hash, // El cast que originó la vista
       replies: {
@@ -180,7 +193,15 @@ export async function GET(
         hasMore: !!nextCursor,
       },
     })
+    res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60')
+    return res
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('[API] Error fetching conversation:', error)
     return NextResponse.json(
       { error: 'Failed to fetch conversation' },

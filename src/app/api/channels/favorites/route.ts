@@ -3,9 +3,10 @@ import { getSession } from '@/lib/auth'
 import { db, userChannels } from '@/lib/db'
 import { eq, and, desc } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import { getClientIP, withRateLimit } from '@/lib/rate-limit'
 
 // GET - Obtener favoritos y recientes del usuario
-export async function GET() {
+async function handleGET(request: NextRequest) {
   try {
     const session = await getSession()
     if (!session) {
@@ -29,8 +30,13 @@ export async function GET() {
   }
 }
 
+export const GET = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handleGET)
+
 // POST - Marcar/desmarcar favorito
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const session = await getSession()
     if (!session) {
@@ -82,3 +88,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update favorite' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handlePOST)

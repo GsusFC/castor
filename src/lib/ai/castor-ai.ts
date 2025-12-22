@@ -8,7 +8,7 @@ import {
   toSpanishLanguageName,
   type SupportedTargetLanguage,
 } from './languages'
-import { env, requireGeminiEnv } from '@/lib/env'
+import { env, requireGeminiEnv, requireNeynarEnv } from '@/lib/env'
 
 export { assertSupportedTargetLanguage, toEnglishLanguageName, toSpanishLanguageName }
 export type { SupportedTargetLanguage }
@@ -137,12 +137,13 @@ export class CastorAI {
    */
   async analyzeAndSaveProfile(userId: string, fid: number): Promise<StyleProfile> {
     try {
+      const { NEYNAR_API_KEY } = requireNeynarEnv()
       // Obtener casts del usuario desde Neynar
       const castsResponse = await fetch(
         `https://api.neynar.com/v2/farcaster/feed/user/${fid}/casts?limit=25`,
         {
           headers: {
-            'x-api-key': env.NEYNAR_API_KEY,
+            'x-api-key': NEYNAR_API_KEY,
           },
         }
       )

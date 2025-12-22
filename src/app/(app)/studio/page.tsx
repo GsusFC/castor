@@ -105,6 +105,8 @@ export default async function DashboardPage() {
     publishedAt: cast.publishedAt?.toISOString() || null,
     castHash: cast.castHash,
     channelId: cast.channelId,
+    errorMessage: cast.errorMessage,
+    retryCount: cast.retryCount ?? 0,
     accountId: cast.accountId,
     account: cast.account ? {
       id: cast.account.id,
@@ -118,6 +120,12 @@ export default async function DashboardPage() {
       url: m.url,
       type: m.type,
       thumbnailUrl: m.thumbnailUrl,
+      cloudflareId: m.cloudflareId,
+      livepeerAssetId: m.livepeerAssetId,
+      livepeerPlaybackId: m.livepeerPlaybackId,
+      videoStatus: m.videoStatus,
+      mp4Url: m.mp4Url,
+      hlsUrl: m.hlsUrl,
     })) || [],
   }))
 

@@ -183,6 +183,11 @@ export async function POST(request: NextRequest) {
     let scheduledDate: Date | null = null
     if (scheduledAt) {
       scheduledDate = new Date(scheduledAt)
+      if (Number.isNaN(scheduledDate.getTime())) {
+        return ApiErrors.validationFailed([
+          { field: 'scheduledAt', message: 'Invalid scheduledAt' },
+        ])
+      }
       if (!isDraft && scheduledDate <= new Date()) {
         return ApiErrors.validationFailed([{ 
           field: 'scheduledAt', 
@@ -229,7 +234,8 @@ export async function POST(request: NextRequest) {
               url.includes('lp-playback')
             const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
             const isExplicitVideo = embed.type === 'video'
-            return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo
+            const isRegularLink = /^https?:\/\//i.test(url)
+            return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo || isRegularLink
           })
           
           if (mediaEmbeds.length > 0) {

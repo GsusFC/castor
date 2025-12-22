@@ -58,6 +58,7 @@ const searchResponseSchema = z.object({
 export function SearchDrawer() {
     const router = useRouter()
     const { isOpen, close, open } = useSearch()
+    const [isMobile, setIsMobile] = useState(false)
     const [query, setQuery] = useState('')
     const [activeTab, setActiveTab] = useState<SearchTab>('all')
     const { favorites, toggleFavorite } = useUserChannels()
@@ -76,6 +77,21 @@ export function SearchDrawer() {
             }, 100)
         }
     }, [isOpen])
+
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 639px)')
+
+        const handleChange = () => {
+            setIsMobile(mql.matches)
+        }
+
+        handleChange()
+        mql.addEventListener('change', handleChange)
+
+        return () => {
+            mql.removeEventListener('change', handleChange)
+        }
+    }, [])
 
     // Keyboard shortcut (Cmd+K)
     useEffect(() => {
@@ -183,10 +199,12 @@ export function SearchDrawer() {
     return (
         <Sheet open={isOpen} onOpenChange={(val) => !val && close()}>
             <SheetContent
-                side="right"
+                side={isMobile ? 'bottom' : 'right'}
                 className={cn(
                     "p-0 overflow-hidden transition-all duration-300 ease-out border-none [&>button]:hidden",
-                    "w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground"
+                    isMobile
+                        ? "w-full h-[85dvh] max-h-[85dvh] rounded-t-2xl bg-background text-foreground"
+                        : "w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground"
                 )}
             >
                 <SheetHeader className="sr-only">

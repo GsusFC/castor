@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { calculateTextLength } from '@/lib/url-utils'
 import { getMaxChars, getMaxEmbeds } from '@/lib/compose/constants'
 import { useAccounts, useTemplates, useScheduleForm, useCastThread, Template } from '@/hooks'
+import { fetchApiData, ApiRequestError } from '@/lib/fetch-json'
 
 interface EditCastData {
   id: string
@@ -145,8 +146,9 @@ export function ComposeModal({
 
     schedule.setFromISO(editCast.scheduledAt)
 
-    // Mapear media
-    const media: MediaFile[] = (editCast.media || [])
+    const rawEmbeds = editCast.media || []
+
+    const media: MediaFile[] = rawEmbeds
       .filter(m => {
         const url = m.url || ''
         const isCloudflare = m.cloudflareId ||
@@ -169,11 +171,25 @@ export function ComposeModal({
         videoStatus: (m.videoStatus as MediaFile['videoStatus']) || undefined,
       }))
 
+    const links = rawEmbeds
+      .filter(m => {
+        const url = m.url || ''
+        const isCloudflare = m.cloudflareId ||
+          url.includes('cloudflare') ||
+          url.includes('imagedelivery.net')
+        const isLivepeer = m.livepeerAssetId ||
+          url.includes('livepeer') ||
+          url.includes('lp-playback')
+        const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
+        return !(isCloudflare || isLivepeer || hasMediaExtension)
+      })
+      .map(m => ({ url: m.url }))
+
     thread.setCasts([{
       id: editCast.id,
       content: editCast.content,
       media,
-      links: [],
+      links,
     }])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editCast])
@@ -231,6 +247,8 @@ export function ComposeModal({
                   url: m.url!,
                   type: m.type,
                   cloudflareId: m.cloudflareId,
+                  livepeerAssetId: m.livepeerAssetId,
+                  livepeerPlaybackId: m.livepeerPlaybackId,
                   videoStatus: m.videoStatus,
                 })),
                 ...cast.links.map(l => ({ url: l.url })),
@@ -331,6 +349,8 @@ export function ComposeModal({
           url: m.url!,
           type: m.type,
           cloudflareId: m.cloudflareId,
+          livepeerAssetId: m.livepeerAssetId,
+          livepeerPlaybackId: m.livepeerPlaybackId,
           videoStatus: m.videoStatus,
         })),
         ...cast.links.map(l => ({ url: l.url })),
@@ -406,7 +426,7 @@ export function ComposeModal({
 
       console.log('[Publish] Final embeds:', embeds)
 
-      const res = await fetch('/api/casts/publish', {
+      await fetchApiData<{ hash: string; cast: unknown }>('/api/casts/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -419,16 +439,18 @@ export function ComposeModal({
         }),
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error publishing cast')
-
       toast.success('Cast published!')
       publishNowIdempotencyKeyRef.current = null
       resetForm()
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
+      const msg =
+        err instanceof ApiRequestError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Unknown error'
       setError(msg)
       toast.error(msg)
     } finally {

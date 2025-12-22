@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
-import { env } from '@/lib/env'
 
 const AUTH_COOKIE = 'castor_session'
+const NODE_ENV = process.env.NODE_ENV ?? 'development'
 
 // Rutas completamente públicas (no requieren autenticación)
 const publicPaths = [
@@ -26,6 +26,7 @@ const readOnlyPublicApis = [
   '/api/feed',       // Feed es público para lectura
   '/api/users/',     // Perfiles de usuario son públicos
   '/api/search',     // Búsqueda es pública
+  '/api/health',
   '/api/leaderboard',
 ]
 
@@ -36,14 +37,14 @@ const authPostApis = [
 ]
 
 function getSecretKey() {
-  const secret = env.SESSION_SECRET
-  if (!secret) {
-    if (env.NODE_ENV === 'development') {
-      return new TextEncoder().encode('castor-dev-secret-key-min-32-chars!')
-    }
-    throw new Error('SESSION_SECRET is required')
+  const secret = process.env.SESSION_SECRET
+  if (secret && secret.length > 0) return new TextEncoder().encode(secret)
+
+  if (NODE_ENV === 'development' || NODE_ENV === 'test') {
+    return new TextEncoder().encode('castor-dev-secret-key-min-32-chars!')
   }
-  return new TextEncoder().encode(secret)
+
+  throw new Error('SESSION_SECRET is required')
 }
 
 export async function middleware(request: NextRequest) {

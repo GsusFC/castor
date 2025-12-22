@@ -3,18 +3,16 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Plus, FileText, LayoutTemplate, Rss, Search, Bell, Settings } from 'lucide-react'
+import { Home, Plus, Rss, Search, Bell, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
-import { useUserChannels } from '@/hooks/useUserChannels'
-import { useDebounce } from '@/hooks/useDebounce'
 import { useNotifications } from '@/context/NotificationsContext'
 import { MobileNavDraftsSheet } from '@/components/layout/MobileNavDraftsSheet'
 import { MobileNavTemplatesSheet } from '@/components/layout/MobileNavTemplatesSheet'
-import { MobileNavSearchSheet } from '@/components/layout/MobileNavSearchSheet'
-import { z } from 'zod'
+import { useSearch } from '@/context/SearchContext'
+import { MobileNavMoreSheet } from '@/components/layout/MobileNavMoreSheet'
 
 interface Draft {
   id: string
@@ -33,37 +31,27 @@ interface Template {
   accountId: string
 }
 
-const searchResponseSchema = z.object({
-  users: z.array(z.any()),
-  channels: z.array(z.any()),
-  casts: z.array(z.any()),
-})
-
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [composeOpen, setComposeOpen] = useState(false)
   const [draftsOpen, setDraftsOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const { selectedAccountId } = useSelectedAccount()
 
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
-  const [searchOpen, setSearchOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSheetLayerActive, setIsSheetLayerActive] = useState(false)
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{
-    users: any[]
-    channels: any[]
-    casts: any[]
-  }>({ users: [], channels: [], casts: [] })
-  const [isSearching, setIsSearching] = useState(false)
-  const debouncedQuery = useDebounce(searchQuery, 300)
-  const { favorites, toggleFavorite } = useUserChannels()
   const { unreadCount, open: openNotifications, isOpen: isNotificationsOpen } = useNotifications()
+  const { open: openSearch, isOpen: isSearchOpen } = useSearch()
+
+  const isFeedActive = pathname === '/' || pathname.startsWith('/user') || pathname.startsWith('/cast')
+  const isStudioActive = pathname.startsWith('/studio')
+  const isNotificationsActive = isNotificationsOpen || pathname.startsWith('/notifications')
+  const isMoreActive = moreOpen || pathname.startsWith('/accounts') || pathname.startsWith('/settings')
 
   // Cargar drafts cuando se abre el sheet
   useEffect(() => {
@@ -90,49 +78,6 @@ export function MobileNav() {
       setTemplates([])
     }
   }, [templatesOpen, selectedAccountId])
-
-  // Búsqueda global
-  useEffect(() => {
-    if (debouncedQuery.length < 2) {
-      setSearchResults({ users: [], channels: [], casts: [] })
-      return
-    }
-
-    const controller = new AbortController()
-
-    const search = async () => {
-      setIsSearching(true)
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`,
-          { signal: controller.signal }
-        )
-        if (res.ok) {
-          const data = searchResponseSchema.parse(await res.json())
-          setSearchResults({
-            users: data.users,
-            channels: data.channels,
-            casts: data.casts,
-          })
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        console.error('Search error:', error)
-      } finally {
-        setIsSearching(false)
-      }
-    }
-
-    search()
-    return () => controller.abort()
-  }, [debouncedQuery])
-
-  // Limpiar búsqueda al cerrar
-  useEffect(() => {
-    if (!searchOpen) {
-      setSearchQuery('')
-      setSearchResults({ users: [], channels: [], casts: [] })
-    }
-  }, [searchOpen])
 
   const handleEditDraft = (draftId: string) => {
     setDraftsOpen(false)
@@ -173,9 +118,6 @@ export function MobileNav() {
     }
   }
 
-  // Detectar si estamos en la sección de feed
-  const isFeedSection = pathname === '/' || pathname?.startsWith('/user')
-
   // Filtrar por cuenta seleccionada
   const filteredDrafts = selectedAccountId
     ? drafts.filter(d => d.accountId === selectedAccountId)
@@ -185,22 +127,7 @@ export function MobileNav() {
     ? templates.filter(t => t.accountId === selectedAccountId)
     : templates
 
-  const handleSelectSearchUser = (username: string) => {
-    setSearchOpen(false)
-    router.push(`/user/${username}`)
-  }
-
-  const handleSelectSearchChannel = (channelId: string) => {
-    setSearchOpen(false)
-    router.push(`/?channel=${channelId}`)
-  }
-
-  const handleSelectSearchCast = (castHash: string) => {
-    setSearchOpen(false)
-    router.push(`/?cast=${castHash}`)
-  }
-
-  const isAnySheetOpen = searchOpen || draftsOpen || templatesOpen || isNotificationsOpen
+  const isAnySheetOpen = draftsOpen || templatesOpen || moreOpen || isNotificationsOpen || isSearchOpen
   const isNavLayerActive = isAnySheetOpen || isSheetLayerActive
 
   useEffect(() => {
@@ -218,100 +145,95 @@ export function MobileNav() {
 
   return (
     <>
-      {/* FAB - New Cast button - fixed above nav (oculto cuando sheets están abiertos) */}
+      {/* FABs - Search (left) + New Cast (right) - fixed above nav */}
       {!isNavLayerActive && (
-        <button
-          onClick={() => setComposeOpen(true)}
-          className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 lg:hidden"
-          aria-label="New Cast"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={openSearch}
+            className="fixed bottom-20 left-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 lg:hidden"
+            aria-label="Search"
+          >
+            <Search className="w-6 h-6" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setComposeOpen(true)}
+            className="fixed bottom-20 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 lg:hidden"
+            aria-label="New Cast"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </>
       )}
 
       {/* Bottom navigation - only visible on mobile */}
       <nav
         className={cn(
           'fixed bottom-0 left-0 right-0 border-t border-border lg:hidden pb-safe',
-          isNavLayerActive
+          isAnySheetOpen
             ? 'z-[80] pointer-events-none bg-card'
-            : 'z-20 bg-card/95 backdrop-blur-xl'
+            : isNavLayerActive
+              ? 'z-[80] bg-card'
+              : 'z-20 bg-card/95 backdrop-blur-xl'
         )}
       >
         <div className="flex items-center justify-around h-16 px-4">
-          {/* Menú contextual según la sección */}
-          {isFeedSection ? (
-            <>
-              {/* En Feed: Home, Search, Accounts */}
-              <Link
-                href="/studio"
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-              >
-                <Home className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Studio</span>
-              </Link>
+          <Link
+            href="/"
+            aria-current={isFeedActive ? 'page' : undefined}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors',
+              isFeedActive ? 'text-foreground' : 'text-muted-foreground'
+            )}
+          >
+            <Rss className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Feed</span>
+          </Link>
 
-              <button
-                type="button"
-                onClick={openNotifications}
-                className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-                aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Open notifications'}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Notifs</span>
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
+          <Link
+            href="/studio"
+            aria-current={isStudioActive ? 'page' : undefined}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors',
+              isStudioActive ? 'text-foreground' : 'text-muted-foreground'
+            )}
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Studio</span>
+          </Link>
 
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-              >
-                <Search className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Search</span>
-              </button>
+          <button
+            type="button"
+            onClick={openNotifications}
+            className={cn(
+              'relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors',
+              isNotificationsActive ? 'text-foreground' : 'text-muted-foreground'
+            )}
+            aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Open notifications'}
+          >
+            <Bell className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Notifs</span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-6 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                {unreadCount}
+              </span>
+            )}
+          </button>
 
-            </>
-          ) : (
-            <>
-              {/* En Dashboard: Feed, Drafts, Templates */}
-              <Link
-                href="/"
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-              >
-                <Rss className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Feed</span>
-              </Link>
-
-              <Link
-                href="/settings"
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-                aria-label="Open settings"
-              >
-                <Settings className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Settings</span>
-              </Link>
-
-              <button
-                onClick={() => setDraftsOpen(true)}
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-              >
-                <FileText className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Drafts</span>
-              </button>
-
-              <button
-                onClick={() => setTemplatesOpen(true)}
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors text-muted-foreground"
-              >
-                <LayoutTemplate className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Templates</span>
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-12 rounded-lg transition-colors',
+              isMoreActive ? 'text-foreground' : 'text-muted-foreground'
+            )}
+            aria-label="Open more menu"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
         </div>
       </nav>
 
@@ -335,19 +257,11 @@ export function MobileNav() {
         onDeleteTemplate={handleDeleteTemplate}
       />
 
-      {/* Search Sheet - Mobile first: input abajo, resultados arriba */}
-      <MobileNavSearchSheet
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        searchResults={searchResults}
-        isSearching={isSearching}
-        favorites={favorites}
-        toggleFavorite={toggleFavorite}
-        onSelectUser={handleSelectSearchUser}
-        onSelectChannel={handleSelectSearchChannel}
-        onSelectCast={handleSelectSearchCast}
+      <MobileNavMoreSheet
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        onOpenDrafts={() => setDraftsOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
       {/* Compose Modal */}

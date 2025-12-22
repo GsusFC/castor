@@ -7,6 +7,7 @@ export default [
   {
     ignores: [
       '.next/**',
+      '.netlify/**',
       'node_modules/**',
       'out/**',
       'build/**',

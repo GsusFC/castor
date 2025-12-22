@@ -217,8 +217,12 @@ export async function PATCH(
               id: generateId(),
               castId: id,
               url: embed.url,
-              type: embed.type || 'image' as const,
+              type: (embed.type || 'image') as 'image' | 'video',
               order: index,
+              cloudflareId: embed.cloudflareId,
+              livepeerAssetId: embed.livepeerAssetId,
+              livepeerPlaybackId: embed.livepeerPlaybackId,
+              videoStatus: embed.videoStatus,
             }))
           )
         }

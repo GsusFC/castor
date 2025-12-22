@@ -4,7 +4,7 @@ import { db, accounts, accountMembers, userStyleProfiles } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { env, requireGeminiEnv } from '@/lib/env'
+import { requireGeminiEnv, requireNeynarEnv } from '@/lib/env'
 const CASTS_PER_PAGE = 100
 const MAX_PAGES = 10 // 1000 casts total
 const BATCH_SIZE = 100 // casts por batch para análisis
@@ -19,6 +19,8 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
   let cursor: string | null = null
   let pages = 0
 
+  const { NEYNAR_API_KEY } = requireNeynarEnv()
+
   while (allCasts.length < maxCasts && pages < MAX_PAGES) {
     const url: string = cursor 
       ? `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${fid}&limit=${CASTS_PER_PAGE}&cursor=${cursor}`
@@ -29,7 +31,7 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
     const response = await fetch(url, {
       headers: {
         'accept': 'application/json',
-        'x-api-key': env.NEYNAR_API_KEY,
+        'x-api-key': NEYNAR_API_KEY,
       },
     })
 

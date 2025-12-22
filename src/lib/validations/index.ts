@@ -84,6 +84,10 @@ export const updateCastSchema = z.object({
   embeds: z.array(z.object({
     url: z.string().url(),
     type: z.enum(['image', 'video']).optional(),
+    cloudflareId: z.string().optional(),
+    livepeerAssetId: z.string().optional(),
+    livepeerPlaybackId: z.string().optional(),
+    videoStatus: z.enum(['pending', 'processing', 'ready', 'error']).optional(),
   })).max(MAX_EMBEDS_PRO).optional(),
 })
 

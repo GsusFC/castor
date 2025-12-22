@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
 import { getSession } from '@/lib/auth'
+import { getClientIP, withRateLimit } from '@/lib/rate-limit'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
-export async function GET(request: NextRequest) {
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
+}
+
+async function handleGET(request: NextRequest) {
   try {
     const session = await getSession()
     const { searchParams } = new URL(request.url)
@@ -29,12 +35,14 @@ export async function GET(request: NextRequest) {
 
     if (type === 'all' || type === 'casts') {
       promises.push(
-        neynar.searchCasts({
-          q,
-          limit,
-          priorityMode: true, // Solo power badge users para evitar spam
-          viewerFid: session?.fid,
-        }).then((res) => {
+        callNeynar('neynar:search:casts', () =>
+          neynar.searchCasts({
+            q,
+            limit,
+            priorityMode: true, // Solo power badge users para evitar spam
+            viewerFid: session?.fid,
+          })
+        ).then((res) => {
           results.casts = (res.result?.casts || []).map((cast: any) => ({
             hash: cast.hash,
             text: cast.text,
@@ -56,11 +64,13 @@ export async function GET(request: NextRequest) {
 
     if (type === 'all' || type === 'users') {
       promises.push(
-        neynar.searchUser({
-          q,
-          limit,
-          viewerFid: session?.fid,
-        }).then((res) => {
+        callNeynar('neynar:search:users', () =>
+          neynar.searchUser({
+            q,
+            limit,
+            viewerFid: session?.fid,
+          })
+        ).then((res) => {
           results.users = (res.result?.users || []).map((user: any) => ({
             fid: user.fid,
             username: user.username,
@@ -78,10 +88,12 @@ export async function GET(request: NextRequest) {
 
     if (type === 'all' || type === 'channels') {
       promises.push(
-        neynar.searchChannels({
-          q,
-          limit,
-        }).then((res) => {
+        callNeynar('neynar:search:channels', () =>
+          neynar.searchChannels({
+            q,
+            limit,
+          })
+        ).then((res) => {
           results.channels = (res.channels || []).map((channel: any) => ({
             id: channel.id,
             name: channel.name,
@@ -97,10 +109,12 @@ export async function GET(request: NextRequest) {
 
     if ((type === 'all' || type === 'users') && isLikelyUsername) {
       promises.push(
-        neynar.lookupUserByUsername({
-          username: usernameCandidate,
-          viewerFid: session?.fid,
-        }).then((res) => {
+        callNeynar('neynar:search:lookup-user', () =>
+          neynar.lookupUserByUsername({
+            username: usernameCandidate,
+            viewerFid: session?.fid,
+          })
+        ).then((res) => {
           const user = res.user
           if (!user) return
 
@@ -124,8 +138,16 @@ export async function GET(request: NextRequest) {
 
     await Promise.all(promises)
 
-    return NextResponse.json(results)
+    const response = NextResponse.json(results)
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('[Search API] Error:', error)
     return NextResponse.json(
       { error: 'Search failed' },
@@ -133,3 +155,8 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export const GET = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handleGET)

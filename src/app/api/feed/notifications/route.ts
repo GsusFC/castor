@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
+import { getClientIP, withRateLimit } from '@/lib/rate-limit'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
-export async function GET(request: NextRequest) {
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
+}
+
+async function handleGET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const fid = searchParams.get('fid')
@@ -12,10 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'fid is required' }, { status: 400 })
     }
 
-    const response = await neynar.fetchAllNotifications({
-      fid: parseInt(fid),
-      cursor,
-    })
+    const response = await callNeynar('neynar:notifications', () =>
+      neynar.fetchAllNotifications({
+        fid: parseInt(fid),
+        cursor,
+      })
+    )
 
     // Mapear y normalizar notificaciones con badges
     const notifications = (response.notifications || []).map((n) => ({
@@ -23,11 +31,19 @@ export async function GET(request: NextRequest) {
       badge: getBadgeType(n.type),
     }))
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       notifications,
       next: { cursor: response.next?.cursor ?? undefined },
     })
+    res.headers.set('Cache-Control', 'private, no-store')
+    return res
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('[Notifications API] Error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch notifications' },
@@ -35,6 +51,11 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export const GET = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handleGET)
 
 function getBadgeType(type: string): { label: string; icon: string; color: string } {
   const badges: Record<string, { label: string; icon: string; color: string }> = {

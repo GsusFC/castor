@@ -46,7 +46,11 @@ interface CastMedia {
   type: 'image' | 'video'
   thumbnailUrl: string | null
   cloudflareId?: string | null
+  livepeerAssetId?: string | null
+  livepeerPlaybackId?: string | null
   videoStatus?: string | null
+  mp4Url?: string | null
+  hlsUrl?: string | null
 }
 
 interface EditCastData {
@@ -66,6 +70,8 @@ interface Cast {
   publishedAt: string | null
   castHash: string | null
   channelId: string | null
+  errorMessage: string | null
+  retryCount: number
   accountId: string
   account: {
     id: string
@@ -423,7 +429,7 @@ export function UnifiedDashboard({
                             ? "bg-red-500/10 text-red-600 dark:text-red-400"
                             : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                         )}>
-                          {cast.status === 'failed' ? 'Failed' : 'Due'}
+                          {cast.status === 'failed' ? 'Failed' : cast.status === 'retrying' ? 'Retrying' : 'Due'}
                         </span>
                         <span>
                           {new Date(cast.scheduledAt).toLocaleString('en-US', {
@@ -434,7 +440,17 @@ export function UnifiedDashboard({
                             timeZone: 'Europe/Madrid',
                           })}
                         </span>
+                        {cast.status === 'retrying' && (
+                          <span>
+                            · attempt {cast.retryCount + 1}
+                          </span>
+                        )}
                       </div>
+                      {cast.errorMessage && (
+                        <p className="mt-1 text-xs text-muted-foreground truncate" title={cast.errorMessage}>
+                          {cast.errorMessage}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button
@@ -913,6 +929,7 @@ function CastCard({
     publishing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-yellow-500/30',
     published: 'bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
     failed: 'bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
+    retrying: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',
     draft: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',
   }
 
@@ -921,6 +938,7 @@ function CastCard({
     publishing: 'Publishing',
     published: 'Published',
     failed: 'Failed',
+    retrying: 'Retrying',
     draft: 'Draft',
   }
 

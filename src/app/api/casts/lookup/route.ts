@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
+
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
+}
 
 /**
  * GET /api/casts/lookup?url=https://warpcast.com/...
@@ -74,11 +79,15 @@ export async function GET(request: NextRequest) {
 
     // Si type es 'hash', tratar identifier como hash
     if (type === 'hash' && url) {
-      const response = await neynar.lookupCastByHashOrWarpcastUrl({
-        identifier: url,
-        type: 'hash',
-      })
-      return formatResponse(response.cast)
+      const response = await callNeynar('neynar:casts:lookup', () =>
+        neynar.lookupCastByHashOrWarpcastUrl({
+          identifier: url,
+          type: 'hash',
+        })
+      )
+      const res = formatResponse(response.cast)
+      res.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+      return res
     }
 
     if (!url && !hash) {
@@ -92,10 +101,12 @@ export async function GET(request: NextRequest) {
 
     if (hash) {
       // Buscar por hash directamente
-      const response = await neynar.lookupCastByHashOrWarpcastUrl({
-        identifier: hash,
-        type: 'hash',
-      })
+      const response = await callNeynar('neynar:casts:lookup', () =>
+        neynar.lookupCastByHashOrWarpcastUrl({
+          identifier: hash,
+          type: 'hash',
+        })
+      )
       castData = response.cast
     } else if (url) {
       // Intentar extraer hash de la URL (soporta /~/ca/ y /username/0x...)
@@ -104,10 +115,12 @@ export async function GET(request: NextRequest) {
       if (extractedHash) {
         // Buscar por hash extraído
         try {
-          const response = await neynar.lookupCastByHashOrWarpcastUrl({
-            identifier: extractedHash,
-            type: 'hash',
-          })
+          const response = await callNeynar('neynar:casts:lookup', () =>
+            neynar.lookupCastByHashOrWarpcastUrl({
+              identifier: extractedHash,
+              type: 'hash',
+            })
+          )
           castData = response.cast
         } catch {
           // Cast no encontrado con ese hash
@@ -116,10 +129,12 @@ export async function GET(request: NextRequest) {
       } else {
         // Normalizar URL (farcaster.xyz -> warpcast.com) y buscar por URL
         const normalizedUrl = normalizeUrl(url)
-        const response = await neynar.lookupCastByHashOrWarpcastUrl({
-          identifier: normalizedUrl,
-          type: 'url',
-        })
+        const response = await callNeynar('neynar:casts:lookup', () =>
+          neynar.lookupCastByHashOrWarpcastUrl({
+            identifier: normalizedUrl,
+            type: 'url',
+          })
+        )
         castData = response.cast
       }
     }
@@ -128,8 +143,16 @@ export async function GET(request: NextRequest) {
       return respondNotFound()
     }
 
-    return formatResponse(castData)
+    const res = formatResponse(castData)
+    res.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    return res
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('[API] Error looking up cast:', error)
     return NextResponse.json(
       { error: 'Failed to lookup cast' },

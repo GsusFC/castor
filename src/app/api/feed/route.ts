@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
+import { getClientIP, withRateLimit } from '@/lib/rate-limit'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
 // Cache en memoria (1 minuto TTL para mejor performance)
 const feedCache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 60 * 1000
+
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
+}
 
 // Filtro Priority Mode (simula comportamiento de Warpcast)
 // Solo muestra: power badge, Pro, o usuarios establecidos
@@ -103,7 +109,7 @@ function setCachedData(key: string, data: unknown) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'trending'
@@ -112,19 +118,28 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor') || undefined
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 10)
 
+    const isPersonalized = (type === 'home' || type === 'following') && !!fid
+    const cacheControl = isPersonalized
+      ? 'private, no-store'
+      : 'public, s-maxage=30, stale-while-revalidate=60'
+
     const cacheKey = `feed:${type}:${fid}:${channel}:${cursor}:${limit}`
     const cached = getCachedData(cacheKey)
     if (cached) {
-      return NextResponse.json(cached)
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', cacheControl)
+      return response
     }
 
     let result: { casts: unknown[]; next?: { cursor?: string } }
 
     if (type === 'trending') {
-      const response = await neynar.fetchTrendingFeed({
+      const response = await callNeynar('neynar:feed:trending', () =>
+        neynar.fetchTrendingFeed({
         limit,
         cursor,
-      })
+        })
+      )
       result = {
         casts: response.casts || [],
         next: { cursor: response.next?.cursor ?? undefined },
@@ -133,41 +148,47 @@ export async function GET(request: NextRequest) {
       // Feed algorítmico personalizado (For You)
       if (!fid) {
         // Si no hay fid, usar trending como fallback
-        const response = await neynar.fetchTrendingFeed({ limit, cursor })
+        const response = await callNeynar('neynar:feed:trending', () => neynar.fetchTrendingFeed({ limit, cursor }))
         result = {
           casts: response.casts || [],
           next: { cursor: response.next?.cursor ?? undefined },
         }
       } else {
-        const response = await neynar.fetchFeedForYou({
-          fid: parseInt(fid),
-          limit,
-          cursor,
-        })
+        const response = await callNeynar('neynar:feed:for-you', () =>
+          neynar.fetchFeedForYou({
+            fid: parseInt(fid),
+            limit,
+            cursor,
+          })
+        )
         result = {
           casts: response.casts || [],
           next: { cursor: response.next?.cursor ?? undefined },
         }
       }
     } else if (type === 'following' && fid) {
-      const response = await neynar.fetchFeed({
-        feedType: 'following',
-        fid: parseInt(fid),
-        limit,
-        cursor,
-      })
+      const response = await callNeynar('neynar:feed:following', () =>
+        neynar.fetchFeed({
+          feedType: 'following',
+          fid: parseInt(fid),
+          limit,
+          cursor,
+        })
+      )
       result = {
         casts: response.casts || [],
         next: { cursor: response.next?.cursor ?? undefined },
       }
     } else if (type === 'channel' && channel) {
-      const response = await neynar.fetchFeed({
-        feedType: 'filter',
-        filterType: 'channel_id',
-        channelId: channel,
-        limit,
-        cursor,
-      })
+      const response = await callNeynar('neynar:feed:channel', () =>
+        neynar.fetchFeed({
+          feedType: 'filter',
+          filterType: 'channel_id',
+          channelId: channel,
+          limit,
+          cursor,
+        })
+      )
       result = {
         casts: response.casts || [],
         next: { cursor: response.next?.cursor ?? undefined },
@@ -184,8 +205,16 @@ export async function GET(request: NextRequest) {
     console.log(`[Feed] Processed ${beforeFilter} casts: ${beforeFilter - filteredCasts.length} spam filtered, ${filteredCasts.length} sanitized`)
 
     setCachedData(cacheKey, result)
-    return NextResponse.json(result)
+    const response = NextResponse.json(result)
+    response.headers.set('Cache-Control', cacheControl)
+    return response
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('[Feed API] Error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch feed' },
@@ -193,3 +222,8 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export const GET = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handleGET)

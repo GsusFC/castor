@@ -5,6 +5,8 @@
   "description": "Farcaster scheduler for studio accounts",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:clean": "rm -f .next/dev/lock && next dev --turbopack",
+    "healthcheck": "node scripts/healthcheck.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

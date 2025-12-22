@@ -1,7 +1,30 @@
 import { NeynarAPIClient } from '@neynar/nodejs-sdk'
-import { env } from '@/lib/env'
+import { requireNeynarEnv } from '@/lib/env'
 
-export const neynar = new NeynarAPIClient({ apiKey: env.NEYNAR_API_KEY })
+let client: NeynarAPIClient | null = null
+
+export const getNeynar = () => {
+  if (client) return client
+  const { NEYNAR_API_KEY } = requireNeynarEnv()
+  client = new NeynarAPIClient({ apiKey: NEYNAR_API_KEY })
+  return client
+}
+
+export const neynar = new Proxy({} as NeynarAPIClient, {
+  get: (_target, prop) => {
+    const resolved = getNeynar() as unknown as Record<string | symbol, unknown>
+    const value = resolved[prop]
+    if (typeof value === 'function') {
+      return (value as (...args: unknown[]) => unknown).bind(resolved)
+    }
+    return value
+  },
+  set: (_target, prop, value) => {
+    const resolved = getNeynar() as unknown as Record<string | symbol, unknown>
+    resolved[prop] = value
+    return true
+  },
+})
 
 /**
  * Valida formato básico de mnemonic BIP39

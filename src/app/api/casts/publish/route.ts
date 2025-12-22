@@ -10,6 +10,8 @@ import { calculateTextLength } from '@/lib/url-utils'
 import { withLock } from '@/lib/lock'
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request)
 
@@ -179,6 +181,8 @@ export async function POST(request: NextRequest) {
     return locked.result.response
   } catch (error) {
     console.error('[Publish API] Error:', error)
-    return ApiErrors.operationFailed('Failed to publish cast')
+    return ApiErrors.operationFailed('Failed to publish cast', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
   }
  }

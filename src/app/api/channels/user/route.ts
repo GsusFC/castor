@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
 import { getSession } from '@/lib/auth'
+import { getClientIP, withRateLimit } from '@/lib/rate-limit'
+import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
-export async function GET(request: NextRequest) {
+const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  return withCircuitBreaker(key, () => retryExternalApi(fn, key))
+}
+
+async function handleGET(request: NextRequest) {
   try {
     const session = await getSession()
     if (!session?.fid) {
@@ -18,11 +24,13 @@ export async function GET(request: NextRequest) {
     const pageSize = 100 // Máximo por página de Neynar
 
     do {
-      const response = await neynar.fetchUserChannelMemberships({
-        fid: session.fid,
-        limit: pageSize,
-        cursor,
-      }) as any
+      const response = await callNeynar('neynar:channels:memberships', () =>
+        neynar.fetchUserChannelMemberships({
+          fid: session.fid,
+          limit: pageSize,
+          cursor,
+        }) as any
+      )
 
       const memberships = response.members || response.channels || []
       allMemberships.push(...memberships)
@@ -41,8 +49,16 @@ export async function GET(request: NextRequest) {
       description: membership.channel?.description || membership.description,
     }))
 
-    return NextResponse.json({ channels })
+    const res = NextResponse.json({ channels })
+    res.headers.set('Cache-Control', 'private, no-store')
+    return res
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
     console.error('Error fetching user channels:', error)
     return NextResponse.json(
       { error: 'Error fetching channels' },
@@ -50,3 +66,8 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export const GET = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handleGET)

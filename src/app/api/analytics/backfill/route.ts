@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { db, castAnalytics, accounts, accountMembers } from '@/lib/db'
 import { eq, and, or, inArray } from 'drizzle-orm'
-import { env } from '@/lib/env'
+import { requireNeynarEnv } from '@/lib/env'
 
 /**
  * POST /api/analytics/backfill
@@ -10,6 +10,7 @@ import { env } from '@/lib/env'
  */
 export async function POST(request: NextRequest) {
   try {
+    const { NEYNAR_API_KEY } = requireNeynarEnv()
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${account.fid}&limit=${Math.min(limit, 100)}&include_replies=false`,
       {
         headers: {
-          'x-api-key': env.NEYNAR_API_KEY,
+          'x-api-key': NEYNAR_API_KEY,
         },
       }
     )

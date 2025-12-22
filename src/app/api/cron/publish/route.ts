@@ -3,6 +3,8 @@ import { publishDueCasts } from '@/lib/publisher'
 import { withLock } from '@/lib/lock'
 import { env } from '@/lib/env'
 
+export const runtime = 'nodejs'
+
 const isProduction = env.NODE_ENV === 'production'
 const CRON_LOCK_KEY = 'cron:publish'
 const CRON_LOCK_TTL = 300 // 5 minutes max execution time

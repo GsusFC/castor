@@ -4,6 +4,31 @@ import { getSession } from '@/lib/auth'
 import { getClientIP, withRateLimit } from '@/lib/rate-limit'
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
+type NeynarChannel = {
+  id?: string
+  name?: string
+  image_url?: string
+  follower_count?: number
+  description?: string
+}
+
+type NeynarUserChannelMembership = {
+  channel?: NeynarChannel
+  id?: string
+  name?: string
+  image_url?: string
+  follower_count?: number
+  description?: string
+}
+
+type NeynarFetchUserChannelMembershipsResponse = {
+  members?: NeynarUserChannelMembership[]
+  channels?: NeynarUserChannelMembership[]
+  next?: {
+    cursor?: string
+  }
+}
+
 const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
   return withCircuitBreaker(key, () => retryExternalApi(fn, key))
 }
@@ -19,20 +44,20 @@ async function handleGET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
 
     // Paginar para obtener todos los canales
-    const allMemberships: any[] = []
+    const allMemberships: NeynarUserChannelMembership[] = []
     let cursor: string | undefined
     const pageSize = 100 // Máximo por página de Neynar
 
     do {
-      const response = await callNeynar('neynar:channels:memberships', () =>
-        neynar.fetchUserChannelMemberships({
+      const response = await callNeynar<NeynarFetchUserChannelMembershipsResponse>('neynar:channels:memberships', async () =>
+        (await neynar.fetchUserChannelMemberships({
           fid: session.fid,
           limit: pageSize,
           cursor,
-        }) as any
+        })) as unknown as NeynarFetchUserChannelMembershipsResponse
       )
 
-      const memberships = response.members || response.channels || []
+      const memberships = response.members ?? response.channels ?? []
       allMemberships.push(...memberships)
       
       cursor = response.next?.cursor
@@ -41,13 +66,20 @@ async function handleGET(request: NextRequest) {
       if (allMemberships.length >= limit || !cursor) break
     } while (cursor)
 
-    const channels = allMemberships.slice(0, limit).map((membership: any) => ({
-      id: membership.channel?.id || membership.id,
-      name: membership.channel?.name || membership.name,
-      image_url: membership.channel?.image_url || membership.image_url,
-      follower_count: membership.channel?.follower_count || membership.follower_count,
-      description: membership.channel?.description || membership.description,
-    }))
+    const channels = allMemberships
+      .slice(0, limit)
+      .map((membership) => {
+        const channel = membership.channel ?? membership
+        if (!channel.id || !channel.name) return null
+        return {
+          id: channel.id,
+          name: channel.name,
+          image_url: channel.image_url,
+          follower_count: channel.follower_count,
+          description: channel.description,
+        }
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null)
 
     const res = NextResponse.json({ channels })
     res.headers.set('Cache-Control', 'private, no-store')

@@ -1,5 +1,6 @@
 import { NeynarAPIClient } from '@neynar/nodejs-sdk'
 import { requireNeynarEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 
 let client: NeynarAPIClient | null = null
 

@@ -87,6 +87,14 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'firesidebase.vercel.app',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upgrader.co',
+      },
+      {
+        protocol: 'https',
         hostname: 'cdn.discordapp.com',
       },
     ],

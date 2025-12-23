@@ -147,12 +147,10 @@ async function handleGET(request: NextRequest) {
     } else if (type === 'home') {
       // Feed algorítmico personalizado (For You)
       if (!fid) {
-        // Si no hay fid, usar trending como fallback
-        const response = await callNeynar('neynar:feed:trending', () => neynar.fetchTrendingFeed({ limit, cursor }))
-        result = {
-          casts: response.casts || [],
-          next: { cursor: response.next?.cursor ?? undefined },
-        }
+        return NextResponse.json(
+          { error: 'fid is required for home feed' },
+          { status: 400 }
+        )
       } else {
         const response = await callNeynar('neynar:feed:for-you', () =>
           neynar.fetchFeedForYou({

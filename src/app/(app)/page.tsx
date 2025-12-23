@@ -288,6 +288,10 @@ function FeedPageInner() {
     setActiveTab('channel')
   }
 
+  const requiresFidForTab = activeTab === 'home' || activeTab === 'following'
+  const isWaitingForFid = requiresFidForTab && userFid === null
+  const isFeedEnabled = !requiresFidForTab || userFid !== null
+
   // Feed query
   const feedQuery = useInfiniteQuery({
     queryKey: ['feed', activeTab, userFid, selectedChannel?.id],
@@ -307,6 +311,7 @@ function FeedPageInner() {
       const res = await fetch(`/api/feed?${params}`)
       return res.json()
     },
+    enabled: isFeedEnabled,
     getNextPageParam: (lastPage) => lastPage.next?.cursor,
     initialPageParam: undefined as string | undefined,
   })
@@ -318,9 +323,9 @@ function FeedPageInner() {
       cast?.hash && self.findIndex((c: Cast) => c?.hash === cast.hash) === index
   )
 
-  const isLoading = feedQuery.isLoading
+  const isLoading = feedQuery.isLoading || isWaitingForFid
   const isFetchingNextPage = feedQuery.isFetchingNextPage
-  const hasMore = feedQuery.hasNextPage
+  const hasMore = isFeedEnabled ? feedQuery.hasNextPage : false
 
   const loadMoreLockRef = useRef(false)
 
@@ -330,12 +335,13 @@ function FeedPageInner() {
   }, [isFetchingNextPage])
 
   const loadMore = useCallback(() => {
+    if (!isFeedEnabled) return
     if (!hasMore || isLoading || isFetchingNextPage) return
     if (loadMoreLockRef.current) return
     loadMoreLockRef.current = true
 
     feedQuery.fetchNextPage()
-  }, [feedQuery, hasMore, isFetchingNextPage, isLoading])
+  }, [feedQuery, hasMore, isFeedEnabled, isFetchingNextPage, isLoading])
 
   // Infinite scroll con IntersectionObserver
   useEffect(() => {
@@ -457,20 +463,22 @@ function FeedPageInner() {
                         if (tab.id !== 'channel') setSelectedChannel(null)
                       }}
                       onMouseEnter={() => {
-                        // Prefetch feed data on hover
-                        if (tab.id !== activeTab) {
-                          const params = new URLSearchParams({ type: tab.id, limit: '20' })
-                          if (userFid && (tab.id === 'following' || tab.id === 'home')) {
-                            params.set('fid', userFid.toString())
-                          }
-                          queryClient.prefetchInfiniteQuery({
-                            queryKey: ['feed', tab.id, userFid, null],
-                            queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
-                            getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
-                            initialPageParam: undefined as string | undefined,
-                            staleTime: 30 * 1000,
-                          })
+                        if (tab.id === activeTab) return
+                        const tabRequiresFid = tab.id === 'following' || tab.id === 'home'
+                        if (tabRequiresFid && !userFid) return
+
+                        const params = new URLSearchParams({ type: tab.id, limit: '20' })
+                        if (tabRequiresFid && userFid) {
+                          params.set('fid', userFid.toString())
                         }
+
+                        queryClient.prefetchInfiniteQuery({
+                          queryKey: ['feed', tab.id, userFid, null],
+                          queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
+                          getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
+                          initialPageParam: undefined as string | undefined,
+                          staleTime: 30 * 1000,
+                        })
                       }}
                       className={cn(
                         "relative flex-1 h-9 px-3 text-sm rounded-full transition-all",

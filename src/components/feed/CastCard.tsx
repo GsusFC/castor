@@ -113,6 +113,33 @@ interface CastCardProps {
   isPro?: boolean
 }
 
+const NEXT_IMAGE_ALLOWED_HOSTNAMES = new Set<string>([
+  'imagedelivery.net',
+  'videodelivery.net',
+  'watch.cloudflarestream.com',
+  'avatar.vercel.sh',
+  'i.imgur.com',
+  'imgur.com',
+  'pbs.twimg.com',
+  'media.giphy.com',
+  'i.giphy.com',
+  'giphy.com',
+  'cdn.discordapp.com',
+  'firesidebase.vercel.app',
+  'upgrader.co',
+])
+
+const isNextImageAllowedSrc = (src: string): boolean => {
+  try {
+    const hostname = new URL(src).hostname
+    if (NEXT_IMAGE_ALLOWED_HOSTNAMES.has(hostname)) return true
+    if (hostname.endsWith('.googleusercontent.com')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export function CastCard({
   cast,
   onOpenMiniApp,
@@ -859,14 +886,24 @@ export function CastCard({
                             aria-label={item.title}
                             className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-border shadow-sm"
                           >
-                            <Image
-                              src={item.image}
-                              alt={item.title}
-                              fill
-                              className="absolute inset-0 w-full h-full object-cover"
-                              loading="lazy"
-                              unoptimized
-                            />
+                            {isNextImageAllowedSrc(item.image) ? (
+                              <Image
+                                src={item.image}
+                                alt={item.title}
+                                fill
+                                className="absolute inset-0 w-full h-full object-cover"
+                                loading="lazy"
+                                unoptimized
+                              />
+                            ) : (
+                              <img
+                                src={item.image}
+                                alt={item.title}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-2">
                               <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">
@@ -910,14 +947,24 @@ export function CastCard({
                             "relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-square bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl"
                           )}
                         >
-                          <Image
-                            src={item.url}
-                            alt=""
-                            fill
-                            className="absolute inset-0 w-full h-full object-cover"
-                            loading="lazy"
-                            unoptimized
-                          />
+                          {isNextImageAllowedSrc(item.url) ? (
+                            <Image
+                              src={item.url}
+                              alt=""
+                              fill
+                              className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
+                              unoptimized
+                            />
+                          ) : (
+                            <img
+                              src={item.url}
+                              alt=""
+                              className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          )}
                         </button>
                       )
                     })}
@@ -964,13 +1011,23 @@ export function CastCard({
                         aria-label={item.title}
                         className="group relative flex-shrink-0 h-56 sm:h-64 md:h-72 aspect-[3/2] bg-muted overflow-hidden hover:opacity-95 transition-opacity rounded-xl border border-border shadow-sm"
                       >
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          fill
-                          className="absolute inset-0 w-full h-full object-cover"
-                          loading="lazy"
-                        />
+                        {isNextImageAllowedSrc(item.image) ? (
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                         <div className="absolute inset-x-0 bottom-0 p-2">
                           <div className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/90">

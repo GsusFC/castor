@@ -5,6 +5,7 @@ import { useInView } from 'react-intersection-observer'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Link as LinkIcon, Copy, Check, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { normalizeHttpUrl } from '@/lib/url-utils'
 import type { BaseRendererProps, RemovableProps, EmbedMetadata } from '../types'
 
 interface LinkRendererProps extends BaseRendererProps, RemovableProps {
@@ -75,6 +76,8 @@ export function LinkRenderer({
   const [copied, setCopied] = useState(false)
   const [faviconError, setFaviconError] = useState(false)
 
+  const normalizedUrl = normalizeHttpUrl(url)
+
   const { ref, inView } = useInView({
     threshold: 0,
     triggerOnce: true,
@@ -83,21 +86,21 @@ export function LinkRenderer({
 
   // Solo hacer fetch si no tenemos metadata precargada
   const { data: fetchedMetadata, isLoading } = useQuery({
-    queryKey: ['embed-metadata', url],
-    queryFn: () => fetchMetadata(url),
-    enabled: inView && !preloadedMetadata && !!url && isHttpUrl(url),
+    queryKey: ['embed-metadata', normalizedUrl],
+    queryFn: () => fetchMetadata(normalizedUrl),
+    enabled: inView && !preloadedMetadata && !!normalizedUrl && isHttpUrl(normalizedUrl),
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 1,
   })
 
   const metadata = preloadedMetadata || fetchedMetadata
-  const { domain } = getDisplayUrl(url)
+  const { domain } = getDisplayUrl(normalizedUrl)
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(normalizedUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -247,7 +250,7 @@ export function LinkRenderer({
     return (
       <a 
         ref={ref}
-        href={url}
+        href={normalizedUrl}
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
@@ -280,7 +283,7 @@ export function LinkRenderer({
   return (
     <a 
       ref={ref}
-      href={url}
+      href={normalizedUrl}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(

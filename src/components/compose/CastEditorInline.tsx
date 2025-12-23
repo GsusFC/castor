@@ -9,7 +9,7 @@ import { CastItem, MediaFile, LinkEmbed } from './types'
 import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { VideoValidation } from './VideoValidation'
-import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
+import { extractUrls, isMediaUrl, calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
 import { renderCastText } from '@/lib/cast-text'
 
 interface CastEditorInlineProps {
@@ -58,16 +58,22 @@ export function CastEditorInline({
   // Solo detecta URLs nuevas en el texto, no elimina links añadidos manualmente (quote)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const urls = extractUrls(cast.content)
+      const urls = extractUrls(cast.content).map(normalizeHttpUrl)
       const linkUrls = urls.filter(url => !isMediaUrl(url))
-      const currentLinkUrls = cast.links.map(l => l.url)
+      const currentLinkUrls = cast.links.map(l => normalizeHttpUrl(l.url))
       const newUrls = linkUrls.filter(url => !currentLinkUrls.includes(url))
       
       // Solo eliminar links que fueron detectados del texto y ya no están
       // Mantener links que no están en el texto (añadidos manualmente, ej: quote)
       const linksFromText = cast.links.filter(l => l.fromText)
       const linksManual = cast.links.filter(l => !l.fromText)
-      const linksToKeep = linksFromText.filter(l => linkUrls.includes(l.url))
+      const linksToKeep = linksFromText
+        .filter(l => linkUrls.includes(normalizeHttpUrl(l.url)))
+        .map((l) => {
+          const normalizedUrl = normalizeHttpUrl(l.url)
+          if (normalizedUrl === l.url) return l
+          return { ...l, url: normalizedUrl }
+        })
 
       if (newUrls.length > 0 || linksToKeep.length !== linksFromText.length) {
         const newLinks: LinkEmbed[] = newUrls.map(url => ({ url, loading: true, fromText: true }))
@@ -82,25 +88,27 @@ export function CastEditorInline({
 
   const fetchLinkMetadata = async (url: string) => {
     try {
+      const normalizedUrl = normalizeHttpUrl(url)
       const res = await fetch('/api/og-metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       })
       const metadata = await res.json()
       const currentCast = castRef.current
       onUpdate({
         ...currentCast,
         links: currentCast.links.map((l: LinkEmbed) =>
-          l.url === url ? { ...l, ...metadata, loading: false } : l
+          l.url === normalizedUrl ? { ...l, ...metadata, loading: false } : l
         ),
       })
     } catch {
       const currentCast = castRef.current
+      const normalizedUrl = normalizeHttpUrl(url)
       onUpdate({
         ...currentCast,
         links: currentCast.links.map((l: LinkEmbed) =>
-          l.url === url ? { ...l, loading: false, error: true } : l
+          l.url === normalizedUrl ? { ...l, loading: false, error: true } : l
         ),
       })
     }

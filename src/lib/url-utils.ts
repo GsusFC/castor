@@ -5,17 +5,36 @@
 // Regex para detectar URLs http/https
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi
 
+const URL_WITHOUT_PROTOCOL_REGEX = /(?:^|[\s(])((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"{}|\\^`[\]]+)+)/gi
+
 /**
  * Extrae URLs únicas del texto
  */
 export function extractUrls(text: string): string[] {
-  const matches = text.match(URL_REGEX)
-  if (!matches) return []
+  const matchesWithProtocol = text.match(URL_REGEX) ?? []
+  const matchesWithoutProtocol = Array.from(text.matchAll(URL_WITHOUT_PROTOCOL_REGEX)).map((m) => m[1]).filter(Boolean)
+  const matches = [...matchesWithProtocol, ...matchesWithoutProtocol]
+  if (matches.length === 0) return []
 
   // Eliminar duplicados y limpiar puntuación final
   return [...new Set(
     matches.map(url => url.replace(/[.,;:!?)]+$/, ''))
   )]
+}
+
+export function normalizeHttpUrl(input: string): string {
+  const url = input.trim()
+  if (!url) return url
+
+  if (/^https?:\/\//i.test(url)) return url
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return url
+  if (url.startsWith('//')) return `https:${url}`
+
+  if (/^(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/?#]|$)/i.test(url)) {
+    return `https://${url}`
+  }
+
+  return url
 }
 
 /**

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { GifPicker } from './GifPicker'
 import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
-import { extractUrls, isMediaUrl, calculateTextLength } from '@/lib/url-utils'
+import { extractUrls, isMediaUrl, calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
 import { VideoValidation } from './VideoValidation'
 import { uploadMedia } from '@/lib/media-upload'
 import { ApiRequestError } from '@/lib/fetch-json'
@@ -59,7 +59,7 @@ export function CastEditor({
   // Detectar URLs en el contenido con debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const urls = extractUrls(cast.content)
+      const urls = extractUrls(cast.content).map(normalizeHttpUrl)
 
       // Filtrar URLs que ya son media (imágenes/videos directos)
       const linkUrls = urls.filter(url => !isMediaUrl(url))
@@ -71,7 +71,13 @@ export function CastEditor({
       const newUrls = linkUrls.filter(url => !currentLinkUrls.includes(url))
 
       // URLs a mantener (siguen en el texto)
-      const linksToKeep = cast.links.filter(l => linkUrls.includes(l.url))
+      const linksToKeep = cast.links
+        .filter(l => linkUrls.includes(normalizeHttpUrl(l.url)))
+        .map((l) => {
+          const normalizedUrl = normalizeHttpUrl(l.url)
+          if (normalizedUrl === l.url) return l
+          return { ...l, url: normalizedUrl }
+        })
 
       // Si hay cambios, actualizar
       if (newUrls.length > 0 || linksToKeep.length !== cast.links.length) {
@@ -100,10 +106,11 @@ export function CastEditor({
   // Fetch metadata de una URL
   const fetchLinkMetadata = useCallback(async (url: string) => {
     try {
+      const normalizedUrl = normalizeHttpUrl(url)
       const res = await fetch('/api/og-metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       })
 
       const metadata = await res.json()
@@ -113,7 +120,7 @@ export function CastEditor({
       onUpdate({
         ...currentCast,
         links: currentCast.links.map((l: LinkEmbed) =>
-          l.url === url
+          l.url === normalizedUrl
             ? { ...l, ...metadata, loading: false }
             : l
         ),
@@ -122,11 +129,13 @@ export function CastEditor({
       console.error('[Link Preview] Error fetching metadata:', error)
       const currentCast = castRef.current
 
+      const normalizedUrl = normalizeHttpUrl(url)
+
       // Marcar como error
       onUpdate({
         ...currentCast,
         links: currentCast.links.map((l: LinkEmbed) =>
-          l.url === url
+          l.url === normalizedUrl
             ? { ...l, loading: false, error: true }
             : l
         ),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { assertUrlIsSafe } from '@/lib/ssrf'
+import { normalizeHttpUrl } from '@/lib/url-utils'
 
 interface UrlMetadata {
   url: string
@@ -131,9 +132,11 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const normalizedUrl = normalizeHttpUrl(url)
+
   let parsedUrl: URL
   try {
-    parsedUrl = new URL(url)
+    parsedUrl = new URL(normalizedUrl)
   } catch {
     return NextResponse.json(
       { error: 'Invalid URL', metadata: null },

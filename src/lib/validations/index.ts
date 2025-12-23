@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { MAX_CHARS_PRO, MAX_EMBEDS_PRO } from '@/lib/compose/constants'
+import { normalizeHttpUrl } from '@/lib/url-utils'
 
 // ============================================
 // Common Schemas
@@ -25,7 +26,7 @@ export const scheduleCastSchema = z.object({
   channelId: z.string().nullable().optional(),
   parentHash: z.string().nullable().optional(),
   embeds: z.array(z.object({
-    url: z.string().url('Invalid embed URL'),
+    url: z.preprocess((v) => typeof v === 'string' ? normalizeHttpUrl(v) : v, z.string().url('Invalid embed URL')),
     type: z.enum(['image', 'video']).optional(),
     cloudflareId: z.string().optional(), // ID del video en Cloudflare Stream
     livepeerAssetId: z.string().optional(), // ID del asset en Livepeer
@@ -48,7 +49,7 @@ export const publishCastSchema = z.object({
   channelId: z.string().nullable().optional(),
   parentHash: z.string().nullable().optional(),
   embeds: z.array(z.object({
-    url: z.string().url('Invalid embed URL'),
+    url: z.preprocess((v) => typeof v === 'string' ? normalizeHttpUrl(v) : v, z.string().url('Invalid embed URL')),
   })).max(MAX_EMBEDS_PRO, 'Maximum embeds exceeded').optional(),
 }).refine(
   (data) => data.content.trim().length > 0 || (data.embeds && data.embeds.length > 0),
@@ -66,7 +67,7 @@ export const scheduleThreadSchema = z.object({
       .max(MAX_CHARS_PRO, 'Content too long')
       .refine((v) => v.trim().length > 0, { message: 'content is required' }),
     embeds: z.array(z.object({
-      url: z.string().url('Invalid embed URL'),
+      url: z.preprocess((v) => typeof v === 'string' ? normalizeHttpUrl(v) : v, z.string().url('Invalid embed URL')),
       type: z.enum(['image', 'video']).optional(),
       cloudflareId: z.string().optional(),
       livepeerAssetId: z.string().optional(),
@@ -82,7 +83,7 @@ export const updateCastSchema = z.object({
   channelId: z.string().nullable().optional(),
   accountId: z.string().optional(),
   embeds: z.array(z.object({
-    url: z.string().url(),
+    url: z.preprocess((v) => typeof v === 'string' ? normalizeHttpUrl(v) : v, z.string().url()),
     type: z.enum(['image', 'video']).optional(),
     cloudflareId: z.string().optional(),
     livepeerAssetId: z.string().optional(),

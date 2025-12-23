@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { success, ApiErrors } from '@/lib/api/response'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { apiLogger } from '@/lib/logger'
+import { normalizeHttpUrl } from '@/lib/url-utils'
 
 // Hosts bloqueados para prevenir SSRF
 const BLOCKED_HOSTS = [
@@ -57,10 +58,12 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationFailed([{ field: 'url', message: 'URL is required' }])
     }
 
+    const normalizedUrl = normalizeHttpUrl(url)
+
     // Validar que es una URL válida
     let parsedUrl: URL
     try {
-      parsedUrl = new URL(url)
+      parsedUrl = new URL(normalizedUrl)
     } catch {
       return ApiErrors.validationFailed([{ field: 'url', message: 'Invalid URL format' }])
     }
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar SSRF
     if (isBlockedHost(parsedUrl.hostname)) {
-      apiLogger.warn({ url, userId: session.userId }, 'Blocked SSRF attempt')
+      apiLogger.warn({ url: normalizedUrl, userId: session.userId }, 'Blocked SSRF attempt')
       return ApiErrors.validationFailed([{ field: 'url', message: 'URL not allowed' }])
     }
 
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    const response = await fetch(url, {
+    const response = await fetch(normalizedUrl, {
       headers: {
         'User-Agent': 'Castor/1.0 (Open Graph Fetcher)',
         'Accept': 'text/html,application/xhtml+xml',
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json({ 
-        url,
+        url: normalizedUrl,
         siteName: parsedUrl.hostname.replace(/^www\./, ''),
         favicon: `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=32`,
       })

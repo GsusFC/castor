@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { ComposeCard } from './ComposeCard'
 import { Channel, ReplyToCast, MediaFile } from './types'
 import { toast } from 'sonner'
-import { calculateTextLength } from '@/lib/url-utils'
+import { calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
 import { getMaxChars, getMaxEmbeds } from '@/lib/compose/constants'
 import { useAccounts, useTemplates, useScheduleForm, useCastThread, Template } from '@/hooks'
 import { fetchApiData, ApiRequestError } from '@/lib/fetch-json'
@@ -115,7 +115,7 @@ export function ComposeModal({
           id: crypto.randomUUID(),
           content: defaultContent || '',
           media: [],
-          links: defaultEmbed ? [{ url: defaultEmbed }] : [],
+          links: defaultEmbed ? [{ url: normalizeHttpUrl(defaultEmbed) }] : [],
         }])
       }, 50)
 
@@ -251,7 +251,7 @@ export function ComposeModal({
                   livepeerPlaybackId: m.livepeerPlaybackId,
                   videoStatus: m.videoStatus,
                 })),
-                ...cast.links.map(l => ({ url: l.url })),
+                ...cast.links.map(l => ({ url: normalizeHttpUrl(l.url) })),
               ],
             })),
           }),
@@ -270,7 +270,7 @@ export function ComposeModal({
             livepeerPlaybackId: m.livepeerPlaybackId,
             videoStatus: m.videoStatus,
           })),
-          ...cast.links.map(l => ({ url: l.url })),
+          ...cast.links.map(l => ({ url: normalizeHttpUrl(l.url) })),
         ]
 
         const url = isEditMode && editCastId
@@ -353,7 +353,7 @@ export function ComposeModal({
           livepeerPlaybackId: m.livepeerPlaybackId,
           videoStatus: m.videoStatus,
         })),
-        ...cast.links.map(l => ({ url: l.url })),
+        ...cast.links.map(l => ({ url: normalizeHttpUrl(l.url) })),
       ]
 
       const scheduledAt = schedule.toISO()
@@ -421,7 +421,7 @@ export function ComposeModal({
 
       const embeds = [
         ...cast.media.filter(m => m.url).map(m => ({ url: m.url! })),
-        ...cast.links.map(l => ({ url: l.url })),
+        ...cast.links.map(l => ({ url: normalizeHttpUrl(l.url) })),
       ]
 
       console.log('[Publish] Final embeds:', embeds)

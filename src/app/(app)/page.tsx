@@ -20,6 +20,10 @@ import { useQueryClient } from '@tanstack/react-query'
 
 type FeedTab = 'home' | 'following' | 'trending' | 'channel'
 
+const MUTED_FIDS_STORAGE_KEY = 'castor:mutedFids'
+const BLOCKED_FIDS_STORAGE_KEY = 'castor:blockedFids'
+const MODERATION_UPDATED_EVENT = 'castor:moderation-updated'
+
 interface SelectedChannel {
   id: string
   name: string
@@ -29,6 +33,14 @@ interface SelectedChannel {
 interface UserProfile {
   pfpUrl?: string
   username?: string
+}
+
+type MeResponse = {
+  fid?: number
+  accountId?: string | null
+  signerUuid?: string | null
+  isPro?: boolean
+  manageableFids?: number[]
 }
 
 interface Cast {
@@ -95,11 +107,17 @@ function FeedPageInner() {
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
   const [userSignerUuid, setUserSignerUuid] = useState<string | null>(null)
   const [userIsPro, setUserIsPro] = useState(false)
+  const [manageableFids, setManageableFids] = useState<number[] | null>(null)
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
   const [selectedConversationHash, setSelectedConversationHash] = useState<string | null>(null)
+
+  const [moderationState, setModerationState] = useState<{
+    mutedFids: Set<number>
+    blockedFids: Set<number>
+  }>(() => ({ mutedFids: new Set(), blockedFids: new Set() }))
 
   const channelIdFromUrl = searchParams.get('channel')
   const castHashFromUrl = searchParams.get('cast')
@@ -139,6 +157,38 @@ function FeedPageInner() {
       next.delete('user')
     })
   }, [pushSearchParams])
+
+  useEffect(() => {
+    const readFidListFromStorage = (key: string): number[] => {
+      try {
+        const raw = localStorage.getItem(key)
+        if (!raw) return []
+        const parsed = JSON.parse(raw) as unknown
+        if (!Array.isArray(parsed)) return []
+        return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+      } catch {
+        return []
+      }
+    }
+
+    const syncModeration = () => {
+      const muted = readFidListFromStorage(MUTED_FIDS_STORAGE_KEY)
+      const blocked = readFidListFromStorage(BLOCKED_FIDS_STORAGE_KEY)
+      setModerationState({
+        mutedFids: new Set(muted),
+        blockedFids: new Set(blocked),
+      })
+    }
+
+    syncModeration()
+    window.addEventListener(MODERATION_UPDATED_EVENT, syncModeration)
+    window.addEventListener('storage', syncModeration)
+
+    return () => {
+      window.removeEventListener(MODERATION_UPDATED_EVENT, syncModeration)
+      window.removeEventListener('storage', syncModeration)
+    }
+  }, [])
 
   const clearChannelFromUrl = useCallback(() => {
     const next = new URLSearchParams(searchParamsString)
@@ -258,12 +308,13 @@ function FeedPageInner() {
     const fetchUser = async () => {
       try {
         const res = await fetch('/api/me')
-        const data = await res.json()
+        const data = (await res.json()) as MeResponse
         if (data.fid) {
           setUserFid(data.fid)
           if (data.accountId) setUserAccountId(data.accountId)
           if (data.signerUuid) setUserSignerUuid(data.signerUuid)
-          if (data.isPro) setUserIsPro(data.isPro)
+          if (typeof data.isPro === 'boolean') setUserIsPro(data.isPro)
+          if (Array.isArray(data.manageableFids)) setManageableFids(data.manageableFids)
           // Cargar perfil completo
           const profileRes = await fetch(`/api/users/${data.fid}`)
           if (profileRes.ok) {
@@ -322,6 +373,14 @@ function FeedPageInner() {
     (cast: Cast, index: number, self: Cast[]) =>
       cast?.hash && self.findIndex((c: Cast) => c?.hash === cast.hash) === index
   )
+
+  const filteredCasts = casts.filter((cast) => {
+    const fid = cast?.author?.fid
+    if (!Number.isFinite(fid)) return true
+    if (moderationState.blockedFids.has(fid)) return false
+    if (moderationState.mutedFids.has(fid)) return false
+    return true
+  })
 
   const isLoading = feedQuery.isLoading || isWaitingForFid
   const isFetchingNextPage = feedQuery.isFetchingNextPage
@@ -396,6 +455,9 @@ function FeedPageInner() {
             }}
             onSelectCast={(hash) => openConversation(hash)}
             onQuote={handleQuote}
+            currentUserFid={userFid || undefined}
+            currentUserFids={manageableFids || undefined}
+            onDelete={handleDelete}
           />
         ) : selectedProfileUsername ? (
           <ProfileView
@@ -421,6 +483,8 @@ function FeedPageInner() {
               setComposeOpen(true)
             }}
             currentUserFid={userFid || undefined}
+            currentUserFids={manageableFids || undefined}
+            onDelete={handleDelete}
             isPro={userIsPro}
           />
         ) : (
@@ -521,11 +585,11 @@ function FeedPageInner() {
                 <div className="space-y-3 sm:space-y-4">
                   {Array.from({ length: 6 }).map((_, i) => <FeedCastSkeleton key={`cast-skel-${i}`} />)}
                 </div>
-              ) : casts.length > 0 ? (
+              ) : filteredCasts.length > 0 ? (
                 <>
                   <Virtuoso
                     useWindowScroll
-                    data={casts}
+                    data={filteredCasts}
                     endReached={loadMore}
                     increaseViewportBy={400}
                     itemContent={(index, cast: Cast) => (
@@ -555,6 +619,7 @@ function FeedPageInner() {
                             setComposeOpen(true)
                           }}
                           currentUserFid={userFid || undefined}
+                          currentUserFids={manageableFids || undefined}
                           isPro={userIsPro}
                         />
                       </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { db, accounts } from '@/lib/db'
-import { eq } from 'drizzle-orm'
+import { db, accounts, accountMembers } from '@/lib/db'
+import { eq, inArray, or } from 'drizzle-orm'
 
 export async function GET() {
   try {
@@ -11,10 +11,35 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Buscar la cuenta del usuario
+    // Buscar la cuenta personal del usuario (para compatibilidad con UI actual)
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.fid, session.fid),
     })
+
+    const memberships = await db.query.accountMembers.findMany({
+      where: eq(accountMembers.userId, session.userId),
+      columns: {
+        accountId: true,
+      },
+    })
+
+    const memberAccountIds = memberships.map(m => m.accountId)
+
+    const accessibleAccounts = await db.query.accounts.findMany({
+      where: memberAccountIds.length > 0
+        ? or(
+            eq(accounts.ownerId, session.userId),
+            inArray(accounts.id, memberAccountIds)
+          )
+        : eq(accounts.ownerId, session.userId),
+      columns: {
+        fid: true,
+      },
+    })
+
+    const manageableFids = accessibleAccounts
+      .map(a => a.fid)
+      .filter((fid): fid is number => typeof fid === 'number' && Number.isFinite(fid))
 
     return NextResponse.json({
       fid: session.fid,
@@ -25,6 +50,7 @@ export async function GET() {
       accountId: account?.id || null,
       signerUuid: account?.signerUuid || null,
       isPro: account?.isPremium || false,
+      manageableFids,
     })
   } catch (error) {
     console.error('[Me API] Error:', error)

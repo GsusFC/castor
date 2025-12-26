@@ -12,6 +12,9 @@ interface ConversationViewProps {
   onSelectUser: (username: string) => void
   onSelectCast?: (hash: string) => void
   onQuote?: (text: string) => void
+  currentUserFid?: number
+  currentUserFids?: number[]
+  onDelete?: (castHash: string) => void
 }
 
 interface ConversationResponse {
@@ -30,6 +33,9 @@ export function ConversationView({
   onSelectUser,
   onSelectCast,
   onQuote,
+  currentUserFid,
+  currentUserFids,
+  onDelete,
 }: ConversationViewProps) {
   const { data, isLoading, error } = useQuery<ConversationResponse>({
     queryKey: ['conversation', castHash],
@@ -93,6 +99,9 @@ export function ConversationView({
                         cast={cast}
                         onSelectUser={onSelectUser}
                         onQuote={onQuote}
+                        currentUserFid={currentUserFid}
+                        currentUserFids={currentUserFids}
+                        onDelete={onDelete}
                       />
                     </div>
                     {/* Línea conectora bajo el avatar */}
@@ -126,6 +135,9 @@ export function ConversationView({
                         cast={reply}
                         onSelectUser={onSelectUser}
                         onQuote={onQuote}
+                        currentUserFid={currentUserFid}
+                        currentUserFids={currentUserFids}
+                        onDelete={onDelete}
                       />
                     </div>
                   ))}

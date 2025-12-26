@@ -197,10 +197,14 @@ async function handleGET(request: NextRequest) {
 
     // Aplicar filtro de spam y sanitización
     const beforeFilter = (result.casts as any[]).length
-    const filteredCasts = filterSpam(result.casts as any[])
-    result.casts = filteredCasts.map(sanitizeCast)
+    const shouldFilterSpam = type === 'trending'
+    const castsAfterSpamFilter = shouldFilterSpam
+      ? filterSpam(result.casts as any[])
+      : (result.casts as any[])
+    result.casts = castsAfterSpamFilter.map(sanitizeCast)
 
-    console.log(`[Feed] Processed ${beforeFilter} casts: ${beforeFilter - filteredCasts.length} spam filtered, ${filteredCasts.length} sanitized`)
+    const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
+    console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
 
     setCachedData(cacheKey, result)
     const response = NextResponse.json(result)

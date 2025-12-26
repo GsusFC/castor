@@ -19,6 +19,8 @@ interface ProfileViewProps {
   onQuote?: (castUrl: string) => void
   onOpenCast?: (castHash: string) => void
   currentUserFid?: number
+  currentUserFids?: number[]
+  onDelete?: (castHash: string) => void
   isPro?: boolean
 }
 
@@ -65,6 +67,8 @@ export function ProfileView({
   onQuote,
   onOpenCast,
   currentUserFid,
+  currentUserFids,
+  onDelete,
   isPro = false,
 }: ProfileViewProps) {
   const router = useRouter()
@@ -340,6 +344,8 @@ export function ProfileView({
               onReply={onReply}
               onQuote={onQuote}
               currentUserFid={currentUserFid}
+              currentUserFids={currentUserFids}
+              onDelete={onDelete}
               isPro={isPro}
             />
           ))

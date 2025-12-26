@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, MessageCircle } from 'lucide-react'
 import { CastCard } from '@/components/feed/CastCard'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+
+type MeResponse = {
+  fid?: number
+  manageableFids?: number[]
+}
 
 interface ConversationResponse {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,6 +29,16 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
   const { hash } = use(params)
   const router = useRouter()
 
+  const meQuery = useQuery<MeResponse | null>({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await fetch('/api/me')
+      if (!res.ok) return null
+      return res.json() as Promise<MeResponse>
+    },
+    staleTime: 60 * 1000,
+  })
+
   const { data, isLoading, error } = useQuery<ConversationResponse>({
     queryKey: ['conversation', hash],
     queryFn: async () => {
@@ -32,6 +48,21 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
+
+  const handleDelete = async (castHash: string) => {
+    try {
+      const res = await fetch(`/api/feed/cast/${castHash}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Cast deleted')
+        router.push('/')
+        return
+      }
+      const payload = await res.json()
+      toast.error(payload.error || 'Delete failed')
+    } catch {
+      toast.error('Delete failed')
+    }
+  }
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -97,6 +128,9 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
                   <CastCard
                     cast={parentCast}
                     onSelectUser={handleSelectUser}
+                    currentUserFid={meQuery.data?.fid}
+                    currentUserFids={meQuery.data?.manageableFids}
+                    onDelete={handleDelete}
                   />
                 </div>
                 {/* Thread line */}
@@ -112,6 +146,9 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
               <CastCard
                 cast={mainCast}
                 onSelectUser={handleSelectUser}
+                currentUserFid={meQuery.data?.fid}
+                currentUserFids={meQuery.data?.manageableFids}
+                onDelete={handleDelete}
               />
             </div>
 
@@ -132,6 +169,9 @@ export default function CastPage({ params }: { params: Promise<{ hash: string }>
                       <CastCard
                         cast={reply}
                         onSelectUser={handleSelectUser}
+                        currentUserFid={meQuery.data?.fid}
+                        currentUserFids={meQuery.data?.manageableFids}
+                        onDelete={handleDelete}
                       />
                     </div>
                   ))}

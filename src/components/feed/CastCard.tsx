@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image as ImageIcon, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image as ImageIcon, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, VolumeX, Ban } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { uploadMedia } from '@/lib/media-upload'
 import { ApiRequestError } from '@/lib/fetch-json'
@@ -90,6 +90,10 @@ interface CastEmbed {
   }
 }
 
+const MUTED_FIDS_STORAGE_KEY = 'castor:mutedFids'
+const BLOCKED_FIDS_STORAGE_KEY = 'castor:blockedFids'
+const MODERATION_UPDATED_EVENT = 'castor:moderation-updated'
+
 interface Cast {
   hash: string
   text: string
@@ -110,6 +114,7 @@ interface CastCardProps {
   onReply?: (cast: Cast) => void
   onSelectUser?: (username: string) => void
   currentUserFid?: number
+  currentUserFids?: number[]
   isPro?: boolean
 }
 
@@ -149,6 +154,7 @@ export function CastCard({
   onReply,
   onSelectUser,
   currentUserFid,
+  currentUserFids,
   isPro = false,
 }: CastCardProps) {
   const router = useRouter()
@@ -172,6 +178,7 @@ export function CastCard({
   const [replyMedia, setReplyMedia] = useState<{ preview: string; url?: string; uploading: boolean; isGif?: boolean } | null>(null)
   const [showGifPicker, setShowGifPicker] = useState(false)
   const [showAIPicker, setShowAIPicker] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const replyIdempotencyKeyRef = useRef<string | null>(null)
 
@@ -189,7 +196,9 @@ export function CastCard({
   const lightboxDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const lightboxDidSwipeRef = useRef(false)
 
-  const isOwnCast = currentUserFid === cast.author.fid
+  const isOwnCast = Array.isArray(currentUserFids) && currentUserFids.length > 0
+    ? currentUserFids.includes(cast.author.fid)
+    : currentUserFid === cast.author.fid
   const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
 
   // Truncar texto largo (> 280 caracteres)
@@ -216,6 +225,68 @@ export function CastCard({
     qs.set('channel', channelId)
     router.push(`/?${qs.toString()}`)
   }, [router])
+
+  const readFidListFromStorage = useCallback((key: string): number[] => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return []
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+    } catch {
+      return []
+    }
+  }, [])
+
+  const writeFidListToStorage = useCallback((key: string, fids: number[]): void => {
+    const unique = Array.from(new Set(fids)).filter((v) => Number.isFinite(v))
+    localStorage.setItem(key, JSON.stringify(unique))
+  }, [])
+
+  const handleCopyCastHash = useCallback(async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(cast.hash)
+      toast.success('Cast hash copied')
+      setShowMoreMenu(false)
+    } catch {
+      toast.error('Copy error')
+    }
+  }, [cast.hash])
+
+  const handleMuteUser = useCallback((): void => {
+    const fid = cast.author.fid
+    if (!Number.isFinite(fid)) return
+
+    if (currentUserFid && fid === currentUserFid) {
+      toast.error('You cannot mute yourself')
+      return
+    }
+
+    const current = readFidListFromStorage(MUTED_FIDS_STORAGE_KEY)
+    writeFidListToStorage(MUTED_FIDS_STORAGE_KEY, [...current, fid])
+    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    toast.success(`Muted @${cast.author.username}`)
+    setShowMoreMenu(false)
+  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
+
+  const handleBlockUser = useCallback((): void => {
+    const fid = cast.author.fid
+    if (!Number.isFinite(fid)) return
+
+    if (currentUserFid && fid === currentUserFid) {
+      toast.error('You cannot block yourself')
+      return
+    }
+
+    const confirmed = confirm(`Block @${cast.author.username}?`)
+    if (!confirmed) return
+
+    const current = readFidListFromStorage(BLOCKED_FIDS_STORAGE_KEY)
+    writeFidListToStorage(BLOCKED_FIDS_STORAGE_KEY, [...current, fid])
+    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    toast.success(`Blocked @${cast.author.username}`)
+    setShowMoreMenu(false)
+  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -668,45 +739,100 @@ export function CastCard({
           )}
         </button>
 
-        <div className="flex-1 min-w-0">
-          {/* name [pro?] [in canal?] tiempo */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelectUser?.(cast.author.username)
-              }}
-              className="text-[15px] font-semibold hover:underline cursor-pointer"
-            >
-              {cast.author.display_name || cast.author.username}
-            </button>
-            {(cast.author.power_badge || cast.author.pro?.status === 'subscribed') && <PowerBadge size={16} />}
-            {cast.channel && (
-              <>
-                <span className="text-muted-foreground text-sm">in</span>
-                <a
-                  href={`https://farcaster.xyz/~/channel/${cast.channel.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-                >
-                  {cast.channel.image_url && (
-                    <Image
-                      src={cast.channel.image_url}
-                      alt=""
-                      width={14}
-                      height={14}
-                      className="w-3.5 h-3.5 rounded-full"
-                      unoptimized
-                    />
-                  )}
-                  <span>{cast.channel.name || cast.channel.id}</span>
-                </a>
-              </>
-            )}
-            <span className="text-muted-foreground text-sm">{timeAgo}</span>
+        <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {/* name [pro?] [in canal?] tiempo */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelectUser?.(cast.author.username)
+                }}
+                className="text-[15px] font-semibold hover:underline cursor-pointer"
+              >
+                {cast.author.display_name || cast.author.username}
+              </button>
+              {(cast.author.power_badge || cast.author.pro?.status === 'subscribed') && <PowerBadge size={16} />}
+              {cast.channel && (
+                <>
+                  <span className="text-muted-foreground text-sm">in</span>
+                  <a
+                    href={`https://farcaster.xyz/~/channel/${cast.channel.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                  >
+                    {cast.channel.image_url && (
+                      <Image
+                        src={cast.channel.image_url}
+                        alt=""
+                        width={14}
+                        height={14}
+                        className="w-3.5 h-3.5 rounded-full"
+                        unoptimized
+                      />
+                    )}
+                    <span>{cast.channel.name || cast.channel.id}</span>
+                  </a>
+                </>
+              )}
+              <span className="text-muted-foreground text-sm">{timeAgo}</span>
+            </div>
           </div>
+
+          <Popover open={showMoreMenu} onOpenChange={setShowMoreMenu}>
+            <PopoverTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Cast actions"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-1" align="end">
+              <button
+                onClick={handleCopyCastHash}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                <span>Copy cast hash</span>
+              </button>
+              {isOwnCast ? (
+                onDelete ? (
+                  <button
+                    onClick={async () => {
+                      await handleDelete()
+                      setShowMoreMenu(false)
+                    }}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-destructive"
+                  >
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    <span>Delete cast</span>
+                  </button>
+                ) : null
+              ) : (
+                <>
+                  <button
+                    onClick={handleMuteUser}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                  >
+                    <VolumeX className="w-4 h-4" />
+                    <span>Mute user</span>
+                  </button>
+                  <button
+                    onClick={handleBlockUser}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                  >
+                    <Ban className="w-4 h-4" />
+                    <span>Block user</span>
+                  </button>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -1207,18 +1333,6 @@ export function CastCard({
         >
           {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
         </button>
-
-        {/* Delete (solo para casts propios) */}
-        {isOwnCast && onDelete && (
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="group flex items-center px-2 py-1.5 rounded-md text-muted-foreground hover:text-destructive transition-colors"
-            title="Eliminar"
-          >
-            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          </button>
-        )}
 
         {/* Share - último */}
         <button

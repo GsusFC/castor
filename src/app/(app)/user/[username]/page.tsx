@@ -14,6 +14,11 @@ import type { ReplyToCast } from '@/components/compose/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
+type MeResponse = {
+  fid?: number
+  manageableFids?: number[]
+}
+
 type ProfileTab = 'casts' | 'replies' | 'likes'
 type FollowListType = 'followers' | 'following' | null
 
@@ -35,9 +40,24 @@ export default function UserProfilePage() {
     queryFn: async () => {
       const res = await fetch('/api/me')
       if (!res.ok) return null
-      return res.json()
+      return res.json() as Promise<MeResponse>
     },
   })
+
+  const handleDelete = async (castHash: string) => {
+    try {
+      const res = await fetch(`/api/feed/cast/${castHash}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Cast deleted')
+        queryClient.invalidateQueries({ queryKey: ['user-casts', username] })
+        return
+      }
+      const data = await res.json()
+      toast.error(data.error || 'Delete failed')
+    } catch {
+      toast.error('Delete failed')
+    }
+  }
 
   // Fetch user profile
   const profileQuery = useQuery({
@@ -344,7 +364,9 @@ export default function UserProfilePage() {
                 key={cast.hash} 
                 cast={cast}
                 currentUserFid={meQuery.data?.fid}
+                currentUserFids={meQuery.data?.manageableFids}
                 onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
+                onDelete={handleDelete}
                 onReply={(c) => {
                   setReplyToCast({
                     hash: c.hash,

@@ -11,6 +11,13 @@ const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
   return withCircuitBreaker(key, () => retryExternalApi(fn, key))
 }
 
+const normalizeCursor = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return undefined
+  return trimmed
+}
+
 // Filtro Priority Mode (simula comportamiento de Warpcast)
 // Solo muestra: power badge, Pro, o usuarios establecidos
 function filterSpam(casts: any[]): any[] {
@@ -142,7 +149,7 @@ async function handleGET(request: NextRequest) {
       )
       result = {
         casts: response.casts || [],
-        next: { cursor: response.next?.cursor ?? undefined },
+        next: { cursor: normalizeCursor(response.next?.cursor) },
       }
     } else if (type === 'home') {
       // Feed algorítmico personalizado (For You)
@@ -161,7 +168,7 @@ async function handleGET(request: NextRequest) {
         )
         result = {
           casts: response.casts || [],
-          next: { cursor: response.next?.cursor ?? undefined },
+          next: { cursor: normalizeCursor(response.next?.cursor) },
         }
       }
     } else if (type === 'following' && fid) {
@@ -175,7 +182,7 @@ async function handleGET(request: NextRequest) {
       )
       result = {
         casts: response.casts || [],
-        next: { cursor: response.next?.cursor ?? undefined },
+        next: { cursor: normalizeCursor(response.next?.cursor) },
       }
     } else if (type === 'channel' && channel) {
       const response = await callNeynar('neynar:feed:channel', () =>
@@ -189,7 +196,7 @@ async function handleGET(request: NextRequest) {
       )
       result = {
         casts: response.casts || [],
-        next: { cursor: response.next?.cursor ?? undefined },
+        next: { cursor: normalizeCursor(response.next?.cursor) },
       }
     } else {
       return NextResponse.json({ error: 'Invalid feed type' }, { status: 400 })

@@ -363,7 +363,13 @@ function FeedPageInner() {
       return res.json()
     },
     enabled: isFeedEnabled,
-    getNextPageParam: (lastPage) => lastPage.next?.cursor,
+    getNextPageParam: (lastPage) => {
+      const cursor = lastPage?.next?.cursor
+      if (typeof cursor !== 'string') return undefined
+      const trimmed = cursor.trim()
+      if (trimmed.length === 0) return undefined
+      return trimmed
+    },
     initialPageParam: undefined as string | undefined,
   })
 
@@ -539,7 +545,13 @@ function FeedPageInner() {
                         queryClient.prefetchInfiniteQuery({
                           queryKey: ['feed', tab.id, userFid, null],
                           queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
-                          getNextPageParam: (lastPage: any) => lastPage.next?.cursor,
+                          getNextPageParam: (lastPage: any) => {
+                            const cursor = lastPage?.next?.cursor
+                            if (typeof cursor !== 'string') return undefined
+                            const trimmed = cursor.trim()
+                            if (trimmed.length === 0) return undefined
+                            return trimmed
+                          },
                           initialPageParam: undefined as string | undefined,
                           staleTime: 30 * 1000,
                         })

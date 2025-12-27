@@ -50,7 +50,6 @@ export default function NotificationsPage() {
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreLockRef = useRef(false)
 
   useEffect(() => {
     resetUnread()
@@ -86,6 +85,10 @@ export default function NotificationsPage() {
     getNextPageParam: (lastPage) => lastPage.next?.cursor,
     initialPageParam: undefined as string | undefined,
     enabled: !!userFid,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
   })
 
   const allNotifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) || []
@@ -97,16 +100,9 @@ export default function NotificationsPage() {
   const isFetchingNextPage = notificationsQuery.isFetchingNextPage
   const hasMore = notificationsQuery.hasNextPage
 
-  useEffect(() => {
-    if (isFetchingNextPage) return
-    loadMoreLockRef.current = false
-  }, [isFetchingNextPage])
-
+  // Simplified loadMore - IntersectionObserver handles the trigger
   const loadMore = useCallback(() => {
     if (!hasMore || isLoading || isFetchingNextPage) return
-    if (loadMoreLockRef.current) return
-    loadMoreLockRef.current = true
-
     notificationsQuery.fetchNextPage()
   }, [hasMore, isFetchingNextPage, isLoading, notificationsQuery])
 

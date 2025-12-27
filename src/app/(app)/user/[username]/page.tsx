@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, MapPin, Users, Loader2, ExternalLink, Star, Github, Pencil, UserPlus, UserMinus } from 'lucide-react'
+import { Virtuoso } from 'react-virtuoso'
 import { CastCard } from '@/components/feed/CastCard'
 import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { PowerBadge } from '@/components/ui/PowerBadge'
@@ -82,11 +83,15 @@ export default function UserProfilePage() {
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.next?.cursor,
     enabled: !!profileQuery.data,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
   })
 
   const user = profileQuery.data?.user
   const casts = castsQuery.data?.pages.flatMap((page) => page.casts) || []
-  
+
   const isOwnProfile = meQuery.data?.fid && user?.fid === meQuery.data.fid
   const isFollowing = user?.viewer_context?.following
 
@@ -179,9 +184,9 @@ export default function UserProfilePage() {
         {/* Banner - Pro feature */}
         {user.profile?.banner?.url ? (
           <div className="h-32 md:h-40 overflow-hidden">
-            <img 
-              src={user.profile.banner.url} 
-              alt="Banner" 
+            <img
+              src={user.profile.banner.url}
+              alt="Banner"
               className="w-full h-full object-cover"
             />
           </div>
@@ -279,8 +284,8 @@ export default function UserProfilePage() {
               {user.verified_accounts.map((account: { platform: string; username: string }, i: number) => (
                 <a
                   key={i}
-                  href={account.platform === 'x' 
-                    ? `https://x.com/${account.username}` 
+                  href={account.platform === 'x'
+                    ? `https://x.com/${account.username}`
                     : `https://github.com/${account.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -288,7 +293,7 @@ export default function UserProfilePage() {
                 >
                   {account.platform === 'x' ? (
                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
                   ) : (
                     <Github className="w-3 h-3" />
@@ -358,41 +363,48 @@ export default function UserProfilePage() {
             No {activeTab === 'casts' ? 'casts' : activeTab === 'replies' ? 'replies' : 'likes'} yet
           </div>
         ) : (
-          <>
-            {casts.map((cast: any) => (
-              <CastCard 
-                key={cast.hash} 
-                cast={cast}
-                currentUserFid={meQuery.data?.fid}
-                currentUserFids={meQuery.data?.manageableFids}
-                onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
-                onDelete={handleDelete}
-                onReply={(c) => {
-                  setReplyToCast({
-                    hash: c.hash,
-                    text: c.text,
-                    timestamp: c.timestamp,
-                    author: {
-                      fid: c.author.fid,
-                      username: c.author.username,
-                      displayName: c.author.display_name,
-                      pfpUrl: c.author.pfp_url || null,
-                    },
-                  })
-                  setComposeOpen(true)
-                }}
-              />
-            ))}
-            {castsQuery.hasNextPage && (
-              <button
-                onClick={() => castsQuery.fetchNextPage()}
-                disabled={castsQuery.isFetchingNextPage}
-                className="w-full py-3 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors"
-              >
-                {castsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-              </button>
+          <Virtuoso
+            useWindowScroll
+            data={casts}
+            increaseViewportBy={800}
+            endReached={() => {
+              if (castsQuery.hasNextPage && !castsQuery.isFetchingNextPage) {
+                castsQuery.fetchNextPage()
+              }
+            }}
+            itemContent={(_, cast: any) => (
+              <div className="pb-4">
+                <CastCard
+                  cast={cast}
+                  currentUserFid={meQuery.data?.fid}
+                  currentUserFids={meQuery.data?.manageableFids}
+                  onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
+                  onDelete={handleDelete}
+                  onReply={(c) => {
+                    setReplyToCast({
+                      hash: c.hash,
+                      text: c.text,
+                      timestamp: c.timestamp,
+                      author: {
+                        fid: c.author.fid,
+                        username: c.author.username,
+                        displayName: c.author.display_name,
+                        pfpUrl: c.author.pfp_url || null,
+                      },
+                    })
+                    setComposeOpen(true)
+                  }}
+                />
+              </div>
             )}
-          </>
+            components={{
+              Footer: () => castsQuery.isFetchingNextPage ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : null
+            }}
+          />
         )}
       </div>
 

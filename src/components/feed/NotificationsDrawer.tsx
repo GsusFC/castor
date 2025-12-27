@@ -53,7 +53,6 @@ export function NotificationsDrawer() {
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreLockRef = useRef(false)
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 639px)')
@@ -102,6 +101,10 @@ export function NotificationsDrawer() {
     getNextPageParam: (lastPage) => lastPage.next?.cursor,
     initialPageParam: undefined as string | undefined,
     enabled: !!userFid && isOpen,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
   })
 
   const allNotifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) || []
@@ -113,16 +116,9 @@ export function NotificationsDrawer() {
   const isFetchingNextPage = notificationsQuery.isFetchingNextPage
   const hasMore = notificationsQuery.hasNextPage
 
-  useEffect(() => {
-    if (isFetchingNextPage) return
-    loadMoreLockRef.current = false
-  }, [isFetchingNextPage])
-
+  // Simplified loadMore
   const loadMore = useCallback(() => {
     if (!hasMore || isLoading || isFetchingNextPage) return
-    if (loadMoreLockRef.current) return
-    loadMoreLockRef.current = true
-
     notificationsQuery.fetchNextPage()
   }, [hasMore, isFetchingNextPage, isLoading, notificationsQuery])
 

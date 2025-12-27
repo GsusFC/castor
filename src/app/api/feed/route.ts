@@ -176,6 +176,7 @@ async function handleGET(request: NextRequest) {
         neynar.fetchFeed({
           feedType: 'following',
           fid: parseInt(fid),
+          withRecasts: false,
           limit,
           cursor,
         })

@@ -344,21 +344,22 @@ function FeedPageInner() {
 
   // Feed query - optimized for mobile with cache, retry and larger batches
   const feedQuery = useInfiniteQuery({
-    queryKey: ['feed', activeTab, userFid, selectedChannel?.id],
-    queryFn: async ({ pageParam }) => {
+    queryKey: ['feed', activeTab, userFid, selectedChannel?.id ?? null] as const,
+    queryFn: async ({ queryKey, pageParam }) => {
+      const [_key, type, fid, channelId] = queryKey
       const params = new URLSearchParams({
-        type: activeTab,
+        type: type,
         limit: '20',
       })
       if (typeof pageParam === 'string') {
         const trimmed = pageParam.trim()
         if (trimmed.length > 0) params.set('cursor', trimmed)
       }
-      if (userFid && (activeTab === 'following' || activeTab === 'home')) {
-        params.set('fid', userFid.toString())
+      if (fid && (type === 'following' || type === 'home')) {
+        params.set('fid', fid.toString())
       }
-      if (activeTab === 'channel' && selectedChannel) {
-        params.set('channel', selectedChannel.id)
+      if (type === 'channel' && channelId) {
+        params.set('channel', channelId)
       }
 
       const res = await fetch(`/api/feed?${params}`)
@@ -524,8 +525,19 @@ function FeedPageInner() {
                         }
 
                         queryClient.prefetchInfiniteQuery({
-                          queryKey: ['feed', tab.id, userFid, null],
-                          queryFn: () => fetch(`/api/feed?${params}`).then(r => r.json()),
+                          queryKey: ['feed', tab.id, userFid, null] as const,
+                          queryFn: async ({ queryKey }) => {
+                            const [_key, type, fid, channelId] = queryKey
+                            const params = new URLSearchParams({ type, limit: '20' })
+                            if ((type === 'following' || type === 'home') && fid) {
+                              params.set('fid', fid.toString())
+                            }
+                            if (type === 'channel' && channelId) {
+                              params.set('channel', channelId)
+                            }
+                            const r = await fetch(`/api/feed?${params}`)
+                            return r.json()
+                          },
                           getNextPageParam: (lastPage: any) => {
                             const cursor = lastPage?.next?.cursor
                             if (typeof cursor !== 'string') return undefined

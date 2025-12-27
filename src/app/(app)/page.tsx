@@ -351,7 +351,10 @@ function FeedPageInner() {
         type: activeTab,
         limit: '10',
       })
-      if (pageParam) params.set('cursor', pageParam)
+      if (typeof pageParam === 'string') {
+        const trimmed = pageParam.trim()
+        if (trimmed.length > 0) params.set('cursor', trimmed)
+      }
       if (userFid && (activeTab === 'following' || activeTab === 'home')) {
         params.set('fid', userFid.toString())
       }
@@ -395,6 +398,10 @@ function FeedPageInner() {
   const loadMoreLockRef = useRef(false)
 
   useEffect(() => {
+    loadMoreLockRef.current = false
+  }, [activeTab, userFid, selectedChannel?.id])
+
+  useEffect(() => {
     if (isFetchingNextPage) return
     loadMoreLockRef.current = false
   }, [isFetchingNextPage])
@@ -403,6 +410,7 @@ function FeedPageInner() {
     if (!isFeedEnabled) return
     if (!hasMore || isLoading || isFetchingNextPage) return
     if (loadMoreLockRef.current) return
+
     loadMoreLockRef.current = true
 
     feedQuery.fetchNextPage()
@@ -421,7 +429,7 @@ function FeedPageInner() {
 
     observer.observe(target)
     return () => observer.disconnect()
-  }, [loadMore])
+  }, [filteredCasts.length, hasMore, isFeedEnabled, loadMore])
 
   // Handler para Quote - abre composer con URL del cast
   const handleQuote = (castUrl: string) => {
@@ -639,6 +647,7 @@ function FeedPageInner() {
                     components={{
                       Footer: () => (
                         <div className="py-4">
+                          <div ref={loadMoreRef} className="h-px w-full" />
                           {isFetchingNextPage && (
                             <div className="flex items-center justify-center">
                               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

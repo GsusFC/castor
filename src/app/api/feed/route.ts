@@ -122,7 +122,7 @@ async function handleGET(request: NextRequest) {
     const type = searchParams.get('type') || 'trending'
     const fid = searchParams.get('fid')
     const channel = searchParams.get('channel')
-    const cursor = searchParams.get('cursor') || undefined
+    const cursor = normalizeCursor(searchParams.get('cursor'))
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 10)
 
     const isPersonalized = (type === 'home' || type === 'following') && !!fid
@@ -131,7 +131,7 @@ async function handleGET(request: NextRequest) {
       : 'public, s-maxage=30, stale-while-revalidate=60'
 
     const cacheKey = `feed:${type}:${fid}:${channel}:${cursor}:${limit}`
-    const cached = getCachedData(cacheKey)
+    const cached = isPersonalized ? null : getCachedData(cacheKey)
     if (cached) {
       const response = NextResponse.json(cached)
       response.headers.set('Cache-Control', cacheControl)
@@ -213,7 +213,7 @@ async function handleGET(request: NextRequest) {
     const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
     console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
 
-    setCachedData(cacheKey, result)
+    if (!isPersonalized) setCachedData(cacheKey, result)
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', cacheControl)
     return response

@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
 
   // Si el usuario NO tiene sesión y accede a /, redirigir a landing
   if (pathname === '/' && !token) {
-    return NextResponse.redirect(new URL('/landing', request.url))
+    return NextResponse.rewrite(new URL('/landing', request.url))
   }
 
   // Permitir rutas completamente públicas

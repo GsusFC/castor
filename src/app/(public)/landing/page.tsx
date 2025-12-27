@@ -1,5 +1,3 @@
-'use client'
-
 import Image from 'next/image'
 import { Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -15,7 +13,7 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 max-w-5xl mx-auto w-full">
         
         {/* Hero Section */}
-        <div className="text-center space-y-6 mb-16 max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="text-center space-y-6 mb-16 max-w-2xl">
           {/* Logo */}
           <div className="flex justify-center mb-2">
             <Image
@@ -49,7 +47,7 @@ export default function HomePage() {
         </div>
 
         {/* Bento Grid Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
           <Card className="p-6 bg-card/50 backdrop-blur-sm border-border hover:border-primary/50 transition-colors group">
             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
               <Calendar className="w-5 h-5 text-primary" />

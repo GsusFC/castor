@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
-import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { WebVitalsProvider } from '@/components/providers/WebVitalsProvider'
 
@@ -73,7 +72,6 @@ export default function RootLayout({
           <WebVitalsProvider>
             {children}
           </WebVitalsProvider>
-          <Toaster position="bottom-right" richColors />
         </ThemeProvider>
       </body>
     </html>

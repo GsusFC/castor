@@ -10,6 +10,7 @@ import { NotificationsDrawer } from '@/components/feed/NotificationsDrawer'
 
 import { SearchDrawer } from '@/components/feed/SearchDrawer'
 import { SearchProvider } from '@/context/SearchContext'
+import { Toaster } from 'sonner'
 
 export default function DashboardLayout({
   children,
@@ -44,6 +45,7 @@ export default function DashboardLayout({
 
                     <NotificationsDrawer />
                     <SearchDrawer />
+                    <Toaster position="bottom-right" richColors />
                   </div>
                 </TickerDrawerProvider>
               </SearchProvider>

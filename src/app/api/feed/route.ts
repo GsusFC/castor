@@ -123,7 +123,9 @@ async function handleGET(request: NextRequest) {
     const fid = searchParams.get('fid')
     const channel = searchParams.get('channel')
     const cursor = normalizeCursor(searchParams.get('cursor'))
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 10)
+    // Neynar Trending API only supports max 10, other feeds support up to 25
+    const maxLimit = type === 'trending' ? 10 : 25
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), maxLimit)
 
     const isPersonalized = (type === 'home' || type === 'following') && !!fid
     const cacheControl = isPersonalized
@@ -143,8 +145,8 @@ async function handleGET(request: NextRequest) {
     if (type === 'trending') {
       const response = await callNeynar('neynar:feed:trending', () =>
         neynar.fetchTrendingFeed({
-        limit,
-        cursor,
+          limit,
+          cursor,
         })
       )
       result = {

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import Image from 'next/image'
@@ -259,7 +259,6 @@ function FeedPageInner() {
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
   const queryClient = useQueryClient()
-  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const FeedCastSkeleton = () => (
     <div className="p-4 border border-border rounded-xl bg-card animate-pulse">
@@ -343,13 +342,13 @@ function FeedPageInner() {
   const isWaitingForFid = requiresFidForTab && userFid === null
   const isFeedEnabled = !requiresFidForTab || userFid !== null
 
-  // Feed query
+  // Feed query - optimized for mobile with cache, retry and larger batches
   const feedQuery = useInfiniteQuery({
     queryKey: ['feed', activeTab, userFid, selectedChannel?.id],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
         type: activeTab,
-        limit: '10',
+        limit: '20',
       })
       if (typeof pageParam === 'string') {
         const trimmed = pageParam.trim()
@@ -366,6 +365,10 @@ function FeedPageInner() {
       return res.json()
     },
     enabled: isFeedEnabled,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
     getNextPageParam: (lastPage) => {
       const cursor = lastPage?.next?.cursor
       if (typeof cursor !== 'string') return undefined
@@ -395,41 +398,11 @@ function FeedPageInner() {
   const isFetchingNextPage = feedQuery.isFetchingNextPage
   const hasMore = isFeedEnabled ? feedQuery.hasNextPage : false
 
-  const loadMoreLockRef = useRef(false)
-
-  useEffect(() => {
-    loadMoreLockRef.current = false
-  }, [activeTab, userFid, selectedChannel?.id])
-
-  useEffect(() => {
-    if (isFetchingNextPage) return
-    loadMoreLockRef.current = false
-  }, [isFetchingNextPage])
-
+  // Simplified loadMore - Virtuoso handles scroll detection via endReached
   const loadMore = useCallback(() => {
-    if (!isFeedEnabled) return
-    if (!hasMore || isLoading || isFetchingNextPage) return
-    if (loadMoreLockRef.current) return
-
-    loadMoreLockRef.current = true
-
+    if (!isFeedEnabled || !hasMore || isLoading || isFetchingNextPage) return
     feedQuery.fetchNextPage()
   }, [feedQuery, hasMore, isFeedEnabled, isFetchingNextPage, isLoading])
-
-  // Infinite scroll con IntersectionObserver
-  useEffect(() => {
-    const target = loadMoreRef.current
-    if (!target) return
-
-    const observer = new IntersectionObserver((entries) => {
-      const first = entries[0]
-      if (!first?.isIntersecting) return
-      loadMore()
-    }, { threshold: 0.1, rootMargin: '100px' })
-
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [filteredCasts.length, hasMore, isFeedEnabled, loadMore])
 
   // Handler para Quote - abre composer con URL del cast
   const handleQuote = (castUrl: string) => {
@@ -611,7 +584,7 @@ function FeedPageInner() {
                     useWindowScroll
                     data={filteredCasts}
                     endReached={loadMore}
-                    increaseViewportBy={400}
+                    increaseViewportBy={800}
                     itemContent={(index, cast: Cast) => (
                       <div className="pb-3 sm:pb-4">
                         <CastCard
@@ -645,16 +618,11 @@ function FeedPageInner() {
                       </div>
                     )}
                     components={{
-                      Footer: () => (
-                        <div className="py-4">
-                          <div ref={loadMoreRef} className="h-px w-full" />
-                          {isFetchingNextPage && (
-                            <div className="flex items-center justify-center">
-                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                            </div>
-                          )}
+                      Footer: () => isFetchingNextPage ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                         </div>
-                      )
+                      ) : null
                     }}
                   />
                 </>

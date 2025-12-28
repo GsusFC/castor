@@ -72,10 +72,12 @@ export default function UserProfilePage() {
 
   // Fetch user casts
   const castsQuery = useInfiniteQuery({
-    queryKey: ['user-casts', username, activeTab],
-    queryFn: async ({ pageParam }) => {
+    queryKey: ['user-casts', username, activeTab] as const,
+    queryFn: async ({ queryKey, pageParam }) => {
+      const [_key, usernameFromKey, tabFromKey] = queryKey
+      const cursor = typeof pageParam === 'string' ? pageParam : ''
       const res = await fetch(
-        `/api/users/${username}/casts?cursor=${pageParam || ''}&type=${activeTab}`
+        `/api/users/${usernameFromKey}/casts?cursor=${cursor}&type=${tabFromKey}`
       )
       if (!res.ok) throw new Error('Failed to fetch casts')
       return res.json()

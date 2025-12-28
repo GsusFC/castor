@@ -11,6 +11,148 @@ const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
   return withCircuitBreaker(key, () => retryExternalApi(fn, key))
 }
 
+async function handlePOST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as unknown
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
+    }
+
+    const type = (body as any).type
+    const fidRaw = (body as any).fid
+    const channel = (body as any).channel
+    const cursor = normalizeCursor((body as any).cursor)
+    const limitRaw = (body as any).limit
+
+    if (type !== 'trending' && type !== 'home' && type !== 'following' && type !== 'channel') {
+      return NextResponse.json({ error: 'Invalid feed type' }, { status: 400 })
+    }
+
+    if (!Number.isFinite(limitRaw)) {
+      return NextResponse.json({ error: 'limit is required' }, { status: 400 })
+    }
+
+    const fid =
+      typeof fidRaw === 'number' && Number.isFinite(fidRaw)
+        ? fidRaw
+        : typeof fidRaw === 'string'
+          ? parseInt(fidRaw)
+          : NaN
+
+    if ((type === 'home' || type === 'following') && !Number.isFinite(fid)) {
+      return NextResponse.json(
+        { error: 'fid is required for home/following feed' },
+        { status: 400 }
+      )
+    }
+
+    if (type === 'channel' && typeof channel !== 'string') {
+      return NextResponse.json(
+        { error: 'channel is required for channel feed' },
+        { status: 400 }
+      )
+    }
+
+    // Neynar Trending API only supports max 10, other feeds support up to 25
+    const maxLimit = type === 'trending' ? 10 : 25
+    const limit = Math.min(limitRaw, maxLimit)
+
+    const isPersonalized = (type === 'home' || type === 'following') && Number.isFinite(fid)
+    const cacheKey = `feed:${type}:${Number.isFinite(fid) ? fid : ''}:${typeof channel === 'string' ? channel : ''}:${cursor}:${limit}`
+    const cached = isPersonalized ? null : getCachedData(cacheKey)
+
+    if (cached) {
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, no-store')
+      return response
+    }
+
+    let result: { casts: unknown[]; next?: { cursor?: string } }
+
+    if (type === 'trending') {
+      const response = await callNeynar('neynar:feed:trending', () =>
+        neynar.fetchTrendingFeed({
+          limit,
+          cursor,
+        })
+      )
+      result = {
+        casts: response.casts || [],
+        next: { cursor: normalizeCursor(response.next?.cursor) },
+      }
+    } else if (type === 'home') {
+      const response = await callNeynar('neynar:feed:for-you', () =>
+        neynar.fetchFeedForYou({
+          fid,
+          limit,
+          cursor,
+        })
+      )
+      result = {
+        casts: response.casts || [],
+        next: { cursor: normalizeCursor(response.next?.cursor) },
+      }
+    } else if (type === 'following') {
+      const response = await callNeynar('neynar:feed:following', () =>
+        neynar.fetchFeed({
+          feedType: 'following',
+          fid,
+          withRecasts: false,
+          limit,
+          cursor,
+        })
+      )
+      result = {
+        casts: response.casts || [],
+        next: { cursor: normalizeCursor(response.next?.cursor) },
+      }
+    } else {
+      const response = await callNeynar('neynar:feed:channel', () =>
+        neynar.fetchFeed({
+          feedType: 'filter',
+          filterType: 'channel_id',
+          channelId: channel,
+          limit,
+          cursor,
+        })
+      )
+      result = {
+        casts: response.casts || [],
+        next: { cursor: normalizeCursor(response.next?.cursor) },
+      }
+    }
+
+    // Aplicar filtro de spam y sanitización
+    const beforeFilter = (result.casts as any[]).length
+    const shouldFilterSpam = type === 'trending'
+    const castsAfterSpamFilter = shouldFilterSpam
+      ? filterSpam(result.casts as any[])
+      : (result.casts as any[])
+    result.casts = castsAfterSpamFilter.map(sanitizeCast)
+
+    const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
+    console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
+
+    if (!isPersonalized) setCachedData(cacheKey, result)
+
+    const response = NextResponse.json(result)
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {
+      return NextResponse.json(
+        { error: 'Upstream unavailable', code: 'UPSTREAM_UNAVAILABLE' },
+        { status: 503 }
+      )
+    }
+    console.error('[Feed API] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch feed' },
+      { status: 500 }
+    )
+  }
+}
+
 const normalizeCursor = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
@@ -239,3 +381,8 @@ export const GET = withRateLimit('api', (req) => {
   const url = new URL(req.url)
   return `${getClientIP(req)}:${url.pathname}`
 })(handleGET)
+
+export const POST = withRateLimit('api', (req) => {
+  const url = new URL(req.url)
+  return `${getClientIP(req)}:${url.pathname}`
+})(handlePOST)

@@ -347,22 +347,28 @@ function FeedPageInner() {
     queryKey: ['feed', activeTab, userFid, selectedChannel?.id ?? null] as const,
     queryFn: async ({ queryKey, pageParam }) => {
       const [_key, type, fid, channelId] = queryKey
-      const params = new URLSearchParams({
-        type: type,
-        limit: '20',
-      })
+      const payload: Record<string, unknown> = {
+        type,
+        limit: 20,
+      }
       if (typeof pageParam === 'string') {
         const trimmed = pageParam.trim()
-        if (trimmed.length > 0) params.set('cursor', trimmed)
+        if (trimmed.length > 0) payload.cursor = trimmed
       }
       if (fid && (type === 'following' || type === 'home')) {
-        params.set('fid', fid.toString())
+        payload.fid = fid
       }
       if (type === 'channel' && channelId) {
-        params.set('channel', channelId)
+        payload.channel = channelId
       }
 
-      const res = await fetch(`/api/feed?${params}`)
+      const res = await fetch('/api/feed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
       return res.json()
     },
     enabled: isFeedEnabled,
@@ -519,23 +525,27 @@ function FeedPageInner() {
                         const tabRequiresFid = tab.id === 'following' || tab.id === 'home'
                         if (tabRequiresFid && !userFid) return
 
-                        const params = new URLSearchParams({ type: tab.id, limit: '20' })
-                        if (tabRequiresFid && userFid) {
-                          params.set('fid', userFid.toString())
-                        }
-
                         queryClient.prefetchInfiniteQuery({
                           queryKey: ['feed', tab.id, userFid, null] as const,
                           queryFn: async ({ queryKey }) => {
                             const [_key, type, fid, channelId] = queryKey
-                            const params = new URLSearchParams({ type, limit: '20' })
+                            const payload: Record<string, unknown> = {
+                              type,
+                              limit: 20,
+                            }
                             if ((type === 'following' || type === 'home') && fid) {
-                              params.set('fid', fid.toString())
+                              payload.fid = fid
                             }
                             if (type === 'channel' && channelId) {
-                              params.set('channel', channelId)
+                              payload.channel = channelId
                             }
-                            const r = await fetch(`/api/feed?${params}`)
+                            const r = await fetch('/api/feed', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify(payload),
+                            })
                             return r.json()
                           },
                           getNextPageParam: (lastPage: any) => {

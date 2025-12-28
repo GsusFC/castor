@@ -32,7 +32,16 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
     const fetchData = async () => {
       try {
         // Fetch trending casts for "what's hot"
-        const res = await fetch('/api/feed?type=trending&limit=3')
+        const res = await fetch('/api/feed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'trending',
+            limit: 3,
+          }),
+        })
         if (res.ok) {
           const data = await res.json()
           setTrendingCasts(data.casts || [])

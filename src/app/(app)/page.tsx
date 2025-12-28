@@ -342,6 +342,8 @@ function FeedPageInner() {
   const isWaitingForFid = requiresFidForTab && userFid === null
   const isFeedEnabled = !requiresFidForTab || userFid !== null
 
+  console.log(`[FeedPage] State: activeTab=${activeTab}, userFid=${userFid}, selectedChannel=${selectedChannel?.id}, isFeedEnabled=${isFeedEnabled}`)
+
   // Feed query - optimized for mobile with cache, retry and larger batches
   const feedQuery = useInfiniteQuery({
     queryKey: ['feed', activeTab, userFid, selectedChannel?.id ?? null] as const,
@@ -362,6 +364,9 @@ function FeedPageInner() {
         payload.channel = channelId
       }
 
+      console.log(`[FeedQuery] queryKey:`, queryKey)
+      console.log(`[FeedQuery] payload:`, payload)
+
       const res = await fetch('/api/feed', {
         method: 'POST',
         headers: {
@@ -369,7 +374,16 @@ function FeedPageInner() {
         },
         body: JSON.stringify(payload),
       })
-      return res.json()
+      const data = await res.json()
+      console.log(`[FeedQuery] Response for ${type}:`, {
+        castsCount: data.casts?.length,
+        firstCastHash: data.casts?.[0]?.hash,
+        headers: {
+          cache: res.headers.get('X-Feed-Cache'),
+          feedType: res.headers.get('X-Feed-Type'),
+        }
+      })
+      return data
     },
     enabled: isFeedEnabled,
     staleTime: 30 * 1000,

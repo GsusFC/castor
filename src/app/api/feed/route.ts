@@ -24,8 +24,6 @@ async function handlePOST(request: NextRequest) {
     const cursor = normalizeCursor((body as any).cursor)
     const limitRaw = (body as any).limit
 
-    console.log(`[Feed POST] Request: type=${type}, fidRaw=${fidRaw}, channel=${channel}, cursor=${cursor}, limit=${limitRaw}`)
-
     if (type !== 'trending' && type !== 'home' && type !== 'following' && type !== 'channel') {
       return NextResponse.json({ error: 'Invalid feed type' }, { status: 400 })
     }
@@ -63,14 +61,9 @@ async function handlePOST(request: NextRequest) {
     const cacheKey = `feed:${type}:${Number.isFinite(fid) ? fid : ''}:${typeof channel === 'string' ? channel : ''}:${cursor}:${limit}`
     const cached = isPersonalized ? null : getCachedData(cacheKey)
 
-    console.log(`[Feed POST] Cache: key="${cacheKey}", personalized=${isPersonalized}, cached=${!!cached}`)
-
     if (cached) {
-      console.log(`[Feed POST] Returning cached data for ${type}`)
       const response = NextResponse.json(cached)
       response.headers.set('Cache-Control', 'private, no-store')
-      response.headers.set('X-Feed-Cache', 'HIT')
-      response.headers.set('X-Feed-Type', type)
       return response
     }
 
@@ -140,17 +133,10 @@ async function handlePOST(request: NextRequest) {
     const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
     console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
 
-    if (!isPersonalized) {
-      setCachedData(cacheKey, result)
-      console.log(`[Feed POST] Stored in cache: ${type}`)
-    } else {
-      console.log(`[Feed POST] Skipped cache (personalized): ${type}`)
-    }
+    if (!isPersonalized) setCachedData(cacheKey, result)
 
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', 'private, no-store')
-    response.headers.set('X-Feed-Cache', 'MISS')
-    response.headers.set('X-Feed-Type', type)
     response.headers.set('Vary', 'Cookie')
     return response
   } catch (error) {

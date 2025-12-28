@@ -137,6 +137,7 @@ async function handlePOST(request: NextRequest) {
 
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', 'private, no-store')
+    response.headers.set('Vary', 'Cookie')
     return response
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Circuit breaker open')) {

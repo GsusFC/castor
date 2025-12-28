@@ -223,10 +223,8 @@ function FeedPageInner() {
   useEffect(() => {
     if (!channelIdFromUrl) {
       // Si no hay channel en URL, limpiar selección
-      setSelectedChannel(prev => {
-        if (prev) setActiveTab('home')
-        return null
-      })
+      // NOTE: Do NOT auto-switch to home tab here - the onClick handler already set the correct tab
+      setSelectedChannel(null)
       return
     }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { TrendingUp, Loader2 } from 'lucide-react'
 import { GlobalSearch } from '@/components/feed/GlobalSearch'
@@ -25,36 +25,34 @@ interface RightSidebarProps {
 
 export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) {
   const router = useRouter()
-  const [trendingCasts, setTrendingCasts] = useState<TrendingCast[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const trendingQuery = useQuery({
+    queryKey: ['feed', 'trending', 'sidebar', 3] as const,
+    queryFn: async () => {
+      // Fetch trending casts for "what's hot"
+      const res = await fetch('/api/feed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'trending',
+          limit: 3,
+        }),
+      })
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch trending casts for "what's hot"
-        const res = await fetch('/api/feed', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'trending',
-            limit: 3,
-          }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setTrendingCasts(data.casts || [])
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setIsLoading(false)
+      if (!res.ok) {
+        throw new Error('Failed to fetch trending casts')
       }
-    }
 
-    fetchData()
-  }, [])
+      return res.json() as Promise<{ casts?: TrendingCast[] }>
+    },
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+  })
+
+  const trendingCasts = trendingQuery.data?.casts || []
+  const isLoading = trendingQuery.isLoading
 
   return (
     <aside className="space-y-6">
@@ -87,6 +85,8 @@ export function RightSidebar({ onSelectUser, onSelectCast }: RightSidebarProps) 
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
+        ) : trendingQuery.isError ? (
+          <p className="text-xs text-muted-foreground">No trending casts</p>
         ) : trendingCasts.length > 0 ? (
           <ul className="space-y-3">
             {trendingCasts.map((cast) => (

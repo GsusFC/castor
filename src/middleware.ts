@@ -52,71 +52,67 @@ export async function middleware(request: NextRequest) {
   const method = request.method
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
-  // 🚨 TEMPORARY: Auth disabled for performance testing
-  // TODO: Re-enable auth after performance tests
-  return NextResponse.next()
-
   // Si el usuario está en la landing y tiene sesión válida, redirigir al feed
-  // if (pathname === '/landing' && token) {
-  //   try {
-  //     await jwtVerify(token, getSecretKey())
-  //     return NextResponse.redirect(new URL('/', request.url))
-  //   } catch {
-  //     // Token inválido, continuar a la landing
-  //   }
-  // }
+  if (pathname === '/landing' && token) {
+    try {
+      await jwtVerify(token, getSecretKey())
+      return NextResponse.redirect(new URL('/', request.url))
+    } catch {
+      // Token inválido, continuar a la landing
+    }
+  }
 
   // Si el usuario NO tiene sesión y accede a /, redirigir a landing
-  // if (pathname === '/' && !token) {
-  //   return NextResponse.rewrite(new URL('/landing', request.url))
-  // }
+  if (pathname === '/' && !token) {
+    return NextResponse.rewrite(new URL('/landing', request.url))
+  }
 
-  // // Permitir rutas completamente públicas
-  // if (publicPaths.includes(pathname)) {
-  //   return NextResponse.next()
-  // }
+  // Permitir rutas completamente públicas
+  if (publicPaths.includes(pathname)) {
+    return NextResponse.next()
+  }
 
-  // // Permitir prefijos públicos
-  // if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
-  //   return NextResponse.next()
-  // }
+  // Permitir prefijos públicos
+  if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
 
-  // // APIs de solo lectura: permitir GET sin auth
-  // if (readOnlyPublicApis.some(api => pathname.startsWith(api)) && method === 'GET') {
-  //   return NextResponse.next()
-  // }
+  // APIs de solo lectura: permitir GET sin auth
+  if (readOnlyPublicApis.some(api => pathname.startsWith(api)) && method === 'GET') {
+    return NextResponse.next()
+  }
 
-  // // APIs que permiten POST con auth (verificar auth en el endpoint)
-  // if (authPostApis.some(api => pathname.startsWith(api))) {
-  //   return NextResponse.next()
-  // }
+  // APIs que permiten POST con auth (verificar auth en el endpoint)
+  if (authPostApis.some(api => pathname.startsWith(api))) {
+    return NextResponse.next()
+  }
 
-  // // Verificar JWT para rutas protegidas
-  // if (!token) {
-  //   // Para APIs, devolver 401
-  //   if (pathname.startsWith('/api/')) {
-  //     return NextResponse.json(
-  //       { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
-  //       { status: 401 }
-  //     )
-  //   }
-  //   // Para páginas, redirigir a landing
-  //   return NextResponse.redirect(new URL('/landing', request.url))
-  // }
+  // Verificar JWT para rutas protegidas
+  if (!token) {
+    // Para APIs, devolver 401
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+    // Para páginas, redirigir a landing
+    return NextResponse.redirect(new URL('/landing', request.url))
+  }
 
-  // try {
-  //   await jwtVerify(token, getSecretKey())
-  //   return NextResponse.next()
-  // } catch {
-  //   // Token inválido
-  //   if (pathname.startsWith('/api/')) {
-  //     return NextResponse.json(
-  //       { error: 'Invalid session', code: 'AUTH_REQUIRED' },
-  //       { status: 401 }
-  //     )
-  //   }
-  //   return NextResponse.redirect(new URL('/landing', request.url))
-  // }
+  try {
+    await jwtVerify(token, getSecretKey())
+    return NextResponse.next()
+  } catch {
+    // Token inválido
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Invalid session', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+    return NextResponse.redirect(new URL('/landing', request.url))
+  }
 }
 
 export const config = {

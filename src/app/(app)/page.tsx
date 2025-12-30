@@ -46,9 +46,6 @@ type MeResponse = {
   signerUuid?: string | null
   isPro?: boolean
   manageableFids?: number[]
-  pfpUrl?: string
-  username?: string
-  displayName?: string
 }
 
 interface Cast {
@@ -110,8 +107,7 @@ function FeedPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString()
-  // Start with trending tab to avoid waiting for auth - faster TTFB
-  const [activeTab, setActiveTab] = useState<FeedTab>('trending')
+  const [activeTab, setActiveTab] = useState<FeedTab>('home')
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
   const [userSignerUuid, setUserSignerUuid] = useState<string | null>(null)
@@ -321,11 +317,16 @@ function FeedPageInner() {
           if (data.signerUuid) setUserSignerUuid(data.signerUuid)
           if (typeof data.isPro === 'boolean') setUserIsPro(data.isPro)
           if (Array.isArray(data.manageableFids)) setManageableFids(data.manageableFids)
-          // Profile data already comes from /api/me - no need for second request
-          setProfile({
-            pfpUrl: data.pfpUrl || '',
-            username: data.username || '',
-          })
+          // Cargar perfil completo
+          const profileRes = await fetch(`/api/users/${data.fid}`)
+          if (profileRes.ok) {
+            const profileData = await profileRes.json()
+            const user = profileData.user || profileData
+            setProfile({
+              pfpUrl: user.pfp_url || '',
+              username: user.username || '',
+            })
+          }
         }
       } catch (error) {
         console.error('Error fetching user:', error)
@@ -342,7 +343,6 @@ function FeedPageInner() {
 
   const requiresFidForTab = activeTab === 'home' || activeTab === 'following'
   const isWaitingForFid = requiresFidForTab && userFid === null
-  // Enable feed immediately for trending/channel, wait for FID only for personalized feeds
   const isFeedEnabled = !requiresFidForTab || userFid !== null
 
   // Feed query - optimized for mobile with cache, retry and larger batches

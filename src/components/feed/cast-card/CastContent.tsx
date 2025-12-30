@@ -16,6 +16,7 @@ import {
   isFarcasterCastUrl,
 } from '@/components/embeds'
 import { isNextImageAllowedSrc } from './utils'
+import { useImageQuality } from '@/hooks/useAdaptiveLoading'
 import type { Cast } from './types'
 
 interface CastContentProps {
@@ -53,6 +54,8 @@ function CastContentComponent({
   onOpenCast,
   onOpenLightbox,
 }: CastContentProps) {
+  const imageQuality = useImageQuality()
+
   return (
     <div className="relative">
       {/* Indicador de traducción flotante */}
@@ -241,7 +244,7 @@ function CastContentComponent({
                               alt={item.title}
                               fill
                               sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 600px"
-                              quality={85}
+                              quality={imageQuality}
                               priority={i === 0}
                               className="absolute inset-0 w-full h-full object-cover"
                               loading={i === 0 ? undefined : "lazy"}
@@ -315,7 +318,7 @@ function CastContentComponent({
                             alt=""
                             fill
                             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 600px"
-                            quality={85}
+                            quality={imageQuality}
                             priority={i === 0}
                             className="absolute inset-0 w-full h-full object-cover"
                             loading={i === 0 ? undefined : "lazy"}
@@ -380,6 +383,7 @@ function CastContentComponent({
                           src={item.image}
                           alt={item.title}
                           fill
+                          quality={imageQuality}
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />

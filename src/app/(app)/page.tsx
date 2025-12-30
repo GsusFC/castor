@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import Image from 'next/image'
@@ -11,8 +12,12 @@ import { ChannelHeader } from '@/components/feed/ChannelHeader'
 import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ConversationView } from '@/components/feed/ConversationView'
 import { ProfileView } from '@/components/profile/ProfileView'
-import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
+
+// Lazy load ComposeModal (561 lines, only needed when composing)
+const ComposeModal = dynamic(() => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal })), {
+  ssr: false,
+})
 import { cn } from '@/lib/utils'
 import { Loader2, User } from 'lucide-react'
 import { toast } from 'sonner'

@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { SelectedAccountProvider } from '@/context/SelectedAccountContext'
@@ -6,11 +7,17 @@ import { TickerDrawerProvider } from '@/context/TickerDrawerContext'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { NotificationsProvider } from '@/components/providers/NotificationsProvider'
-import { NotificationsDrawer } from '@/components/feed/NotificationsDrawer'
-
-import { SearchDrawer } from '@/components/feed/SearchDrawer'
 import { SearchProvider } from '@/context/SearchContext'
 import { Toaster } from 'sonner'
+
+// Lazy load large drawers
+const NotificationsDrawer = dynamic(() => import('@/components/feed/NotificationsDrawer').then(mod => ({ default: mod.NotificationsDrawer })), {
+  ssr: false,
+})
+
+const SearchDrawer = dynamic(() => import('@/components/feed/SearchDrawer').then(mod => ({ default: mod.SearchDrawer })), {
+  ssr: false,
+})
 
 export default function DashboardLayout({
   children,

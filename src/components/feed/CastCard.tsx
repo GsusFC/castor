@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { Heart, Repeat2, MessageCircle, Globe, X, Loader2, Share, ExternalLink, Trash2, Quote, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, X, Loader2, Share, ExternalLink, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
@@ -21,7 +21,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { MorphText } from '@/components/ui/MorphText'
 import { renderCastText } from '@/lib/cast-text'
 import { useTickerDrawer } from '@/context/TickerDrawerContext'
-import { CastHeader } from './cast-card'
+import { CastHeader, CastActions } from './cast-card'
 
 interface CastAuthor {
   fid: number
@@ -155,10 +155,6 @@ export function CastCard({
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
-  const [isLiked, setIsLiked] = useState(false)
-  const [isRecasted, setIsRecasted] = useState(false)
-  const [likesCount, setLikesCount] = useState(cast.reactions.likes_count)
-  const [recastsCount, setRecastsCount] = useState(cast.reactions.recasts_count)
   const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null)
   const [videoModal, setVideoModal] = useState<{ url: string; poster?: string } | null>(null)
   const [showAllImages, setShowAllImages] = useState(false)
@@ -166,7 +162,6 @@ export function CastCard({
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
-  const [showRecastMenu, setShowRecastMenu] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showFullText, setShowFullText] = useState(false)
 
@@ -306,59 +301,6 @@ export function CastCard({
     }
   }
 
-  const handleLike = async () => {
-    const wasLiked = isLiked
-    setIsLiked(!wasLiked)
-    setLikesCount(prev => wasLiked ? prev - 1 : prev + 1)
-
-    try {
-      const res = await fetch('/api/feed/reaction', {
-        method: wasLiked ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castHash: cast.hash, reactionType: 'like' }),
-      })
-      if (!res.ok) {
-        // Revertir si falla
-        setIsLiked(wasLiked)
-        setLikesCount(prev => wasLiked ? prev + 1 : prev - 1)
-      }
-    } catch {
-      setIsLiked(wasLiked)
-      setLikesCount(prev => wasLiked ? prev + 1 : prev - 1)
-    }
-  }
-
-  const handleRecast = async () => {
-    const wasRecasted = isRecasted
-    setIsRecasted(!wasRecasted)
-    setRecastsCount(prev => wasRecasted ? prev - 1 : prev + 1)
-
-    try {
-      const res = await fetch('/api/feed/reaction', {
-        method: wasRecasted ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castHash: cast.hash, reactionType: 'recast' }),
-      })
-      if (!res.ok) {
-        // Revertir si falla
-        setIsRecasted(wasRecasted)
-        setRecastsCount(prev => wasRecasted ? prev + 1 : prev - 1)
-      }
-    } catch {
-      setIsRecasted(wasRecasted)
-      setRecastsCount(prev => wasRecasted ? prev + 1 : prev - 1)
-    }
-  }
-
-  const handleQuote = () => {
-    setShowRecastMenu(false)
-    if (onQuote) {
-      onQuote(castUrl)
-    } else {
-      navigator.clipboard.writeText(castUrl)
-      toast.success('URL copied. Paste it in composer to quote.')
-    }
-  }
 
   const handleDelete = async () => {
     if (!onDelete || isDeleting) return
@@ -971,114 +913,19 @@ export function CastCard({
       </div>
 
       {/* Actions - distributed across width */}
-      <div className="mt-3 ml-0 sm:ml-13 flex items-center justify-between text-sm" onClick={(e) => e.stopPropagation()}>
-        {/* Like */}
-        <button
-          onClick={handleLike}
-          className={cn(
-            "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-            isLiked
-              ? "text-pink-500"
-              : "text-muted-foreground hover:text-pink-500"
-          )}
-        >
-          <Heart className={cn("w-4 h-4 transition-transform group-active:scale-125", isLiked && "fill-current")} />
-          <span className="text-xs">{likesCount}</span>
-        </button>
-
-        {/* Recast */}
-        <Popover open={showRecastMenu} onOpenChange={setShowRecastMenu}>
-          <PopoverTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-                isRecasted
-                  ? "text-green-500"
-                  : "text-muted-foreground hover:text-green-500"
-              )}
-            >
-              <Repeat2 className={cn("w-4 h-4 transition-transform group-active:scale-125", isRecasted && "fill-current")} />
-              <span className="text-xs">{recastsCount}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-40 p-1" align="start">
-            <button
-              onClick={() => { handleRecast(); setShowRecastMenu(false); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-            >
-              <Repeat2 className="w-4 h-4" />
-              <span>Recast</span>
-            </button>
-            <button
-              onClick={handleQuote}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-            >
-              <Quote className="w-4 h-4" />
-              <span>Quote</span>
-            </button>
-          </PopoverContent>
-        </Popover>
-
-        {/* Reply */}
-        <button
-          onClick={(e) => {
-            if (onOpenCast) {
-              handleToggleReplies(e)
-              return
-            }
-
-            if (onReply) {
-              e.stopPropagation()
-              onReply(cast)
-              return
-            }
-
-            handleToggleReplies(e)
-          }}
-          onMouseEnter={() => {
-            // Prefetch replies
-            queryClient.prefetchQuery({
-              queryKey: ['replies', cast.hash],
-              queryFn: () => fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`).then(res => res.json()),
-              staleTime: 60 * 1000,
-            })
-          }}
-          className={cn(
-            "group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors",
-            isExpanded
-              ? "text-blue-500"
-              : "text-muted-foreground hover:text-blue-500"
-          )}
-        >
-          <MessageCircle className="w-4 h-4 transition-transform group-active:scale-125" />
-          <span className="text-xs">{loadingReplies ? '...' : cast.replies.count}</span>
-        </button>
-
-        {/* Translate */}
-        <button
-          onClick={handleTranslate}
-          disabled={isTranslating}
-          className={cn(
-            "group flex items-center px-2 py-1.5 rounded-md transition-colors",
-            showTranslation
-              ? "text-blue-500"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="Traducir"
-        >
-          {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-        </button>
-
-        {/* Share - último */}
-        <button
-          onClick={handleShare}
-          className="group flex items-center px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-          title="Compartir"
-        >
-          <Share className="w-4 h-4" />
-        </button>
-      </div>
+      <CastActions
+        cast={cast}
+        isExpanded={isExpanded}
+        loadingReplies={loadingReplies}
+        showTranslation={showTranslation}
+        isTranslating={isTranslating}
+        onToggleReplies={handleToggleReplies}
+        onReply={onReply}
+        onOpenCast={onOpenCast}
+        onQuote={onQuote}
+        onTranslate={handleTranslate}
+        onShare={handleShare}
+      />
 
       {/* Expanded Section: Composer first, then Replies */}
       {isExpanded && (

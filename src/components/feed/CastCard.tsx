@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { Heart, Repeat2, MessageCircle, Share, X, Loader2 } from 'lucide-react'
@@ -137,7 +137,7 @@ const isNextImageAllowedSrc = (src: string): boolean => {
   }
 }
 
-export function CastCard({
+function CastCardComponent({
   cast,
   onOpenMiniApp,
   onOpenCast,
@@ -665,3 +665,37 @@ export function CastCard({
     </div>
   )
 }
+
+// Custom comparison function for memo
+function arePropsEqual(prevProps: CastCardProps, nextProps: CastCardProps) {
+  // Compare cast hash (primary identifier)
+  if (prevProps.cast.hash !== nextProps.cast.hash) return false
+
+  // Compare cast content fields that can change
+  if (prevProps.cast.text !== nextProps.cast.text) return false
+  if (prevProps.cast.reactions.likes_count !== nextProps.cast.reactions.likes_count) return false
+  if (prevProps.cast.reactions.recasts_count !== nextProps.cast.reactions.recasts_count) return false
+  if (prevProps.cast.replies.count !== nextProps.cast.replies.count) return false
+
+  // Compare callback functions (by reference)
+  if (prevProps.onOpenMiniApp !== nextProps.onOpenMiniApp) return false
+  if (prevProps.onOpenCast !== nextProps.onOpenCast) return false
+  if (prevProps.onQuote !== nextProps.onQuote) return false
+  if (prevProps.onDelete !== nextProps.onDelete) return false
+  if (prevProps.onReply !== nextProps.onReply) return false
+  if (prevProps.onSelectUser !== nextProps.onSelectUser) return false
+
+  // Compare user context
+  if (prevProps.currentUserFid !== nextProps.currentUserFid) return false
+  if (prevProps.isPro !== nextProps.isPro) return false
+
+  // Compare currentUserFids array (shallow comparison for length and first item)
+  const prevFids = prevProps.currentUserFids
+  const nextFids = nextProps.currentUserFids
+  if (prevFids?.length !== nextFids?.length) return false
+  if (prevFids && nextFids && prevFids[0] !== nextFids[0]) return false
+
+  return true
+}
+
+export const CastCard = memo(CastCardComponent, arePropsEqual)

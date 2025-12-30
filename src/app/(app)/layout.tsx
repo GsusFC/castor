@@ -10,14 +10,14 @@ import { NotificationsProvider } from '@/components/providers/NotificationsProvi
 import { SearchProvider } from '@/context/SearchContext'
 import { Toaster } from 'sonner'
 
-// Lazy load large drawers
-const NotificationsDrawer = dynamic(() => import('@/components/feed/NotificationsDrawer').then(mod => ({ default: mod.NotificationsDrawer })), {
-  ssr: false,
-})
+// Lazy load large drawers (client-only components)
+const NotificationsDrawer = dynamic(
+  () => import('@/components/feed/NotificationsDrawer').then(mod => ({ default: mod.NotificationsDrawer }))
+)
 
-const SearchDrawer = dynamic(() => import('@/components/feed/SearchDrawer').then(mod => ({ default: mod.SearchDrawer })), {
-  ssr: false,
-})
+const SearchDrawer = dynamic(
+  () => import('@/components/feed/SearchDrawer').then(mod => ({ default: mod.SearchDrawer }))
+)
 
 export default function DashboardLayout({
   children,

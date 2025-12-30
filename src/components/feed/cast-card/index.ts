@@ -25,3 +25,6 @@ export {
   readFidListFromStorage,
   writeFidListToStorage,
 } from './utils'
+
+// Components
+export { CastHeader } from './CastHeader'

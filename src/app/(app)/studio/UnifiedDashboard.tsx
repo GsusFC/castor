@@ -19,9 +19,9 @@ import { toast } from 'sonner'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
 // Lazy load ComposeModal
-const ComposeModal = dynamic(() => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal })), {
-  ssr: false,
-})
+const ComposeModal = dynamic(
+  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
+)
 
 // Types
 interface AccountOwner {

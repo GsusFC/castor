@@ -29,3 +29,4 @@ export {
 // Components
 export { CastHeader } from './CastHeader'
 export { CastActions } from './CastActions'
+export { CastContent } from './CastContent'

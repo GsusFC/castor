@@ -14,9 +14,9 @@ import { FollowListDialog } from '@/components/profile/FollowListDialog'
 import type { ReplyToCast } from '@/components/compose/types'
 
 // Lazy load large modals
-const ComposeModal = dynamic(() => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal })), {
-  ssr: false,
-})
+const ComposeModal = dynamic(
+  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
+)
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 

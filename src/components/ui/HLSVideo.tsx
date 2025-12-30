@@ -81,7 +81,7 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
       className={className}
       controls
       playsInline
-      preload="metadata"
+      preload="none"
       poster={poster}
     />
   )

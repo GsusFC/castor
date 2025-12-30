@@ -2,16 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { Heart, Repeat2, MessageCircle, Globe, X, Send, Loader2, Share, Image as ImageIcon, Film, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, VolumeX, Ban } from 'lucide-react'
+import { Heart, Repeat2, MessageCircle, Globe, X, Loader2, Share, ExternalLink, Trash2, Quote, MoreHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, VolumeX, Ban } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { uploadMedia } from '@/lib/media-upload'
-import { ApiRequestError } from '@/lib/fetch-json'
 import { UserPopover } from './UserPopover'
 import { HLSVideo } from '@/components/ui/HLSVideo'
 import { PowerBadge } from '@/components/ui/PowerBadge'
-import { GifPicker } from '@/components/compose/GifPicker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { AIReplyDialog } from './AIReplyDialog'
 import { useRouter } from 'next/navigation'
 import {
   CastRenderer,
@@ -23,11 +19,7 @@ import {
 } from '@/components/embeds'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-
-import { useSelectedAccount } from '@/context/SelectedAccountContext'
-
 import { MorphText } from '@/components/ui/MorphText'
-import { ScrambleText } from '@/components/ui/ScrambleText'
 import { renderCastText } from '@/lib/cast-text'
 import { useTickerDrawer } from '@/context/TickerDrawerContext'
 
@@ -160,7 +152,6 @@ export function CastCard({
   const router = useRouter()
   const queryClient = useQueryClient()
   const { openTicker } = useTickerDrawer()
-  const { selectedAccountId } = useSelectedAccount()
   const [translation, setTranslation] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
@@ -174,23 +165,11 @@ export function CastCard({
   const [replies, setReplies] = useState<any[]>([])
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [replyText, setReplyText] = useState('')
-  const [replyMedia, setReplyMedia] = useState<{ preview: string; url?: string; uploading: boolean; isGif?: boolean } | null>(null)
-  const [showGifPicker, setShowGifPicker] = useState(false)
-  const [showAIPicker, setShowAIPicker] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
-
-  const replyIdempotencyKeyRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    replyIdempotencyKeyRef.current = null
-  }, [replyText, replyMedia?.url])
-  const [aiReplyTarget, setAiReplyTarget] = useState<Cast | null>(null)
-  const [isSendingReply, setIsSendingReply] = useState(false)
-  const [isTranslatingReply, setIsTranslatingReply] = useState(false)
   const [showRecastMenu, setShowRecastMenu] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showFullText, setShowFullText] = useState(false)
+
   const cardRef = useRef<HTMLDivElement>(null)
   const lightboxDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const lightboxDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -207,8 +186,6 @@ export function CastCard({
   const displayText = showFullText || !needsTruncation
     ? cast.text
     : cast.text.slice(0, MAX_TEXT_LENGTH) + '...'
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSelectUser = useCallback((username: string) => {
     if (onSelectUser) {
@@ -301,133 +278,6 @@ export function CastCard({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isExpanded])
-
-  // Auto-resize textarea cuando cambia el texto (ej: AI genera contenido)
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-    }
-  }, [replyText])
-
-  // Manejar selección de sugerencia AI
-  const handleAIPublish = (text: string) => {
-    setReplyText(text)
-  }
-
-  // Traducir respuesta a inglés
-  const handleTranslateReply = async () => {
-    if (!replyText.trim()) return
-    setIsTranslatingReply(true)
-    try {
-      const res = await fetch('/api/ai/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: replyText, targetLanguage: 'English' }),
-      })
-      const data = await res.json()
-      if (data.translation) {
-        setReplyText(data.translation)
-      }
-    } catch (error) {
-      toast.error('Translation error')
-    } finally {
-      setIsTranslatingReply(false)
-    }
-  }
-
-  // Subir imagen para reply
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validar tipo
-    if (!file.type.startsWith('image/')) {
-      toast.error('Only images allowed')
-      return
-    }
-
-    // Crear preview
-    const preview = URL.createObjectURL(file)
-    setReplyMedia({ preview, uploading: true })
-
-    try {
-      const result = await uploadMedia(file)
-      if (result.type !== 'image') throw new Error('Unexpected upload result')
-
-      setReplyMedia({ preview, url: result.url, uploading: false })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al subir imagen'
-      if (error instanceof ApiRequestError) {
-        console.warn('Upload error:', error)
-      } else {
-        console.error('Upload error:', error)
-      }
-
-      toast.error(errorMessage)
-      setReplyMedia(null)
-    }
-
-    // Limpiar input
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  // Seleccionar GIF
-  const handleGifSelect = (gifUrl: string) => {
-    setReplyMedia({ preview: gifUrl, url: gifUrl, uploading: false, isGif: true })
-    setShowGifPicker(false)
-  }
-
-  // Enviar respuesta
-  const handleSendReply = async () => {
-    if ((!replyText.trim() && !replyMedia?.url) || isSendingReply) return
-    if (replyMedia?.uploading) {
-      toast.error('Please wait for upload to finish')
-      return
-    }
-
-    if (!selectedAccountId) {
-      toast.error('Select an account to publish')
-      return
-    }
-
-    setIsSendingReply(true)
-    try {
-      if (!replyIdempotencyKeyRef.current) {
-        replyIdempotencyKeyRef.current = crypto.randomUUID()
-      }
-
-      const embeds = replyMedia?.url ? [{ url: replyMedia.url }] : undefined
-
-      const res = await fetch('/api/casts/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: selectedAccountId,
-          content: replyText,
-          parentHash: cast.hash,
-          embeds,
-          idempotencyKey: replyIdempotencyKeyRef.current,
-        }),
-      })
-
-      if (!res.ok) throw new Error('Error al publicar')
-
-      toast.success('Reply published')
-      setReplyText('')
-      setReplyMedia(null)
-      replyIdempotencyKeyRef.current = null
-
-      // Recargar replies
-      const repliesRes = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
-      const data = await repliesRes.json()
-      setReplies(data.replies || [])
-    } catch (error) {
-      toast.error('Error publishing reply')
-    } finally {
-      setIsSendingReply(false)
-    }
-  }
 
   // Unificado: bocadillo también expande el cast
   const handleToggleReplies = async (e?: React.MouseEvent) => {
@@ -727,8 +577,9 @@ export function CastCard({
               alt={cast.author.username}
               width={40}
               height={40}
+              sizes="40px"
+              quality={80}
               className="w-10 h-10 rounded-full object-cover hover:opacity-80 transition-opacity"
-              unoptimized
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:opacity-80 transition-opacity">
@@ -769,8 +620,9 @@ export function CastCard({
                         alt=""
                         width={14}
                         height={14}
+                        sizes="14px"
+                        quality={75}
                         className="w-3.5 h-3.5 rounded-full"
-                        unoptimized
                       />
                     )}
                     <span>{cast.channel.name || cast.channel.id}</span>
@@ -1017,9 +869,11 @@ export function CastCard({
                                 src={item.image}
                                 alt={item.title}
                                 fill
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 600px"
+                                quality={85}
+                                priority={i === 0}
                                 className="absolute inset-0 w-full h-full object-cover"
-                                loading="lazy"
-                                unoptimized
+                                loading={i === 0 ? undefined : "lazy"}
                               />
                             ) : (
                               <img
@@ -1078,9 +932,11 @@ export function CastCard({
                               src={item.url}
                               alt=""
                               fill
+                              sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 600px"
+                              quality={85}
+                              priority={i === 0}
                               className="absolute inset-0 w-full h-full object-cover"
-                              loading="lazy"
-                              unoptimized
+                              loading={i === 0 ? undefined : "lazy"}
                             />
                           ) : (
                             <img
@@ -1394,8 +1250,9 @@ export function CastCard({
                           alt={reply.author.username}
                           width={24}
                           height={24}
+                          sizes="24px"
+                          quality={75}
                           className="w-6 h-6 rounded-full hover:opacity-80 object-cover mt-0.5"
-                          unoptimized
                         />
                       </UserPopover>
                     )}
@@ -1425,8 +1282,9 @@ export function CastCard({
                                 alt=""
                                 width={200}
                                 height={96}
+                                sizes="200px"
+                                quality={80}
                                 className="h-24 w-auto rounded-lg object-cover border border-border"
-                                unoptimized
                               />
                             ))
                           }
@@ -1641,20 +1499,6 @@ export function CastCard({
             }}
           />
         </div>
-      )}
-
-      {/* AI Reply Dialog */}
-      {aiReplyTarget && (
-        <AIReplyDialog
-          cast={aiReplyTarget}
-          open={showAIPicker}
-          onOpenChange={(open) => {
-            setShowAIPicker(open)
-            if (!open) setAiReplyTarget(null)
-          }}
-          onPublish={handleAIPublish}
-          maxChars={isPro ? 10000 : 1024}
-        />
       )}
     </div>
   )

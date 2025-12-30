@@ -141,17 +141,34 @@ function CastContentComponent({
           .filter((url): url is string => !!url)
           .map((url) => ({ kind: 'image' as const, url }))
 
-        const getCloudflarePoster = (url: string): string | undefined => {
-          const match = url.match(/(?:watch\.cloudflarestream\.com\/|cloudflarestream\.com\/)([^/?#]+)/)
-          const id = match?.[1]
-          if (!id) return undefined
-          return `https://videodelivery.net/${id}/thumbnails/thumbnail.jpg`
+        const getVideoPoster = (url: string): string | undefined => {
+          // Cloudflare Stream
+          const cfMatch = url.match(/(?:watch\.cloudflarestream\.com\/|cloudflarestream\.com\/)([^/?#]+)/)
+          if (cfMatch?.[1]) {
+            // Use higher quality thumbnail with better dimensions
+            return `https://videodelivery.net/${cfMatch[1]}/thumbnails/thumbnail.jpg?time=1s&height=720`
+          }
+
+          // Warpcast native videos
+          if (url.includes('stream.warpcast.com')) {
+            // Warpcast videos typically have a poster in metadata
+            return undefined // Let metadata handle it
+          }
+
+          // HLS .m3u8 streams
+          if (url.includes('.m3u8')) {
+            // Try to construct poster from video URL
+            const videoBase = url.replace(/\.m3u8.*$/, '')
+            return `${videoBase}-poster.jpg` // Common convention
+          }
+
+          return undefined
         }
 
         const videoItems: VideoItem[] = videos
           .map((embed) => {
             if (!embed.url) return null
-            const poster = embed.metadata?.html?.ogImage?.[0]?.url || getCloudflarePoster(embed.url)
+            const poster = embed.metadata?.html?.ogImage?.[0]?.url || getVideoPoster(embed.url)
             const durationS = embed.metadata?.video?.duration_s
             return { kind: 'video' as const, url: embed.url, poster, durationS }
           })
@@ -250,19 +267,30 @@ function CastContentComponent({
                     }
 
                     if (item.kind === 'video') {
+                      const formatDuration = (seconds: number) => {
+                        const mins = Math.floor(seconds / 60)
+                        const secs = Math.floor(seconds % 60)
+                        return `${mins}:${secs.toString().padStart(2, '0')}`
+                      }
+
                       return (
                         <div
                           key={`media-${item.kind}-${item.url}-${i}`}
-                          className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 overflow-hidden rounded-xl flex items-center justify-center"
+                          className="relative flex-shrink-0 h-56 sm:h-64 md:h-72 overflow-hidden rounded-xl flex items-center justify-center bg-black"
                         >
                           <HLSVideo
                             src={item.url}
                             poster={item.poster}
                             className="w-auto h-full object-contain"
                           />
-                          <div className="pointer-events-none absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ring-1 ring-white/10">
+                          <div className="pointer-events-none absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ring-1 ring-white/20">
                             VIDEO
                           </div>
+                          {item.durationS && (
+                            <div className="pointer-events-none absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-sm ring-1 ring-white/20">
+                              {formatDuration(item.durationS)}
+                            </div>
+                          )}
                         </div>
                       )
                     }

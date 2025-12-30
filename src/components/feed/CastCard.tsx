@@ -15,13 +15,13 @@ import { useTickerDrawer } from '@/context/TickerDrawerContext'
 import { CastHeader, CastActions, CastContent } from './cast-card'
 
 // Lazy load modals
-const ImageLightbox = dynamic(() => import('./cast-card/ImageLightbox').then(mod => ({ default: mod.ImageLightbox })), {
-  ssr: false,
-})
+const ImageLightbox = dynamic(
+  () => import('./cast-card/ImageLightbox').then(mod => ({ default: mod.ImageLightbox }))
+)
 
-const VideoModal = dynamic(() => import('./cast-card/VideoModal').then(mod => ({ default: mod.VideoModal })), {
-  ssr: false,
-})
+const VideoModal = dynamic(
+  () => import('./cast-card/VideoModal').then(mod => ({ default: mod.VideoModal }))
+)
 
 interface CastAuthor {
   fid: number

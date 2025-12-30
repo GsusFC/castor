@@ -6,7 +6,7 @@ import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 // Cache en memoria - TTL diferenciado por tipo de feed
 const feedCache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL_TRENDING = 5 * 60 * 1000  // 5min para trending (cambia poco)
-const CACHE_TTL_PERSONALIZED = 2 * 60 * 1000  // 2min para home/following
+const CACHE_TTL_PERSONALIZED = 30 * 1000  // 30s para home/following (balance entre freshness y performance)
 const CACHE_TTL_CHANNEL = 3 * 60 * 1000  // 3min para canales
 
 const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
@@ -62,7 +62,8 @@ async function handlePOST(request: NextRequest) {
     const isPersonalized = (type === 'home' || type === 'following') && Number.isFinite(fid)
     const cacheKey = `feed:${type}:${Number.isFinite(fid) ? fid : ''}:${typeof channel === 'string' ? channel : ''}:${cursor}:${limit}`
     const cacheTTL = getCacheTTL(type)
-    const cached = isPersonalized ? null : getCachedData(cacheKey, cacheTTL)
+    // Enable cache for personalized feeds (30s TTL for better performance)
+    const cached = getCachedData(cacheKey, cacheTTL)
 
     if (cached) {
       const response = NextResponse.json(cached)
@@ -136,7 +137,8 @@ async function handlePOST(request: NextRequest) {
     const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
     console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
 
-    if (!isPersonalized) setCachedData(cacheKey, result)
+    // Cache all feeds including personalized (30s TTL for home/following)
+    setCachedData(cacheKey, result)
 
     const response = NextResponse.json(result)
     // Cache headers diferenciados por tipo de feed
@@ -302,7 +304,8 @@ async function handleGET(request: NextRequest) {
 
     const cacheKey = `feed:${type}:${fid}:${channel}:${cursor}:${limit}`
     const cacheTTL = getCacheTTL(type)
-    const cached = isPersonalized ? null : getCachedData(cacheKey, cacheTTL)
+    // Enable cache for personalized feeds (30s TTL for better performance)
+    const cached = getCachedData(cacheKey, cacheTTL)
     if (cached) {
       const response = NextResponse.json(cached)
       response.headers.set('Cache-Control', cacheControl)
@@ -385,7 +388,8 @@ async function handleGET(request: NextRequest) {
     const spamFilteredCount = shouldFilterSpam ? beforeFilter - castsAfterSpamFilter.length : 0
     console.log(`[Feed] Processed ${beforeFilter} casts: ${spamFilteredCount} spam filtered, ${castsAfterSpamFilter.length} sanitized`)
 
-    if (!isPersonalized) setCachedData(cacheKey, result)
+    // Cache all feeds including personalized (30s TTL for home/following)
+    setCachedData(cacheKey, result)
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', cacheControl)
     return response

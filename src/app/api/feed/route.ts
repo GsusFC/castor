@@ -3,9 +3,11 @@ import { neynar } from '@/lib/farcaster/client'
 import { getClientIP, withRateLimit } from '@/lib/rate-limit'
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
-// Cache en memoria (1 minuto TTL para mejor performance)
+// Cache en memoria - TTL diferenciado por tipo de feed
 const feedCache = new Map<string, { data: unknown; timestamp: number }>()
-const CACHE_TTL = 60 * 1000
+const CACHE_TTL_TRENDING = 5 * 60 * 1000  // 5min para trending (cambia poco)
+const CACHE_TTL_PERSONALIZED = 2 * 60 * 1000  // 2min para home/following
+const CACHE_TTL_CHANNEL = 3 * 60 * 1000  // 3min para canales
 
 const callNeynar = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
   return withCircuitBreaker(key, () => retryExternalApi(fn, key))
@@ -59,7 +61,8 @@ async function handlePOST(request: NextRequest) {
 
     const isPersonalized = (type === 'home' || type === 'following') && Number.isFinite(fid)
     const cacheKey = `feed:${type}:${Number.isFinite(fid) ? fid : ''}:${typeof channel === 'string' ? channel : ''}:${cursor}:${limit}`
-    const cached = isPersonalized ? null : getCachedData(cacheKey)
+    const cacheTTL = getCacheTTL(type)
+    const cached = isPersonalized ? null : getCachedData(cacheKey, cacheTTL)
 
     if (cached) {
       const response = NextResponse.json(cached)
@@ -136,7 +139,14 @@ async function handlePOST(request: NextRequest) {
     if (!isPersonalized) setCachedData(cacheKey, result)
 
     const response = NextResponse.json(result)
-    response.headers.set('Cache-Control', 'private, no-store')
+    // Cache headers diferenciados por tipo de feed
+    if (isPersonalized) {
+      response.headers.set('Cache-Control', 'private, no-store')
+    } else {
+      const maxAge = Math.floor(cacheTTL / 1000)
+      const swr = Math.floor(maxAge * 2) // Stale-while-revalidate 2x del cache
+      response.headers.set('Cache-Control', `public, s-maxage=${maxAge}, stale-while-revalidate=${swr}`)
+    }
     response.headers.set('Vary', 'Cookie')
     return response
   } catch (error) {
@@ -235,9 +245,15 @@ function sanitizeCast(cast: any): any {
   }
 }
 
-function getCachedData(key: string) {
+function getCacheTTL(feedType: string): number {
+  if (feedType === 'trending') return CACHE_TTL_TRENDING
+  if (feedType === 'home' || feedType === 'following') return CACHE_TTL_PERSONALIZED
+  return CACHE_TTL_CHANNEL
+}
+
+function getCachedData(key: string, ttl: number) {
   const cached = feedCache.get(key)
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < ttl) {
     return cached.data
   }
   if (cached) {
@@ -251,8 +267,9 @@ function setCachedData(key: string, data: unknown) {
   // Limpiar cache viejo
   if (feedCache.size > 100) {
     const now = Date.now()
+    const maxTTL = Math.max(CACHE_TTL_TRENDING, CACHE_TTL_PERSONALIZED, CACHE_TTL_CHANNEL)
     for (const [k, v] of feedCache.entries()) {
-      if (now - v.timestamp > CACHE_TTL) {
+      if (now - v.timestamp > maxTTL) {
         feedCache.delete(k)
       }
     }
@@ -271,12 +288,13 @@ async function handleGET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), maxLimit)
 
     const isPersonalized = (type === 'home' || type === 'following') && !!fid
+    const cacheTTL = getCacheTTL(type)
     const cacheControl = isPersonalized
       ? 'private, no-store'
-      : 'public, s-maxage=30, stale-while-revalidate=60'
+      : `public, s-maxage=${Math.floor(cacheTTL / 1000)}, stale-while-revalidate=${Math.floor(cacheTTL / 500)}`
 
     const cacheKey = `feed:${type}:${fid}:${channel}:${cursor}:${limit}`
-    const cached = isPersonalized ? null : getCachedData(cacheKey)
+    const cached = isPersonalized ? null : getCachedData(cacheKey, cacheTTL)
     if (cached) {
       const response = NextResponse.json(cached)
       response.headers.set('Cache-Control', cacheControl)

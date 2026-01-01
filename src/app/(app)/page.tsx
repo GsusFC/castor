@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import Image from 'next/image'
@@ -384,12 +384,22 @@ function FeedPageInner() {
     initialPageParam: undefined as string | undefined,
   })
 
-  // Flatten and dedupe casts by hash
-  const allCasts = feedQuery.data?.pages.flatMap((page) => page.casts) || []
-  const casts = allCasts.filter(
-    (cast: Cast, index: number, self: Cast[]) =>
-      cast?.hash && self.findIndex((c: Cast) => c?.hash === cast.hash) === index
-  )
+  // Flatten and dedupe casts by hash - O(n) with Set instead of O(n²)
+  const casts = useMemo(() => {
+    if (!feedQuery.data?.pages) return []
+    const seen = new Set<string>()
+    const result: Cast[] = []
+    for (const page of feedQuery.data.pages) {
+      if (!page.casts) continue
+      for (const cast of page.casts) {
+        if (cast?.hash && !seen.has(cast.hash)) {
+          seen.add(cast.hash)
+          result.push(cast)
+        }
+      }
+    }
+    return result
+  }, [feedQuery.data?.pages])
 
   const filteredCasts = casts.filter((cast) => {
     const fid = cast?.author?.fid
@@ -410,13 +420,13 @@ function FeedPageInner() {
   }, [feedQuery, hasMore, isFeedEnabled, isFetchingNextPage, isLoading])
 
   // Handler para Quote - abre composer con URL del cast
-  const handleQuote = (castUrl: string) => {
+  const handleQuote = useCallback((castUrl: string) => {
     setQuoteContent(castUrl)
     setComposeOpen(true)
-  }
+  }, [])
 
   // Handler para Delete - elimina el cast y refresca feed
-  const handleDelete = async (castHash: string) => {
+  const handleDelete = useCallback(async (castHash: string) => {
     try {
       const res = await fetch(`/api/feed/cast/${castHash}`, { method: 'DELETE' })
       if (res.ok) {
@@ -429,7 +439,7 @@ function FeedPageInner() {
     } catch {
       toast.error('Error al eliminar cast')
     }
-  }
+  }, [queryClient])
 
   return (
     <div className="flex gap-8 w-full">

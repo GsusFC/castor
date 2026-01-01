@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Enable source maps for better debugging in production
+  productionBrowserSourceMaps: true,
   experimental: {
     serverActions: {
       bodySizeLimit: '100mb',

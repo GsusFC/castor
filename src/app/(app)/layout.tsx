@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic'
 import { MobileNav } from '@/components/layout/MobileNav'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { ResponsiveSidebar } from '@/components/layout/ResponsiveSidebar'
 import { SelectedAccountProvider } from '@/context/SelectedAccountContext'
 import { AiLanguagePreferencesProvider } from '@/context/AiLanguagePreferencesContext'
 import { TickerDrawerProvider } from '@/context/TickerDrawerContext'
@@ -33,13 +33,13 @@ export default function DashboardLayout({
               <SearchProvider>
                 <TickerDrawerProvider>
                   <div className="min-h-screen bg-background text-foreground">
-                    {/* Background pattern */}
-                    <div className="fixed inset-0 -z-10 bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
+                    {/* Background pattern - optimized for performance */}
+                    <div className="fixed inset-0 -z-10 bg-background" style={{ backgroundImage: 'radial-gradient(hsl(var(--border)) 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.5 }} />
 
                     {/* Layout container */}
                     <div className="flex max-w-[1400px] mx-auto">
-                      {/* Left Sidebar - sticky, desktop only */}
-                      <AppSidebar />
+                      {/* Left Sidebar - code-split for desktop only */}
+                      <ResponsiveSidebar />
 
                       {/* Main content */}
                       <main className="flex-1 min-w-0 px-2 sm:px-4 lg:px-6 py-4 lg:py-6 pb-24 lg:pb-6">

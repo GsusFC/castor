@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 
 interface HLSVideoProps {
   src: string
@@ -12,6 +13,7 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState(false)
   const hlsRef = useRef<any>(null)
+  const isMobile = useMediaQueryBelow('lg')
 
   useEffect(() => {
     const video = videoRef.current
@@ -81,7 +83,7 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
       className={className}
       controls
       playsInline
-      preload="none"
+      preload={isMobile ? 'none' : 'metadata'}
       poster={poster}
     />
   )

@@ -59,6 +59,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  if (process.env.NODE_ENV !== 'production' && process.env.CASTOR_DEBUG_GLOBAL_ERROR === '1') {
+    throw new Error('Global error boundary test (root layout)')
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

@@ -50,15 +50,25 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
       return
     }
 
-    console.log('[HLSVideo] Attempting to load:', { src, isHLS: src.includes('.m3u8'), lazyInit })
-
     const isHLS = src.includes('.m3u8')
+    // Detect iOS Safari where native HLS works perfectly
+    const isIOSSafari = typeof navigator !== 'undefined' &&
+      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+      !(window as any).MSStream
 
-    // Si es HLS y el navegador no lo soporta nativamente, usar hls.js
-    if (isHLS && !video.canPlayType('application/vnd.apple.mpegurl')) {
+    console.log('[HLSVideo] Attempting to load:', {
+      src,
+      isHLS,
+      isIOSSafari,
+      lazyInit
+    })
+
+    // Strategy: Prefer hls.js on desktop, use native only on iOS Safari
+    if (isHLS && !isIOSSafari) {
+      // For HLS on desktop/Android, prefer hls.js (more reliable)
       import('hls.js').then(({ default: Hls }) => {
         if (Hls.isSupported()) {
-          console.log('[HLSVideo] HLS.js is supported, initializing...')
+          console.log('[HLSVideo] Using hls.js (desktop/Android)')
           const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
@@ -73,16 +83,29 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
             }
           })
         } else {
-          console.error('[HLSVideo] HLS.js not supported in this browser')
-          setError(true)
+          // Fallback to native if hls.js isn't supported
+          console.log('[HLSVideo] hls.js not supported, falling back to native')
+          video.src = src
+
+          const handleError = (e: Event) => {
+            const videoEl = e.target as HTMLVideoElement
+            console.error('[HLSVideo] Native fallback error:', {
+              src,
+              error: videoEl.error,
+              code: videoEl.error?.code,
+            })
+            setError(true)
+          }
+          video.addEventListener('error', handleError)
         }
       }).catch((err) => {
         console.error('[HLSVideo] Failed to import hls.js:', err)
-        setError(true)
+        // Fallback to native
+        video.src = src
       })
     } else {
-      // Safari o video no-HLS: usar src directamente
-      console.log('[HLSVideo] Using native video playback (Safari or non-HLS):', { src, isHLS })
+      // iOS Safari or non-HLS: use native playback
+      console.log('[HLSVideo] Using native video playback:', { isHLS, isIOSSafari })
       video.src = src
 
       // Manejar errores de carga del video

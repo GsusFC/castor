@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import Image from 'next/image'
 import { Globe, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import {
 } from '@/components/embeds'
 import { isNextImageAllowedSrc } from './utils'
 import { useImageQuality } from '@/hooks/useAdaptiveLoading'
+import { generateSrcSet, SIZES_CAROUSEL } from '@/lib/image-utils'
 import type { Cast } from './types'
 
 interface CastContentProps {
@@ -183,6 +184,22 @@ function CastContentComponent({
         const carouselItemsToRender: CarouselItem[] = showAllImages ? carouselItems : carouselItems.slice(0, 2)
         const hiddenCarouselCount = Math.max(0, carouselItems.length - carouselItemsToRender.length)
 
+        // Telemetry: Track large carousels for performance monitoring
+        useEffect(() => {
+          if (carouselItems.length > 10) {
+            console.log('[Carousel Performance] Large carousel detected:', {
+              castHash: cast.hash,
+              itemCount: carouselItems.length,
+              breakdown: {
+                images: imageItems.length,
+                videos: videoItems.length,
+                frames: frameItems.length,
+              },
+              timestamp: new Date().toISOString(),
+            })
+          }
+        }, [carouselItems.length, cast.hash, imageItems.length, videoItems.length, frameItems.length])
+
         // Links (no images, videos, frames ni quotes)
         const processedUrls = new Set([
           ...images.map(e => e.url),
@@ -252,9 +269,12 @@ function CastContentComponent({
                           ) : (
                             <img
                               src={item.image}
+                              srcSet={generateSrcSet(item.image)}
+                              sizes={SIZES_CAROUSEL}
                               alt={item.title}
                               className="absolute inset-0 w-full h-full object-cover"
-                              loading="lazy"
+                              loading={i === 0 ? undefined : "lazy"}
+                              fetchPriority={i === 0 ? "high" : "low"}
                               decoding="async"
                             />
                           )}
@@ -285,6 +305,7 @@ function CastContentComponent({
                             src={item.url}
                             poster={item.poster}
                             className="w-auto h-full object-contain"
+                            lazyInit={i > 1}
                           />
                           <div className="pointer-events-none absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ring-1 ring-white/20">
                             VIDEO
@@ -326,9 +347,12 @@ function CastContentComponent({
                         ) : (
                           <img
                             src={item.url}
+                            srcSet={generateSrcSet(item.url)}
+                            sizes={SIZES_CAROUSEL}
                             alt=""
                             className="absolute inset-0 w-full h-full object-cover"
-                            loading="lazy"
+                            loading={i === 0 ? undefined : "lazy"}
+                            fetchPriority={i === 0 ? "high" : "low"}
                             decoding="async"
                           />
                         )}
@@ -390,9 +414,12 @@ function CastContentComponent({
                       ) : (
                         <img
                           src={item.image}
+                          srcSet={generateSrcSet(item.image)}
+                          sizes={SIZES_CAROUSEL}
                           alt={item.title}
                           className="absolute inset-0 w-full h-full object-cover"
-                          loading="lazy"
+                          loading={i === 0 ? undefined : "lazy"}
+                          fetchPriority={i === 0 ? "high" : "low"}
                           decoding="async"
                         />
                       )}

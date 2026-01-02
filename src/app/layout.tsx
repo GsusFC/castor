@@ -70,6 +70,12 @@ export default function RootLayout({
         <meta name="theme-color" content="#AE997A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+        {/* Performance: Preconnect to CDNs for faster media loading */}
+        <link rel="preconnect" href="https://imagedelivery.net" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://videodelivery.net" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://imagedelivery.net" />
+        <link rel="dns-prefetch" href="https://videodelivery.net" />
       </head>
       <body className={`${inter.variable} ${specialGothic.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider>

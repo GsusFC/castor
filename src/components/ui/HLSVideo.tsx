@@ -45,9 +45,12 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
 
     // Validar que src existe y es una URL válida
     if (!src || src.trim() === '') {
+      console.error('[HLSVideo] Empty src provided:', { src, lazyInit, isVisible })
       setError(true)
       return
     }
+
+    console.log('[HLSVideo] Attempting to load:', { src, isHLS: src.includes('.m3u8'), lazyInit })
 
     const isHLS = src.includes('.m3u8')
 
@@ -55,6 +58,7 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
     if (isHLS && !video.canPlayType('application/vnd.apple.mpegurl')) {
       import('hls.js').then(({ default: Hls }) => {
         if (Hls.isSupported()) {
+          console.log('[HLSVideo] HLS.js is supported, initializing...')
           const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
@@ -64,22 +68,36 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
           hls.attachMedia(video)
           hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
             if (data.fatal) {
-              console.warn('[HLS] Fatal error:', data.type, data.details, data.reason || '')
+              console.error('[HLS] Fatal error:', { type: data.type, details: data.details, reason: data.reason, url: src })
               setError(true)
             }
           })
         } else {
+          console.error('[HLSVideo] HLS.js not supported in this browser')
           setError(true)
         }
-      }).catch(() => {
+      }).catch((err) => {
+        console.error('[HLSVideo] Failed to import hls.js:', err)
         setError(true)
       })
     } else {
       // Safari o video no-HLS: usar src directamente
+      console.log('[HLSVideo] Using native video playback (Safari or non-HLS):', { src, isHLS })
       video.src = src
 
       // Manejar errores de carga del video
-      const handleError = () => setError(true)
+      const handleError = (e: Event) => {
+        const videoEl = e.target as HTMLVideoElement
+        console.error('[HLSVideo] Native video error:', {
+          src,
+          error: videoEl.error,
+          code: videoEl.error?.code,
+          message: videoEl.error?.message,
+          networkState: videoEl.networkState,
+          readyState: videoEl.readyState,
+        })
+        setError(true)
+      }
       video.addEventListener('error', handleError)
 
       return () => video.removeEventListener('error', handleError)

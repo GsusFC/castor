@@ -898,7 +898,7 @@ export function CastCard({
           // Helpers para detectar por URL cuando no hay metadata
           const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url)
           const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url) ||
-            url.includes('stream.warpcast.com') || url.includes('cloudflarestream.com')
+            url.includes('stream.warpcast.com') || url.includes('stream.farcaster.xyz') || url.includes('cloudflarestream.com')
 
           const images = cast.embeds.filter(e => e.url && (
             e.metadata?.content_type?.startsWith('image/') ||
@@ -906,6 +906,8 @@ export function CastCard({
           ))
           const videos = cast.embeds.filter(e => e.url && (
             e.metadata?.content_type?.startsWith('video/') ||
+            e.metadata?.content_type === 'application/vnd.apple.mpegurl' ||
+            e.metadata?.content_type === 'application/x-mpegURL' ||
             e.metadata?.video ||
             (!e.metadata?.content_type && isVideoUrl(e.url))
           ))
@@ -1144,6 +1146,7 @@ export function CastCard({
                             fill
                             className="absolute inset-0 w-full h-full object-cover"
                             loading="lazy"
+                            unoptimized
                           />
                         ) : (
                           <img
@@ -1541,13 +1544,13 @@ export function CastCard({
             <X className="w-8 h-8" />
           </button>
           <div
-            className="w-full max-w-4xl aspect-video bg-black rounded-xl overflow-hidden"
+            className="w-full max-w-4xl bg-black rounded-xl overflow-hidden flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             <HLSVideo
               src={videoModal.url}
               poster={videoModal.poster}
-              className="w-full h-full"
+              className="max-h-[80vh] w-full h-auto object-contain"
             />
           </div>
         </div>

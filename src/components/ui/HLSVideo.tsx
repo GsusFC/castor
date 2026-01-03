@@ -16,6 +16,7 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    setError(false)
     
     // Validar que src existe y es una URL válida
     if (!src || src.trim() === '') {
@@ -25,9 +26,31 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
 
     const isHLS = src.includes('.m3u8')
 
-    // Si es HLS y el navegador no lo soporta nativamente, usar hls.js
-    if (isHLS && !video.canPlayType('application/vnd.apple.mpegurl')) {
-      import('hls.js').then(({ default: Hls }) => {
+    let didCancel = false
+    let cleanupNativeErrorListener: (() => void) | null = null
+
+    const setupNative = () => {
+      video.src = src
+
+      const handleError = () => {
+        if (!didCancel) setError(true)
+      }
+      video.addEventListener('error', handleError)
+      cleanupNativeErrorListener = () => video.removeEventListener('error', handleError)
+    }
+
+    if (!isHLS) {
+      setupNative()
+      return () => {
+        didCancel = true
+        cleanupNativeErrorListener?.()
+      }
+    }
+
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (didCancel) return
+
         if (Hls.isSupported()) {
           const hls = new Hls({
             enableWorker: true,
@@ -37,29 +60,27 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
           hls.loadSource(src)
           hls.attachMedia(video)
           hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
-            if (data.fatal) {
-              console.warn('[HLS] Fatal error:', data.type, data.details, data.reason || '')
-              setError(true)
-            }
+            if (!data.fatal) return
+            console.warn('[HLS] Fatal error:', data.type, data.details, data.reason || '')
+            setError(true)
           })
-        } else {
-          setError(true)
+          return
         }
-      }).catch(() => {
+
+        if (video.canPlayType('application/vnd.apple.mpegurl') !== '') {
+          setupNative()
+          return
+        }
+
         setError(true)
       })
-    } else {
-      // Safari o video no-HLS: usar src directamente
-      video.src = src
-      
-      // Manejar errores de carga del video
-      const handleError = () => setError(true)
-      video.addEventListener('error', handleError)
-      
-      return () => video.removeEventListener('error', handleError)
-    }
+      .catch(() => {
+        if (!didCancel) setError(true)
+      })
 
     return () => {
+      didCancel = true
+      cleanupNativeErrorListener?.()
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null

@@ -6,7 +6,6 @@ import { MoreHorizontal, Copy, Trash2, VolumeX, Ban, Loader2 } from 'lucide-reac
 import { useQueryClient } from '@tanstack/react-query'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PowerBadge } from '@/components/ui/PowerBadge'
-import { useAdaptiveLoading } from '@/hooks/useAdaptiveLoading'
 import type { Cast } from './types'
 import { getShortTimeAgo } from './utils'
 
@@ -36,7 +35,6 @@ function CastHeaderComponent({
   isDeleting,
 }: CastHeaderProps) {
   const queryClient = useQueryClient()
-  const { shouldReduceData, isLowEndDevice } = useAdaptiveLoading()
   const timeAgo = getShortTimeAgo(cast.timestamp)
 
   return (
@@ -48,18 +46,11 @@ function CastHeaderComponent({
           onSelectUser?.(cast.author.username)
         }}
         onMouseEnter={() => {
-          // Skip prefetching on slow networks or low-end devices
-          if (shouldReduceData || isLowEndDevice) return
-
-          // Only prefetch if data is not already cached
-          const cachedData = queryClient.getQueryData(['user', cast.author.username])
-          if (cachedData) return
-
-          // Prefetch user profile with longer stale time
+          // Prefetch user profile
           queryClient.prefetchQuery({
             queryKey: ['user', cast.author.username],
             queryFn: () => fetch(`/api/users/${cast.author.username}`).then(res => res.json()),
-            staleTime: 10 * 60 * 1000, // 10 minutes instead of 5
+            staleTime: 5 * 60 * 1000,
           })
         }}
         className="cursor-pointer"

@@ -42,6 +42,7 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
 
     const video = videoRef.current
     if (!video) return
+    setError(false)
 
     // Validar que src existe y es una URL válida
     if (!src || src.trim() === '') {
@@ -63,52 +64,13 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
       lazyInit
     })
 
-    // Strategy: Prefer hls.js on desktop, use native only on iOS Safari
-    if (isHLS && !isIOSSafari) {
-      // For HLS on desktop/Android, prefer hls.js (more reliable)
-      import('hls.js').then(({ default: Hls }) => {
-        if (Hls.isSupported()) {
-          console.log('[HLSVideo] Using hls.js (desktop/Android)')
-          const hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-          })
-          hlsRef.current = hls
-          hls.loadSource(src)
-          hls.attachMedia(video)
-          hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
-            if (data.fatal) {
-              console.error('[HLS] Fatal error:', { type: data.type, details: data.details, reason: data.reason, url: src })
-              setError(true)
-            }
-          })
-        } else {
-          // Fallback to native if hls.js isn't supported
-          console.log('[HLSVideo] hls.js not supported, falling back to native')
-          video.src = src
+    let didCancel = false
+    let cleanupNativeErrorListener: (() => void) | null = null
 
-          const handleError = (e: Event) => {
-            const videoEl = e.target as HTMLVideoElement
-            console.error('[HLSVideo] Native fallback error:', {
-              src,
-              error: videoEl.error,
-              code: videoEl.error?.code,
-            })
-            setError(true)
-          }
-          video.addEventListener('error', handleError)
-        }
-      }).catch((err) => {
-        console.error('[HLSVideo] Failed to import hls.js:', err)
-        // Fallback to native
-        video.src = src
-      })
-    } else {
-      // iOS Safari or non-HLS: use native playback
+    const setupNative = () => {
       console.log('[HLSVideo] Using native video playback:', { isHLS, isIOSSafari })
       video.src = src
 
-      // Manejar errores de carga del video
       const handleError = (e: Event) => {
         const videoEl = e.target as HTMLVideoElement
         console.error('[HLSVideo] Native video error:', {
@@ -119,14 +81,62 @@ export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoP
           networkState: videoEl.networkState,
           readyState: videoEl.readyState,
         })
-        setError(true)
+        if (!didCancel) setError(true)
       }
       video.addEventListener('error', handleError)
-
-      return () => video.removeEventListener('error', handleError)
+      cleanupNativeErrorListener = () => video.removeEventListener('error', handleError)
     }
 
+    if (!isHLS || isIOSSafari) {
+      setupNative()
+      return () => {
+        didCancel = true
+        cleanupNativeErrorListener?.()
+        if (hlsRef.current) {
+          hlsRef.current.destroy()
+          hlsRef.current = null
+        }
+      }
+    }
+
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (didCancel) return
+
+        if (Hls.isSupported()) {
+          console.log('[HLSVideo] Using hls.js (desktop/Android)')
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+          })
+          hlsRef.current = hls
+          hls.loadSource(src)
+          hls.attachMedia(video)
+          hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
+            if (!data.fatal) return
+            console.error('[HLS] Fatal error:', { type: data.type, details: data.details, reason: data.reason, url: src })
+            setError(true)
+          })
+          return
+        }
+
+        console.log('[HLSVideo] hls.js not supported, falling back to native')
+
+        if (video.canPlayType('application/vnd.apple.mpegurl') !== '') {
+          setupNative()
+          return
+        }
+
+        setError(true)
+      })
+      .catch((err) => {
+        console.error('[HLSVideo] Failed to import hls.js:', err)
+        setupNative()
+      })
+
     return () => {
+      didCancel = true
+      cleanupNativeErrorListener?.()
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null

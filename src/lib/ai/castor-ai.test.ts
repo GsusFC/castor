@@ -100,7 +100,7 @@ describe('CastorAI language prompts', () => {
     expect(prompt).toContain('Return ONLY valid JSON')
   })
 
-  it('uses portugués in translate prompt when targetLanguage=pt', async () => {
+  it('uses Portuguese in translate prompt when targetLanguage=pt', async () => {
     await castorAI.generateSuggestions(
       'translate',
       {
@@ -125,8 +125,8 @@ describe('CastorAI language prompts', () => {
 
     const prompt = getLastPrompt()
     expect(prompt).toBeTypeOf('string')
-    expect(prompt).toContain('Traduce este texto a portugués')
-    expect(prompt).toContain('Responde SOLO con JSON válido')
+    expect(prompt).toContain('Translate this text to Portuguese')
+    expect(prompt).toContain('Return ONLY valid JSON')
   })
 
   it('defaults write language to profile preference when targetLanguage is omitted (es)', async () => {

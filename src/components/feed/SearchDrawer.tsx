@@ -8,6 +8,7 @@ import { PowerBadge } from '@/components/ui/PowerBadge'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useUserChannels } from '@/hooks/useUserChannels'
 import { useSearch } from '@/context/SearchContext'
+import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 import { z } from 'zod'
 import {
     Sheet,
@@ -58,7 +59,7 @@ const searchResponseSchema = z.object({
 export function SearchDrawer() {
     const router = useRouter()
     const { isOpen, close, open } = useSearch()
-    const [isMobile, setIsMobile] = useState(false)
+    const isMobile = useMediaQueryBelow('sm')
     const [query, setQuery] = useState('')
     const [activeTab, setActiveTab] = useState<SearchTab>('all')
     const { favorites, toggleFavorite } = useUserChannels()
@@ -78,20 +79,6 @@ export function SearchDrawer() {
         }
     }, [isOpen])
 
-    useEffect(() => {
-        const mql = window.matchMedia('(max-width: 639px)')
-
-        const handleChange = () => {
-            setIsMobile(mql.matches)
-        }
-
-        handleChange()
-        mql.addEventListener('change', handleChange)
-
-        return () => {
-            mql.removeEventListener('change', handleChange)
-        }
-    }, [])
 
     // Keyboard shortcut (Cmd+K)
     useEffect(() => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, MapPin, Users, Loader2, ExternalLink, Star, Github, Pencil, UserPlus, UserMinus } from 'lucide-react'
@@ -10,8 +11,12 @@ import { MiniAppDrawer } from '@/components/feed/MiniAppDrawer'
 import { PowerBadge } from '@/components/ui/PowerBadge'
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog'
 import { FollowListDialog } from '@/components/profile/FollowListDialog'
-import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
+
+// Lazy load large modals
+const ComposeModal = dynamic(
+  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
+)
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 

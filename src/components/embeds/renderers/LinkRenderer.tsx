@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Link as LinkIcon, Copy, Check, X, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { normalizeHttpUrl } from '@/lib/url-utils'
+import { generateSrcSet, SIZES_THUMBNAIL, SIZES_COMPACT } from '@/lib/image-utils'
 import type { BaseRendererProps, RemovableProps, EmbedMetadata } from '../types'
 
 interface LinkRendererProps extends BaseRendererProps, RemovableProps {
@@ -126,6 +127,8 @@ export function LinkRenderer({
             <img
               src={metadata.frameImage || metadata.image}
               alt={metadata.title || 'Mini App'}
+              width={64}
+              height={64}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -222,10 +225,20 @@ export function LinkRenderer({
         )}
       >
         {metadata?.image ? (
-          <img src={metadata.image} alt="" className="w-full h-full object-cover" />
+          <img
+            src={metadata.image}
+            srcSet={generateSrcSet(metadata.image, [64, 128])}
+            sizes={SIZES_THUMBNAIL}
+            alt=""
+            width={64}
+            height={64}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         ) : metadata?.favicon && !faviconError ? (
           <div className="w-full h-full flex items-center justify-center bg-muted/50">
-            <img src={metadata.favicon} alt="" className="w-8 h-8" onError={() => setFaviconError(true)} />
+            <img src={metadata.favicon} alt="" width={32} height={32} className="w-8 h-8" onError={() => setFaviconError(true)} />
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-muted/50">
@@ -294,7 +307,7 @@ export function LinkRenderer({
       {/* Favicon */}
       <div className="flex-shrink-0">
         {metadata.favicon && !faviconError ? (
-          <img src={metadata.favicon} alt="" className="h-8 w-8 rounded-md" onError={() => setFaviconError(true)} />
+          <img src={metadata.favicon} alt="" width={32} height={32} className="h-8 w-8 rounded-md" onError={() => setFaviconError(true)} />
         ) : (
           <div className="h-8 w-8 rounded-md bg-muted/50 flex items-center justify-center">
             <LinkIcon className="h-4 w-4 text-muted-foreground" />

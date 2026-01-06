@@ -9,6 +9,9 @@ const NODE_ENV = process.env.NODE_ENV ?? 'development'
 const publicPaths = [
   '/landing',
   '/login',
+  ...(NODE_ENV !== 'production'
+    ? ['/__error-boundary-test', '/__global-error-test', '/error-boundary-test', '/global-error-test']
+    : []),
 ]
 
 // Prefijos de rutas públicas

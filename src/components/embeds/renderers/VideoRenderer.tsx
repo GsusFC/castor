@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useInView } from 'react-intersection-observer'
 import { Play, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HLSVideo } from '@/components/ui/HLSVideo'
 import type { BaseRendererProps, RemovableProps } from '../types'
 
 interface VideoRendererProps extends BaseRendererProps, RemovableProps {
@@ -26,7 +27,11 @@ export function VideoRenderer({
     rootMargin: '200px',
   })
 
-  const isHLS = url.includes('.m3u8') || url.includes('stream.warpcast.com')
+  const isHLS =
+    url.includes('.m3u8') ||
+    url.includes('stream.warpcast.com') ||
+    url.includes('stream.farcaster.xyz') ||
+    url.includes('cloudflarestream.com')
 
   const handlePlay = () => {
     setShowControls(true)
@@ -46,22 +51,29 @@ export function VideoRenderer({
       {!inView ? (
         <div className="w-full aspect-video bg-muted/50 animate-pulse rounded-lg" />
       ) : isHLS || showControls ? (
-        <video
-          ref={videoRef}
-          src={url}
-          controls
-          autoPlay={showControls}
-          preload="metadata"
-          className="w-full max-h-96 rounded-lg"
-          onError={() => setError(true)}
-        />
+        isHLS ? (
+          <HLSVideo
+            src={url}
+            className="w-full max-h-96 h-auto object-contain rounded-lg"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            src={url}
+            controls
+            autoPlay={showControls}
+            preload="metadata"
+            className="w-full max-h-96 h-auto object-contain rounded-lg"
+            onError={() => setError(true)}
+          />
+        )
       ) : (
         <div className="relative cursor-pointer" onClick={handlePlay}>
           <video
             ref={videoRef}
             src={url}
             preload="metadata"
-            className="w-full max-h-96 rounded-lg"
+            className="w-full max-h-96 h-auto object-contain rounded-lg"
             onError={() => setError(true)}
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition rounded-lg">

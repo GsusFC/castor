@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useInView } from 'react-intersection-observer'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { generateSrcSet, SIZES_FULL_WIDTH } from '@/lib/image-utils'
 import type { BaseRendererProps, RemovableProps } from '../types'
 
 interface ImageRendererProps extends BaseRendererProps, RemovableProps {
@@ -50,16 +51,20 @@ export function ImageRenderer({
   return (
     <>
       <div ref={ref} className={cn('relative rounded-lg overflow-hidden group', className)}>
-        {/* Skeleton */}
+        {/* Skeleton - maintains aspect ratio to prevent layout shift */}
         {!loaded && (
-          <div className="w-full h-48 bg-muted/50 animate-pulse rounded-lg" />
+          <div className={cn('w-full bg-muted/50 animate-pulse rounded-lg', aspectClass, aspectRatio === 'auto' && 'h-48')} />
         )}
 
-        {/* Image */}
+        {/* Image - with responsive srcset for optimal loading */}
         {inView && (
           <img
             src={url}
+            srcSet={generateSrcSet(url)}
+            sizes={SIZES_FULL_WIDTH}
             alt={alt}
+            width={aspectRatio === 'auto' ? 640 : undefined}
+            height={aspectRatio === 'auto' ? 384 : undefined}
             className={cn(
               'w-full object-cover rounded-lg cursor-pointer transition-opacity',
               aspectClass,
@@ -69,6 +74,7 @@ export function ImageRenderer({
             onError={handleError}
             onClick={() => setIsFullscreen(true)}
             loading="lazy"
+            decoding="async"
           />
         )}
 

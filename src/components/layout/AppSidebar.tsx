@@ -131,14 +131,14 @@ export function AppSidebar() {
             <Link
               href="/settings"
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Settings"
+              aria-label="Settings"
             >
               <Settings className="w-4 h-4" />
             </Link>
             <button
               onClick={handleLogout}
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Log out"
+              aria-label="Sign out"
             >
               <LogOut className="w-4 h-4" />
             </button>

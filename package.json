@@ -4,11 +4,11 @@
   "private": true,
   "description": "Farcaster scheduler for studio accounts",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:clean": "rm -f .next/dev/lock && next dev --turbopack",
+    "dev": "next dev --turbopack -p 3001",
+    "dev:clean": "rm -f .next/dev/lock && next dev --turbopack -p 3001",
     "healthcheck": "node scripts/healthcheck.mjs",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -83,7 +83,7 @@
     "jsdom": "^26.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.7.2",
+    "typescript": "5.9.3",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.4"
   },

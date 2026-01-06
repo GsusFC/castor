@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
 
 const STORAGE_KEY = 'castor_selected_account'
 
@@ -66,8 +66,14 @@ export function SelectedAccountProvider({
     initAccount()
   }, [defaultAccountId])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({ selectedAccountId, setSelectedAccountId }),
+    [selectedAccountId, setSelectedAccountId]
+  )
+
   return (
-    <SelectedAccountContext.Provider value={{ selectedAccountId, setSelectedAccountId }}>
+    <SelectedAccountContext.Provider value={contextValue}>
       {children}
     </SelectedAccountContext.Provider>
   )

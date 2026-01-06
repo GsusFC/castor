@@ -159,18 +159,18 @@ export class CastorAI {
         return this.createDefaultProfile(userId, fid)
       }
 
-      // Analizar estilo con IA
+      // Analyze style with AI
       const analysisPrompt = `
-Analiza el estilo de escritura de este usuario de Farcaster basándote en sus casts:
+Analyze the writing style of this Farcaster user based on their casts:
 
 ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number) => `${i + 1}. "${text}"`).join('\n')}
 
-Responde SOLO con JSON válido (sin markdown):
+Respond ONLY with valid JSON (no markdown):
 {
   "tone": "casual|formal|technical|humorous|mixed",
-  "avgLength": <número promedio de caracteres>,
-  "commonPhrases": ["frase1", "frase2", "frase3"],
-  "topics": ["tema1", "tema2", "tema3"],
+  "avgLength": <average number of characters>,
+  "commonPhrases": ["phrase1", "phrase2", "phrase3"],
+  "topics": ["topic1", "topic2", "topic3"],
   "emojiUsage": "none|light|heavy",
   "languagePreference": "en|es|mixed"
 }`
@@ -297,12 +297,12 @@ Responde SOLO con JSON válido (sin markdown):
   }
 
   /**
-   * Traduce texto a otro idioma
+   * Translate text to another language
    */
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
-    const langName = toSpanishLanguageName(lang)
-    const prompt = `Traduce este texto a ${langName}. Responde SOLO con la traducción, sin explicaciones:
+    const langName = toEnglishLanguageName(lang)
+    const prompt = `Translate this text to ${langName}. Respond ONLY with the translation, no explanations:
 
 "${text}"`
 
@@ -313,48 +313,48 @@ Responde SOLO con JSON válido (sin markdown):
   // === Private helpers ===
 
   private buildSystemContext(profile: StyleProfile, maxChars: number, accountContext?: AccountContext): string {
-    let context = `Eres el asistente de escritura para un usuario de Farcaster.
+    let context = `You are a writing assistant for a Farcaster user.
 
-PERFIL DEL USUARIO:
-- Tono natural: ${profile.tone}
-- Longitud promedio: ${profile.avgLength} caracteres
-- Frases típicas: ${profile.commonPhrases.join(', ')}
-- Temas frecuentes: ${profile.topics.join(', ')}
-- Uso de emojis: ${profile.emojiUsage}
-- Idioma preferido: ${profile.languagePreference}`
+USER PROFILE:
+- Natural tone: ${profile.tone}
+- Average length: ${profile.avgLength} characters
+- Typical phrases: ${profile.commonPhrases.join(', ')}
+- Frequent topics: ${profile.topics.join(', ')}
+- Emoji usage: ${profile.emojiUsage}
+- Preferred language: ${profile.languagePreference}`
 
-    // Añadir contexto de la cuenta si existe
+    // Add account context if exists
     if (accountContext) {
       if (accountContext.brandVoice) {
-        context += `\n\nVOZ DE MARCA:\n${accountContext.brandVoice}`
+        context += `\n\nBRAND VOICE:\n${accountContext.brandVoice}`
       }
       if (accountContext.bio) {
         context += `\n\nBIO:\n${accountContext.bio}`
       }
       if (accountContext.expertise?.length) {
-        context += `\n\nÁREAS DE EXPERTISE:\n- ${accountContext.expertise.join('\n- ')}`
+        context += `\n\nEXPERTISE AREAS:\n- ${accountContext.expertise.join('\n- ')}`
       }
       if (accountContext.alwaysDo?.length) {
-        context += `\n\nSIEMPRE HACER:\n- ${accountContext.alwaysDo.join('\n- ')}`
+        context += `\n\nALWAYS DO:\n- ${accountContext.alwaysDo.join('\n- ')}`
       }
       if (accountContext.neverDo?.length) {
-        context += `\n\nNUNCA HACER:\n- ${accountContext.neverDo.join('\n- ')}`
+        context += `\n\nNEVER DO:\n- ${accountContext.neverDo.join('\n- ')}`
       }
       if (accountContext.hashtags?.length) {
-        context += `\n\nHASHTAGS PREFERIDOS: ${accountContext.hashtags.join(', ')}`
+        context += `\n\nPREFERRED HASHTAGS: ${accountContext.hashtags.join(', ')}`
       }
     }
 
-    context += `\n\nEJEMPLOS DE CÓMO ESCRIBE:
+    context += `\n\nEXAMPLES OF HOW THE USER WRITES:
 ${profile.sampleCasts.slice(0, 5).map((cast, i) => `${i + 1}. "${cast}"`).join('\n')}
 
-REGLAS:
-- Máximo ${maxChars} caracteres por sugerencia
-- Mantén el tono y estilo natural del usuario
-- Usa su vocabulario y expresiones típicas`
+RULES:
+- Maximum ${maxChars} characters per suggestion
+- Maintain the user's natural tone and style
+- Use their vocabulary and typical expressions`
 
     if (accountContext?.neverDo?.length) {
-      context += `\n- IMPORTANTE: Nunca hagas lo siguiente: ${accountContext.neverDo.join(', ')}`
+      context += `\n- IMPORTANT: Never do the following: ${accountContext.neverDo.join(', ')}`
     }
 
     return context
@@ -429,15 +429,15 @@ Return ONLY valid JSON (no markdown, no extra text):
 
     const targetLang = assertSupportedTargetLanguage(context.targetLanguage)
 
-    return `Traduce este texto a ${toSpanishLanguageName(targetLang)}, manteniendo el tono y estilo:
+    return `Translate this text to ${toEnglishLanguageName(targetLang)}, maintaining the tone and style:
 
 "${context.currentDraft}"
 
-Ofrece 3 versiones de la traducción con diferentes matices:
+Provide 3 versions of the translation with different nuances.
 
-Responde SOLO con JSON válido (sin markdown, sin texto extra):
+Return ONLY valid JSON (no markdown, no extra text):
 {
-  "suggestions": ["traducción 1", "traducción 2", "traducción 3"]
+  "suggestions": ["translation 1", "translation 2", "translation 3"]
 }`
   }
 

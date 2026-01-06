@@ -10,6 +10,7 @@ import { ComposeModal } from '@/components/compose/ComposeModal'
 import type { ReplyToCast } from '@/components/compose/types'
 import { useNotifications } from '@/context/NotificationsContext'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 
 type NotificationFilter = 'all' | 'reply' | 'mention' | 'like' | 'recast' | 'follow'
 
@@ -43,7 +44,7 @@ export function NotificationsDrawer() {
   const router = useRouter()
   const pathname = usePathname()
   const { isOpen, close } = useNotifications()
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useMediaQueryBelow('sm')
 
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [userFid, setUserFid] = useState<number | null>(null)
@@ -53,21 +54,6 @@ export function NotificationsDrawer() {
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 639px)')
-
-    const handleChange = () => {
-      setIsMobile(mql.matches)
-    }
-
-    handleChange()
-    mql.addEventListener('change', handleChange)
-
-    return () => {
-      mql.removeEventListener('change', handleChange)
-    }
-  }, [])
 
   useEffect(() => {
     const fetchUser = async () => {

@@ -13,8 +13,8 @@ export function SignInButton() {
   const config = useMemo(
     () => ({
       rpcUrl: 'https://mainnet.optimism.io',
-      domain: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
-      siweUri: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
+      domain: typeof window !== 'undefined' ? window.location.host : 'localhost:3001',
+      siweUri: typeof window !== 'undefined' ? window.location.href : 'http://localhost:3001/landing',
     }),
     []
   )
@@ -31,10 +31,18 @@ function SignInButtonInner() {
   const { message, signature } = useSignInMessage()
 
   const handleAuth = useCallback(async () => {
-    if (!isAuthenticated) return
-    if (!profile?.fid) return
-    if (!message) return
-    if (!signature) return
+    if (!isAuthenticated) {
+      return
+    }
+    if (!profile?.fid) {
+      return
+    }
+    if (!message) {
+      return
+    }
+    if (!signature) {
+      return
+    }
 
     try {
       const res = await fetch('/api/auth/verify', {
@@ -45,9 +53,11 @@ function SignInButtonInner() {
 
       if (res.ok) {
         window.location.href = '/'
+      } else {
+        console.error(`[SignInButton] Verify failed: status=${res.status}`)
       }
     } catch (err) {
-      console.error('Auth error:', err)
+      console.error('[SignInButton] Auth error:', err)
     }
   }, [isAuthenticated, message, profile?.fid, signature])
 

@@ -27,6 +27,71 @@ const parseAllowedFids = (value: string | undefined): number[] => {
     .filter((v) => Number.isInteger(v) && v > 0)
 }
 
+const sleep = async (ms: number) => {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+const shouldRetryRelayError = (error: unknown) => {
+  if (!(error instanceof Error)) return false
+
+  const message = error.message.toLowerCase()
+  const causeCode = (error as { cause?: { code?: string } }).cause?.code
+
+  if (causeCode === 'ECONNRESET') return true
+  if (causeCode === 'ETIMEDOUT') return true
+  if (causeCode === 'EPIPE') return true
+
+  return (
+    message.includes('fetch failed') ||
+    message.includes('socket hang up') ||
+    message.includes('connection reset') ||
+    message.includes('incomplete')
+  )
+}
+
+const getSafeErrorDetails = (error: unknown) => {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      stack: env.NODE_ENV !== 'production' ? error.stack : undefined,
+    }
+  }
+
+  return { message: 'Unknown error', value: error }
+}
+
+const verifySignInMessageWithRetry = async (input: {
+  nonce: string
+  domain: string
+  message: string
+  signature: `0x${string}`
+}) => {
+  const attempts = 3
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await appClient.verifySignInMessage({
+        nonce: input.nonce,
+        domain: input.domain,
+        message: input.message,
+        signature: input.signature,
+        acceptAuthAddress: true,
+      })
+    } catch (error) {
+      const isLastAttempt = attempt === attempts - 1
+      if (isLastAttempt || !shouldRetryRelayError(error)) {
+        throw error
+      }
+
+      await sleep(250 * 2 ** attempt)
+    }
+  }
+
+  throw new Error('Failed to verify SIWF message')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null)
@@ -62,13 +127,19 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationFailed([{ field: 'nonce', message: 'nonce is required' }])
     }
 
-    const verify = await appClient.verifySignInMessage({
-      nonce,
-      domain,
-      message,
-      signature: signatureHex,
-      acceptAuthAddress: true,
-    })
+    let verify: Awaited<ReturnType<typeof appClient.verifySignInMessage>>
+    try {
+      verify = await verifySignInMessageWithRetry({
+        nonce,
+        domain,
+        message,
+        signature: signatureHex,
+      })
+    } catch (error) {
+      const details = getSafeErrorDetails(error)
+      console.error('[Auth Verify] Relay error:', details)
+      return ApiErrors.externalError('Farcaster Relay', details)
+    }
 
     if (verify.isError || !verify.success) {
       return ApiErrors.forbidden('Invalid Sign In With Farcaster signature')
@@ -150,9 +221,16 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    return ApiErrors.operationFailed(
-      'Failed to verify Sign In With Farcaster message',
-      error instanceof Error ? error.message : 'Unknown error'
-    )
+    const details =
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: env.NODE_ENV !== 'production' ? error.stack : undefined,
+          }
+        : { message: 'Unknown error', value: error }
+
+    console.error('[Auth Verify] Error:', details)
+
+    return ApiErrors.operationFailed('Failed to verify Sign In With Farcaster message', details)
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -16,7 +17,11 @@ import { CalendarView } from '@/components/calendar/CalendarView'
 import { AddAccountButton } from '../accounts/add-account-button'
 import { toast } from 'sonner'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
-import { ComposeModal } from '@/components/compose/ComposeModal'
+
+// Lazy load ComposeModal
+const ComposeModal = dynamic(
+  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
+)
 
 // Types
 interface AccountOwner {

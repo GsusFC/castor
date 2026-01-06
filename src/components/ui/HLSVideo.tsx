@@ -1,34 +1,110 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 
 interface HLSVideoProps {
   src: string
   className?: string
   poster?: string
+  lazyInit?: boolean
 }
 
-export function HLSVideo({ src, className, poster }: HLSVideoProps) {
+export function HLSVideo({ src, className, poster, lazyInit = false }: HLSVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState(false)
+  const [isVisible, setIsVisible] = useState(!lazyInit)
   const hlsRef = useRef<any>(null)
+  const isMobile = useMediaQueryBelow('lg')
 
+  // Intersection Observer para lazy init
   useEffect(() => {
+    if (!lazyInit) return
+
     const video = videoRef.current
     if (!video) return
-    
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    observer.observe(video)
+    return () => observer.disconnect()
+  }, [lazyInit])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    const video = videoRef.current
+    if (!video) return
+    setError(false)
+
     // Validar que src existe y es una URL válida
     if (!src || src.trim() === '') {
+      console.error('[HLSVideo] Empty src provided:', { src, lazyInit, isVisible })
       setError(true)
       return
     }
 
     const isHLS = src.includes('.m3u8')
+    // Detect iOS Safari where native HLS works perfectly
+    const isIOSSafari = typeof navigator !== 'undefined' &&
+      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+      !(window as any).MSStream
 
-    // Si es HLS y el navegador no lo soporta nativamente, usar hls.js
-    if (isHLS && !video.canPlayType('application/vnd.apple.mpegurl')) {
-      import('hls.js').then(({ default: Hls }) => {
+    console.log('[HLSVideo] Attempting to load:', {
+      src,
+      isHLS,
+      isIOSSafari,
+      lazyInit
+    })
+
+    let didCancel = false
+    let cleanupNativeErrorListener: (() => void) | null = null
+
+    const setupNative = () => {
+      console.log('[HLSVideo] Using native video playback:', { isHLS, isIOSSafari })
+      video.src = src
+
+      const handleError = (e: Event) => {
+        const videoEl = e.target as HTMLVideoElement
+        console.error('[HLSVideo] Native video error:', {
+          src,
+          error: videoEl.error,
+          code: videoEl.error?.code,
+          message: videoEl.error?.message,
+          networkState: videoEl.networkState,
+          readyState: videoEl.readyState,
+        })
+        if (!didCancel) setError(true)
+      }
+      video.addEventListener('error', handleError)
+      cleanupNativeErrorListener = () => video.removeEventListener('error', handleError)
+    }
+
+    if (!isHLS || isIOSSafari) {
+      setupNative()
+      return () => {
+        didCancel = true
+        cleanupNativeErrorListener?.()
+        if (hlsRef.current) {
+          hlsRef.current.destroy()
+          hlsRef.current = null
+        }
+      }
+    }
+
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (didCancel) return
+
         if (Hls.isSupported()) {
+          console.log('[HLSVideo] Using hls.js (desktop/Android)')
           const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
@@ -37,35 +113,36 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
           hls.loadSource(src)
           hls.attachMedia(video)
           hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
-            if (data.fatal) {
-              console.warn('[HLS] Fatal error:', data.type, data.details, data.reason || '')
-              setError(true)
-            }
+            if (!data.fatal) return
+            console.error('[HLS] Fatal error:', { type: data.type, details: data.details, reason: data.reason, url: src })
+            setError(true)
           })
-        } else {
-          setError(true)
+          return
         }
-      }).catch(() => {
+
+        console.log('[HLSVideo] hls.js not supported, falling back to native')
+
+        if (video.canPlayType('application/vnd.apple.mpegurl') !== '') {
+          setupNative()
+          return
+        }
+
         setError(true)
       })
-    } else {
-      // Safari o video no-HLS: usar src directamente
-      video.src = src
-      
-      // Manejar errores de carga del video
-      const handleError = () => setError(true)
-      video.addEventListener('error', handleError)
-      
-      return () => video.removeEventListener('error', handleError)
-    }
+      .catch((err) => {
+        console.error('[HLSVideo] Failed to import hls.js:', err)
+        setupNative()
+      })
 
     return () => {
+      didCancel = true
+      cleanupNativeErrorListener?.()
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null
       }
     }
-  }, [src])
+  }, [src, isVisible])
 
   if (error) {
     return (
@@ -81,7 +158,7 @@ export function HLSVideo({ src, className, poster }: HLSVideoProps) {
       className={className}
       controls
       playsInline
-      preload="none"
+      preload={isMobile ? 'none' : 'metadata'}
       poster={poster}
     />
   )

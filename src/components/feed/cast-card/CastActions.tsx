@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useAdaptiveLoading } from '@/hooks/useAdaptiveLoading'
 import type { Cast } from './types'
 
 interface CastActionsProps {
@@ -36,6 +37,7 @@ function CastActionsComponent({
   onShare,
 }: CastActionsProps) {
   const queryClient = useQueryClient()
+  const { shouldReduceData, isLowEndDevice } = useAdaptiveLoading()
 
   // Local state for optimistic UI
   const [isLiked, setIsLiked] = useState(false)
@@ -175,11 +177,18 @@ function CastActionsComponent({
         <button
           onClick={handleReplyClick}
           onMouseEnter={() => {
-            // Prefetch replies
+            // Skip prefetching on slow networks or low-end devices
+            if (shouldReduceData || isLowEndDevice) return
+
+            // Only prefetch if data is not already cached
+            const cachedData = queryClient.getQueryData(['replies', cast.hash])
+            if (cachedData) return
+
+            // Prefetch replies with longer stale time
             queryClient.prefetchQuery({
               queryKey: ['replies', cast.hash],
               queryFn: () => fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`).then(res => res.json()),
-              staleTime: 60 * 1000,
+              staleTime: 5 * 60 * 1000, // 5 minutes instead of 1 minute
             })
           }}
           className={cn(

@@ -80,3 +80,13 @@ export interface CastCardProps {
   currentUserFids?: number[]
   isPro?: boolean
 }
+
+export interface ImageLightbox {
+  urls: string[]
+  index: number
+}
+
+export interface VideoModal {
+  url: string
+  poster?: string
+}

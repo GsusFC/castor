@@ -33,3 +33,6 @@ export { CastContent } from './CastContent'
 export { CastReplies } from './CastReplies'
 export { ImageLightbox } from './ImageLightbox'
 export { VideoModal } from './VideoModal'
+
+// Hooks
+export { useCastCard } from './useCastCard'

@@ -1,212 +1,400 @@
 'use client'
 
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import dynamic from 'next/dynamic'
-import { memo } from 'react'
+import Image from 'next/image'
+import { Heart, Repeat2, MessageCircle, Share, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  CastHeader,
-  CastActions,
-  CastContent,
-  CastReplies,
-  useCastCard,
-} from './cast-card'
+import { UserPopover } from './UserPopover'
+import { HLSVideo } from '@/components/ui/HLSVideo'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
+import { useTickerDrawer } from '@/context/TickerDrawerContext'
+import { CastHeader, CastActions, CastContent, CastReplies } from './cast-card'
 
+// Lazy load modals
 const ImageLightbox = dynamic(() => import('./cast-card/ImageLightbox').then(mod => ({ default: mod.ImageLightbox })), {
   ssr: false,
 })
 
-import { MorphText } from '@/components/ui/MorphText'
-import { ScrambleText } from '@/components/ui/ScrambleText'
-import { renderCastText } from '@/lib/cast-text'
-import { useTickerDrawer } from '@/context/TickerDrawerContext'
-import { generateSrcSet, SIZES_CAROUSEL } from '@/lib/image-utils'
-
-const AIReplyDialog = dynamic(() => import('./AIReplyDialog').then(mod => ({ default: mod.AIReplyDialog })), {
+const VideoModal = dynamic(() => import('./cast-card/VideoModal').then(mod => ({ default: mod.VideoModal })), {
   ssr: false,
 })
 
-const MAX_TEXT_LENGTH = 280
+interface CastAuthor {
+  fid: number
+  username: string
+  display_name: string
+  pfp_url?: string
+  power_badge?: boolean
+  pro?: { status: string }
+}
 
-const CastCardComponent = function CastCard(props: any) {
-  const castCard = useCastCard(props)
+interface CastChannel {
+  id: string
+  name: string
+  image_url?: string
+}
 
-  const {
-    cast,
-    onOpenMiniApp,
-    onOpenCast,
-    onQuote,
-    onDelete,
-    onReply,
-    onSelectUser,
-    isPro = false,
-  } = props
+interface CastReactions {
+  likes_count: number
+  recasts_count: number
+}
 
-  const {
-    translation,
-    isTranslating,
-    showTranslation,
-    setShowTranslation,
-    isLiked,
-    isRecasted,
-    likesCount,
-    setLikesCount,
-    setRecastsCount,
-    lightbox,
-    setLightbox,
-    videoModal,
-    setVideoModal,
-    showAllImages,
-    setShowAllImages,
-    replies,
-    loadingReplies,
-    isExpanded,
-    setIsExpanded,
-    replyText,
-    setReplyText,
-    replyMedia,
-    setReplyMedia,
-    showGifPicker,
-    setShowGifPicker,
-    showAIPicker,
-    setShowAIPicker,
-    showMoreMenu,
-    setShowMoreMenu,
-    showRecastMenu,
-    setShowRecastMenu,
-    isDeleting,
-    isSendingReply,
-    isTranslatingReply,
-    showFullText,
-    setShowFullText,
-    cardRef,
-    fileInputRef,
-    textareaRef,
-    handleCopyCastHash,
-    handleMuteUser,
-    handleBlockUser,
-    handleToggleReplies,
-    handleDelete,
-    handleTranslate,
-    handleShare,
-    handleLike,
-    handleRecast,
-    handleQuote,
-    handleSelectUser,
-    handleSelectChannel,
-    handleOpenCast,
-    handleOpenCastKeyDown,
-    handleCloseLightbox,
-    handleLightboxPrev,
-    handleLightboxNext,
-    handleLightboxPointerDown,
-    handleLightboxPointerMove,
-    handleLightboxPointerEnd,
-    handleImageUpload,
-    handleGifSelect,
-    handleSendReply,
-    handleTranslateReply,
-    readFidListFromStorage,
-    writeFidListToStorage,
-    openTicker,
-  } = castCard
+interface EmbeddedCast {
+  hash: string
+  text: string
+  timestamp: string
+  author: {
+    fid: number
+    username: string
+    display_name: string
+    pfp_url?: string
+  }
+  embeds?: { url: string; metadata?: { content_type?: string } }[]
+  channel?: { id: string; name: string }
+}
 
+interface CastEmbed {
+  url?: string
+  cast?: EmbeddedCast
+  metadata?: {
+    content_type?: string
+    image?: { width_px: number; height_px: number }
+    video?: {
+      streams?: { codec_name?: string }[]
+      duration_s?: number
+    }
+    html?: {
+      ogImage?: { url: string }[]
+      ogTitle?: string
+      ogDescription?: string
+      favicon?: string
+    }
+    frame?: {
+      version?: string
+      title?: string
+      image?: string
+      buttons?: { title?: string; index?: number }[]
+    }
+  }
+}
+
+const MUTED_FIDS_STORAGE_KEY = 'castor:mutedFids'
+const BLOCKED_FIDS_STORAGE_KEY = 'castor:blockedFids'
+const MODERATION_UPDATED_EVENT = 'castor:moderation-updated'
+
+interface Cast {
+  hash: string
+  text: string
+  timestamp: string
+  author: CastAuthor
+  reactions: CastReactions
+  replies: { count: number }
+  embeds?: CastEmbed[]
+  channel?: CastChannel
+}
+
+interface CastCardProps {
+  cast: Cast
+  onOpenMiniApp?: (url: string, title: string) => void
+  onOpenCast?: (castHash: string) => void
+  onQuote?: (castUrl: string) => void
+  onDelete?: (castHash: string) => void
+  onReply?: (cast: Cast) => void
+  onSelectUser?: (username: string) => void
+  currentUserFid?: number
+  currentUserFids?: number[]
+  isPro?: boolean
+}
+
+const NEXT_IMAGE_ALLOWED_HOSTNAMES = new Set<string>([
+  'imagedelivery.net',
+  'videodelivery.net',
+  'watch.cloudflarestream.com',
+  'avatar.vercel.sh',
+  'i.imgur.com',
+  'imgur.com',
+  'pbs.twimg.com',
+  'media.giphy.com',
+  'i.giphy.com',
+  'giphy.com',
+  'cdn.discordapp.com',
+  'firesidebase.vercel.app',
+  'upgrader.co',
+])
+
+const isNextImageAllowedSrc = (src: string): boolean => {
+  try {
+    const hostname = new URL(src).hostname
+    if (NEXT_IMAGE_ALLOWED_HOSTNAMES.has(hostname)) return true
+    if (hostname.endsWith('.googleusercontent.com')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+function CastCardComponent({
+  cast,
+  onOpenMiniApp,
+  onOpenCast,
+  onQuote,
+  onDelete,
+  onReply,
+  onSelectUser,
+  currentUserFid,
+  currentUserFids,
+  isPro = false,
+}: CastCardProps) {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { openTicker } = useTickerDrawer()
+  const [translation, setTranslation] = useState<string | null>(null)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [showTranslation, setShowTranslation] = useState(false)
+  const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null)
+  const [videoModal, setVideoModal] = useState<{ url: string; poster?: string } | null>(null)
+  const [showAllImages, setShowAllImages] = useState(false)
+  const [replies, setReplies] = useState<any[]>([])
+  const [loadingReplies, setLoadingReplies] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showFullText, setShowFullText] = useState(false)
+
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const isOwnCast = Array.isArray(currentUserFids) && currentUserFids.length > 0
+    ? currentUserFids.includes(cast.author.fid)
+    : currentUserFid === cast.author.fid
+  const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
+
+  // Truncar texto largo (> 280 caracteres)
+  const MAX_TEXT_LENGTH = 280
   const needsTruncation = cast.text.length > MAX_TEXT_LENGTH
   const displayText = showFullText || !needsTruncation
     ? cast.text
     : cast.text.slice(0, MAX_TEXT_LENGTH) + '...'
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const isOwnCast = props.currentUserFids && props.currentUserFids.length > 0
-    ? props.currentUserFids.includes(cast.author.fid)
-    : props.currentUserFid === cast.author.fid
+  const handleSelectUser = useCallback((username: string) => {
+    if (onSelectUser) {
+      onSelectUser(username)
+      return
+    }
+    const qs = new URLSearchParams()
+    qs.set('user', username)
+    router.push(`/?${qs.toString()}`)
+  }, [onSelectUser, router])
 
-  const handleLightboxPointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    if (!lightbox) return
-    if (lightbox.urls.length <= 1) return
-    e.currentTarget.setPointerCapture?.(e.pointerId)
-    lightboxDragStartRef.current = { x: e.clientX, y: e.clientY }
-    lightboxDragDeltaRef.current = { x: 0, y: 0 }
-    lightboxDidSwipeRef.current = false
-  }
+  const handleSelectChannel = useCallback((channelId: string) => {
+    const qs = new URLSearchParams()
+    qs.set('channel', channelId)
+    router.push(`/?${qs.toString()}`)
+  }, [router])
 
-  const handleLightboxPointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    const start = lightboxDragStartRef.current
-    if (!start) return
-    lightboxDragDeltaRef.current = { x: e.clientX - start.x, y: e.clientY - start.y }
-  }
+  const readFidListFromStorage = useCallback((key: string): number[] => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return []
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+    } catch {
+      return []
+    }
+  }, [])
 
-  const handleLightboxPointerEnd = () => {
-    const start = lightboxDragStartRef.current
-    if (!start) return
+  const writeFidListToStorage = useCallback((key: string, fids: number[]): void => {
+    const unique = Array.from(new Set(fids)).filter((v) => Number.isFinite(v))
+    localStorage.setItem(key, JSON.stringify(unique))
+  }, [])
 
-    const { x: deltaX, y: deltaY } = lightboxDragDeltaRef.current
-    lightboxDragStartRef.current = null
-    lightboxDragDeltaRef.current = { x: 0, y: 0 }
+  const handleCopyCastHash = useCallback(async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(cast.hash)
+      toast.success('Cast hash copied')
+      setShowMoreMenu(false)
+    } catch {
+      toast.error('Copy error')
+    }
+  }, [cast.hash])
 
-    const SWIPE_THRESHOLD_PX = 60
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return
-    if (Math.abs(deltaX) < Math.abs(deltaY)) return
+  const handleMuteUser = useCallback((): void => {
+    const fid = cast.author.fid
+    if (!Number.isFinite(fid)) return
 
-    lightboxDidSwipeRef.current = true
-    if (deltaX > 0) {
-      handleLightboxPrev()
+    if (currentUserFid && fid === currentUserFid) {
+      toast.error('You cannot mute yourself')
       return
     }
 
-    handleLightboxNext()
+    const current = readFidListFromStorage(MUTED_FIDS_STORAGE_KEY)
+    writeFidListToStorage(MUTED_FIDS_STORAGE_KEY, [...current, fid])
+    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    toast.success(`Muted @${cast.author.username}`)
+    setShowMoreMenu(false)
+  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
+
+  const handleBlockUser = useCallback((): void => {
+    const fid = cast.author.fid
+    if (!Number.isFinite(fid)) return
+
+    if (currentUserFid && fid === currentUserFid) {
+      toast.error('You cannot block yourself')
+      return
+    }
+
+    const confirmed = confirm(`Block @${cast.author.username}?`)
+    if (!confirmed) return
+
+    const current = readFidListFromStorage(BLOCKED_FIDS_STORAGE_KEY)
+    writeFidListToStorage(BLOCKED_FIDS_STORAGE_KEY, [...current, fid])
+    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    toast.success(`Blocked @${cast.author.username}`)
+    setShowMoreMenu(false)
+  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
+
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    if (!isExpanded) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setIsExpanded(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isExpanded])
+
+  // Unificado: bocadillo también expande el cast
+  const handleToggleReplies = async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+
+    if (isExpanded) {
+      // Si ya está expandido, colapsar
+      setIsExpanded(false)
+      return
+    }
+
+    // Expandir y cargar replies
+    setIsExpanded(true)
+
+    if (replies.length === 0 && cast.replies.count > 0) {
+      setLoadingReplies(true)
+      try {
+        const res = await fetch(`/api/feed/replies?hash=${cast.hash}&limit=10`)
+        const data = await res.json()
+        setReplies(data.replies || [])
+      } catch (error) {
+        console.error('Error loading replies:', error)
+      } finally {
+        setLoadingReplies(false)
+      }
+    }
   }
 
-  useEffect(() => {
-    if (!lightbox) return
 
-    const originalOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+  const handleDelete = async () => {
+    if (!onDelete || isDeleting) return
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        handleCloseLightbox()
-        return
+    if (!confirm('Are you sure you want to delete this cast?')) return
+
+    setIsDeleting(true)
+    try {
+      onDelete(cast.hash)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleTranslate = async () => {
+    if (translation) {
+      setShowTranslation(!showTranslation)
+      return
+    }
+
+    setIsTranslating(true)
+    try {
+      const res = await fetch('/api/ai/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cast.text }),
+      })
+      const data = await res.json()
+      if (data.translation) {
+        setTranslation(data.translation)
+        setShowTranslation(true)
       }
-
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        handleLightboxPrev()
-        return
-      }
-
-      if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        handleLightboxNext()
-      }
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setIsTranslating(false)
     }
+  }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = originalOverflow
+  const handleShare = async () => {
+    const url = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
+
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Link copied')
+    } catch {
+      toast.error('Copy error')
     }
-  }, [lightbox])
+  }
 
-  useEffect(() => {
-    if (!videoModal) return
+  const getShortTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const date = new Date(timestamp)
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
 
-    const originalOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    return `${diffDays}d`
+  }
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      setVideoModal(null)
-    }
+  const timeAgo = getShortTimeAgo(cast.timestamp)
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = originalOverflow
-    }
-  }, [videoModal])
+  const handleOpenCast = () => {
+    onOpenCast?.(cast.hash)
+  }
+
+  const handleOpenCastKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onOpenCast) return
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    handleOpenCast()
+  }
+
+  const handleCloseLightbox = () => {
+    setLightbox(null)
+  }
+
+  const handleLightboxPrev = () => {
+    setLightbox((current) => {
+      if (!current) return current
+      if (current.urls.length <= 1) return current
+      const nextIndex = (current.index - 1 + current.urls.length) % current.urls.length
+      return { ...current, index: nextIndex }
+    })
+  }
+
+  const handleLightboxNext = () => {
+    setLightbox((current) => {
+      if (!current) return current
+      if (current.urls.length <= 1) return current
+      const nextIndex = (current.index + 1) % current.urls.length
+      return { ...current, index: nextIndex }
+    })
+  }
 
   return (
     <div
@@ -218,59 +406,66 @@ const CastCardComponent = function CastCard(props: any) {
           : "border-border hover:bg-muted/30"
       )}
     >
+      {/* Header */}
       <CastHeader
         cast={cast}
         isOwnCast={isOwnCast}
-        isDeleting={isDeleting}
-        showMoreMenu={showMoreMenu}
-        setShowMoreMenu={setShowMoreMenu}
-        onSelectUser={handleSelectUser}
+        onSelectUser={onSelectUser}
         onCopyCastHash={handleCopyCastHash}
         onMuteUser={handleMuteUser}
         onBlockUser={handleBlockUser}
-        onDelete={handleDelete}
+        onDelete={onDelete ? handleDelete : undefined}
+        showMoreMenu={showMoreMenu}
+        setShowMoreMenu={setShowMoreMenu}
+        isDeleting={isDeleting}
       />
 
-      <CastContent
-        cast={cast}
-        showTranslation={showTranslation}
-        translation={translation}
-        displayText={displayText}
-        needsTruncation={needsTruncation}
-        showFullText={showFullText}
-        showAllImages={showAllImages}
-        setShowFullText={setShowFullText}
-        setShowAllImages={setShowAllImages}
-        onOpenCast={handleOpenCast}
-        onOpenCastKeyDown={handleOpenCastKeyDown}
-        onSelectUser={handleSelectUser}
-        onSelectChannel={handleSelectChannel}
-        onOpenMiniApp={onOpenMiniApp}
-        onOpenTicker={openTicker}
-        onOpenLightbox={setLightbox}
-      />
+      {/* Content */}
+      <div
+        onClick={onOpenCast ? handleOpenCast : undefined}
+        onKeyDown={handleOpenCastKeyDown}
+        role={onOpenCast ? 'link' : undefined}
+        tabIndex={onOpenCast ? 0 : undefined}
+        className={cn(
+          "mt-3 ml-0 sm:ml-13",
+          onOpenCast && "cursor-pointer"
+        )}
+      >
+        <CastContent
+          cast={cast}
+          displayText={displayText}
+          showFullText={showFullText}
+          needsTruncation={needsTruncation}
+          showTranslation={showTranslation}
+          translation={translation}
+          showAllImages={showAllImages}
+          onToggleFullText={() => setShowFullText(!showFullText)}
+          onToggleShowAllImages={() => setShowAllImages(!showAllImages)}
+          onSelectUser={handleSelectUser}
+          onSelectChannel={handleSelectChannel}
+          onOpenTicker={openTicker}
+          onOpenMiniApp={onOpenMiniApp}
+          onOpenCast={onOpenCast}
+          onOpenLightbox={(urls, index) => setLightbox({ urls, index })}
+        />
+      </div>
 
+      {/* Actions - distributed across width */}
       <CastActions
         cast={cast}
         isExpanded={isExpanded}
         loadingReplies={loadingReplies}
         showTranslation={showTranslation}
         isTranslating={isTranslating}
-        isLiked={isLiked}
-        isRecasted={isRecasted}
-        likesCount={likesCount}
-        recastsCount={recastsCount}
-        showRecastMenu={showRecastMenu}
         onToggleReplies={handleToggleReplies}
         onReply={onReply}
         onOpenCast={onOpenCast}
-        onQuote={handleQuote}
+        onQuote={onQuote}
         onTranslate={handleTranslate}
         onShare={handleShare}
-        onLike={handleLike}
-        onRecast={handleRecast}
       />
 
+      {/* Replies Section */}
       <CastReplies
         cast={cast}
         isExpanded={isExpanded}
@@ -280,38 +475,15 @@ const CastCardComponent = function CastCard(props: any) {
         onOpenCast={onOpenCast}
       />
 
+      {/* Lazy loaded modals */}
       {videoModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Reproductor de video"
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setVideoModal(null)}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setVideoModal(null)
-            }}
-            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="w-8 h-8" />
-          </button>
-          <div
-            className="w-full max-w-4xl bg-black rounded-xl overflow-hidden flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <HLSVideo
-              src={videoModal.url}
-              poster={videoModal.poster}
-              className="max-h-[80vh] w-full h-auto object-contain"
-            />
-          </div>
-        </div>
+        <VideoModal
+          url={videoModal.url}
+          poster={videoModal.poster}
+          onClose={() => setVideoModal(null)}
+        />
       )}
 
-      {/* Lightbox para imágenes */}
       {lightbox && (
         <ImageLightbox
           urls={lightbox.urls}
@@ -319,26 +491,42 @@ const CastCardComponent = function CastCard(props: any) {
           onClose={handleCloseLightbox}
           onPrev={handleLightboxPrev}
           onNext={handleLightboxNext}
-          onPointerDown={handleLightboxPointerDown}
-          onPointerMove={handleLightboxPointerMove}
-          onPointerEnd={handleLightboxPointerEnd}
-        />
-      )}
-
-      {showAIPicker && cast && (
-        <AIReplyDialog
-          cast={cast}
-          open={showAIPicker}
-          onOpenChange={(open) => {
-            setShowAIPicker(open)
-            if (!open) setShowGifPicker(false)
-          }}
-          onPublish={(text) => setReplyText(text)}
-          maxChars={isPro ? 10000 : 1024}
         />
       )}
     </div>
   )
 }
 
-export const CastCard = memo(CastCardComponent)
+// Custom comparison function for memo
+function arePropsEqual(prevProps: CastCardProps, nextProps: CastCardProps) {
+  // Compare cast hash (primary identifier)
+  if (prevProps.cast.hash !== nextProps.cast.hash) return false
+
+  // Compare cast content fields that can change
+  if (prevProps.cast.text !== nextProps.cast.text) return false
+  if (prevProps.cast.reactions.likes_count !== nextProps.cast.reactions.likes_count) return false
+  if (prevProps.cast.reactions.recasts_count !== nextProps.cast.reactions.recasts_count) return false
+  if (prevProps.cast.replies.count !== nextProps.cast.replies.count) return false
+
+  // Compare callback functions (by reference)
+  if (prevProps.onOpenMiniApp !== nextProps.onOpenMiniApp) return false
+  if (prevProps.onOpenCast !== nextProps.onOpenCast) return false
+  if (prevProps.onQuote !== nextProps.onQuote) return false
+  if (prevProps.onDelete !== nextProps.onDelete) return false
+  if (prevProps.onReply !== nextProps.onReply) return false
+  if (prevProps.onSelectUser !== nextProps.onSelectUser) return false
+
+  // Compare user context
+  if (prevProps.currentUserFid !== nextProps.currentUserFid) return false
+  if (prevProps.isPro !== nextProps.isPro) return false
+
+  // Compare currentUserFids array (shallow comparison for length and first item)
+  const prevFids = prevProps.currentUserFids
+  const nextFids = nextProps.currentUserFids
+  if (prevFids?.length !== nextFids?.length) return false
+  if (prevFids && nextFids && prevFids[0] !== nextFids[0]) return false
+
+  return true
+}
+
+export const CastCard = memo(CastCardComponent, arePropsEqual)

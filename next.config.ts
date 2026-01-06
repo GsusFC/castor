@@ -99,6 +99,18 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'cdn.discordapp.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.colorino.site',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ipfs.decentralized-content.com',
+      },
     ],
   },
 }

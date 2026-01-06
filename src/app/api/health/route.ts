@@ -76,18 +76,35 @@ async function checkCloudflare(): Promise<CheckResult> {
   const start = Date.now()
   try {
     const response = await fetchWithTimeout(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream`,
+      'https://api.cloudflare.com/client/v4/user/tokens/verify',
       {
         headers: { 'Authorization': `Bearer ${env.CLOUDFLARE_IMAGES_API_KEY}` },
         timeoutMs: DEFAULT_TIMEOUTS.HEALTH,
       }
     )
-    
+
+    const latencyMs = Date.now() - start
+    const body = await response.json().catch(() => null)
+
     if (!response.ok) {
-      return { status: 'error', latencyMs: Date.now() - start, error: `HTTP ${response.status}` }
+      const errors =
+        body && typeof body === 'object'
+          ? (body as { errors?: Array<{ message?: string }> }).errors
+          : undefined
+
+      const errorMessage =
+        Array.isArray(errors) && errors.length > 0 && errors[0]?.message
+          ? String(errors[0].message)
+          : `HTTP ${response.status}`
+
+      return { status: 'error', latencyMs, error: errorMessage }
     }
-    
-    return { status: 'ok', latencyMs: Date.now() - start }
+
+    if (body && typeof body === 'object' && 'success' in body && body.success === false) {
+      return { status: 'error', latencyMs, error: 'Cloudflare token verification failed' }
+    }
+
+    return { status: 'ok', latencyMs }
   } catch (error) {
     return { 
       status: 'error', 

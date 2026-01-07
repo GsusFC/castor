@@ -4,7 +4,8 @@ import { db, accounts, accountMembers, userStyleProfiles } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { requireGeminiEnv, requireNeynarEnv } from '@/lib/env'
+import { requireGeminiEnv } from '@/lib/env'
+import { neynar } from '@/lib/farcaster/client'
 const CASTS_PER_PAGE = 100
 const MAX_PAGES = 10 // 1000 casts total
 const BATCH_SIZE = 100 // casts por batch para análisis
@@ -16,43 +17,38 @@ interface RouteContext {
 // Función para obtener casts paginados de Neynar
 async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<string[]> {
   const allCasts: string[] = []
-  let cursor: string | null = null
+  let cursor: string | undefined = undefined
   let pages = 0
 
-  const { NEYNAR_API_KEY } = requireNeynarEnv()
-
   while (allCasts.length < maxCasts && pages < MAX_PAGES) {
-    const url: string = cursor 
-      ? `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${fid}&limit=${CASTS_PER_PAGE}&cursor=${cursor}`
-      : `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${fid}&limit=${CASTS_PER_PAGE}`
-    
-    console.log(`[Style Profile] Fetching page ${pages + 1}:`, url)
-    
-    const response = await fetch(url, {
-      headers: {
-        'accept': 'application/json',
-        'x-api-key': NEYNAR_API_KEY,
-      },
-    })
+    console.log(`[Style Profile] Fetching page ${pages + 1} with cursor: ${cursor || 'start'}`)
 
-    if (!response.ok) {
-      console.error('[Style Profile] Neynar error on page', pages + 1)
+    try {
+      const response = await neynar.fetchFeed({
+        feedType: 'filter',
+        filterType: 'fids',
+        fids: fid.toString(),
+        limit: CASTS_PER_PAGE,
+        cursor,
+        withRecasts: true,
+      })
+
+      const casts = response.casts || []
+
+      for (const cast of casts) {
+        if (cast.text && cast.text.length > 10) {
+          allCasts.push(cast.text)
+        }
+      }
+
+      cursor = response.next?.cursor || undefined
+      pages++
+
+      if (!cursor || casts.length === 0) break
+    } catch (error) {
+      console.error('[Style Profile] Neynar error on page', pages + 1, error)
       break
     }
-
-    const data = await response.json()
-    const casts = data.casts || []
-    
-    for (const cast of casts) {
-      if (cast.text && cast.text.length > 10) {
-        allCasts.push(cast.text)
-      }
-    }
-
-    cursor = data.next?.cursor
-    pages++
-
-    if (!cursor || casts.length === 0) break
   }
 
   console.log(`[Style Profile] Total casts fetched: ${allCasts.length}`)
@@ -174,7 +170,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const allCasts = await fetchAllCasts(account.fid, 1000)
 
     if (allCasts.length < 5) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Not enough casts to analyze. Need at least 5 casts.',
         castsFound: allCasts.length
       }, { status: 400 })
@@ -210,8 +206,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const validTones = ['casual', 'formal', 'technical', 'humorous', 'mixed'] as const
     const validEmoji = ['none', 'light', 'heavy'] as const
     const validLang = ['en', 'es', 'mixed'] as const
-    
-    const tone = validTones.includes(brandVoiceData.tone as typeof validTones[number]) 
+
+    const tone = validTones.includes(brandVoiceData.tone as typeof validTones[number])
       ? brandVoiceData.tone as typeof validTones[number]
       : 'casual'
     const emojiUsage = validEmoji.includes(brandVoiceData.emojiUsage as typeof validEmoji[number])
@@ -240,7 +236,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .update(userStyleProfiles)
         .set(profileData)
         .where(eq(userStyleProfiles.id, existingProfile.id))
-      
+
       profile = { ...existingProfile, ...profileData }
     } else {
       const profileId = nanoid()
@@ -270,8 +266,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.log(`[Style Profile] Done! Analyzed ${allCasts.length} casts`)
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       profile,
       castsAnalyzed: allCasts.length,
       brandVoice: brandVoiceData.brandVoice,

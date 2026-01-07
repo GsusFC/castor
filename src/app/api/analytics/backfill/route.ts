@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { db, castAnalytics, accounts, accountMembers } from '@/lib/db'
 import { eq, and, or, inArray } from 'drizzle-orm'
-import { requireNeynarEnv } from '@/lib/env'
+import { neynar } from '@/lib/farcaster/client'
 
 /**
  * POST /api/analytics/backfill
@@ -10,7 +10,7 @@ import { requireNeynarEnv } from '@/lib/env'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { NEYNAR_API_KEY } = requireNeynarEnv()
+
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       // Body vacío es válido
     }
     const { accountId, limit = 50 } = body as { accountId?: string; limit?: number }
-    
+
     console.log('[Analytics Backfill] Request:', { accountId, limit, userId: session.userId })
 
     const memberships = await db.query.accountMembers.findMany({
@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
     const accessibleAccounts = await db.query.accounts.findMany({
       where: memberAccountIds.length > 0
         ? or(
-            eq(accounts.ownerId, session.userId),
-            inArray(accounts.id, memberAccountIds)
-          )
+          eq(accounts.ownerId, session.userId),
+          inArray(accounts.id, memberAccountIds)
+        )
         : eq(accounts.ownerId, session.userId),
       orderBy: (accounts, { desc }) => [desc(accounts.createdAt)],
     })
@@ -62,24 +62,16 @@ export async function POST(request: NextRequest) {
 
     // Obtener casts del usuario desde Neynar
     console.log('[Analytics Backfill] Fetching casts for FID:', account.fid)
-    
-    const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/feed/user/casts?fid=${account.fid}&limit=${Math.min(limit, 100)}&include_replies=false`,
-      {
-        headers: {
-          'x-api-key': NEYNAR_API_KEY,
-        },
-      }
-    )
-    
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('[Analytics Backfill] Neynar error:', errText)
-      throw new Error(`Neynar API error: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    const casts = data.casts || []
+
+    const response = await neynar.fetchFeed({
+      feedType: 'filter',
+      filterType: 'fids',
+      fids: account.fid.toString(),
+      limit: Math.min(limit, 100),
+      withRecasts: true,
+    })
+
+    const casts = response.casts || []
     console.log('[Analytics Backfill] Found', casts.length, 'casts')
     let imported = 0
     let skipped = 0
@@ -135,9 +127,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('[Analytics Backfill] Error:', errorMessage, error)
-    return NextResponse.json({ 
-      error: 'Failed to backfill analytics', 
-      details: errorMessage 
+    return NextResponse.json({
+      error: 'Failed to backfill analytics',
+      details: errorMessage
     }, { status: 500 })
   }
 }

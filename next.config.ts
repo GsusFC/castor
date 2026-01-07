@@ -111,6 +111,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'ipfs.decentralized-content.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'd1kgk9u8ytew77.cloudfront.net',
+      },
     ],
   },
 }

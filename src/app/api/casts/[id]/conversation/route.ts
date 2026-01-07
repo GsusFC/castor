@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neynar } from '@/lib/farcaster/client'
-import { requireNeynarEnv } from '@/lib/env'
-import { fetchWithTimeout } from '@/lib/fetch'
+
 import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 
 /**
@@ -91,7 +90,7 @@ export async function GET(
 ) {
   try {
     const { id: hash } = await params
-    const { NEYNAR_API_KEY } = requireNeynarEnv()
+
     const { searchParams } = new URL(request.url)
     const cursor = searchParams.get('cursor')
     const limit = parseInt(searchParams.get('limit') || '25')
@@ -125,7 +124,7 @@ export async function GET(
     const ancestors: any[] = []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let currentCast: any = mainCast
-    
+
     while (currentCast?.parent_hash) {
       try {
         const parentResponse = await callNeynar('neynar:casts:lookup', () =>
@@ -152,31 +151,20 @@ export async function GET(
     let nextCursor: string | null = null
 
     try {
-      const repliesUrl = new URL('https://api.neynar.com/v2/farcaster/cast/conversation')
-      repliesUrl.searchParams.set('identifier', hash)
-      repliesUrl.searchParams.set('type', 'hash')
-      repliesUrl.searchParams.set('reply_depth', '1')
-      repliesUrl.searchParams.set('limit', limit.toString())
-      if (cursor) {
-        repliesUrl.searchParams.set('cursor', cursor)
-      }
-
-      const repliesResponse = await callNeynar('neynar:casts:conversation', () =>
-        fetchWithTimeout(repliesUrl.toString(), {
-          headers: {
-            'accept': 'application/json',
-            'x-api-key': NEYNAR_API_KEY,
-          },
+      const response = await callNeynar('neynar:casts:conversation', () =>
+        neynar.lookupCastConversation({
+          identifier: hash,
+          type: 'hash',
+          replyDepth: 1,
+          limit,
+          cursor: cursor || undefined,
         })
       )
 
-      if (repliesResponse.ok) {
-        const repliesData = await repliesResponse.json()
-        if (repliesData.conversation?.cast?.direct_replies) {
-          replies = repliesData.conversation.cast.direct_replies
-        }
-        nextCursor = repliesData.next?.cursor || null
+      if (response.conversation?.cast?.direct_replies) {
+        replies = response.conversation.cast.direct_replies
       }
+      nextCursor = response.next?.cursor || null
     } catch (error) {
       console.error('[Conversation] Error fetching replies:', error)
     }

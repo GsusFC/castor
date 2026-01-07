@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { neynar } from '@/lib/farcaster/client'
 import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
@@ -122,7 +123,7 @@ export class CastorAI {
     if (existing) {
       // Verificar si necesita actualización (más de 7 días)
       const daysSinceAnalysis = (Date.now() - existing.analyzedAt.getTime()) / (1000 * 60 * 60 * 24)
-      
+
       if (daysSinceAnalysis < AI_CONFIG.cacheProfileDays) {
         return this.dbProfileToStyleProfile(existing)
       }
@@ -139,17 +140,18 @@ export class CastorAI {
     try {
       const { NEYNAR_API_KEY } = requireNeynarEnv()
       // Obtener casts del usuario desde Neynar
-      const castsResponse = await fetch(
-        `https://api.neynar.com/v2/farcaster/feed/user/${fid}/casts?limit=25`,
-        {
-          headers: {
-            'x-api-key': NEYNAR_API_KEY,
-          },
-        }
-      )
+      // Obtener casts del usuario desde Neynar
+      const castsResponse = await neynar.fetchFeed({
+        feedType: 'filter',
+        filterType: 'fids',
+        fids: fid.toString(),
+        limit: 25,
+        withRecasts: true, // Incluir recasts para tener más contexto
+      })
 
-      const castsData = await castsResponse.json()
-      const casts = castsData.casts || []
+      const casts = castsResponse.casts || []
+
+
       const castTexts = casts
         .map((c: { text: string }) => c.text)
         .filter((t: string) => t.length > 10)

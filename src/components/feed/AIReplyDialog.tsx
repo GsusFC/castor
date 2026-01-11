@@ -10,6 +10,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { BrandValidationResult } from '@/lib/ai/brand-validator'
+import { ReplyStrategySelector, type ReplyStrategy } from '@/components/ai/ReplyStrategySelector'
+import { SuggestionCard } from '@/components/ai/SuggestionCard'
 
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
@@ -48,6 +51,7 @@ type AISuggestion = {
   id: string
   text: string
   length: number
+  brandValidation?: BrandValidationResult
 }
 
 const toTranslateLanguageName = (language: string): string => {
@@ -67,6 +71,7 @@ export function AIReplyDialog({
   const lastGeneratedAccountIdRef = useRef<string | null>(null)
   const [tone, setTone] = useState('friendly')
   const [language, setLanguage] = useState('en')
+  const [strategy, setStrategy] = useState<ReplyStrategy | null>(null)
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,6 +82,7 @@ export function AIReplyDialog({
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
   const [accountsError, setAccountsError] = useState<string | null>(null)
   const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -412,6 +418,11 @@ export function AIReplyDialog({
             </div>
           </div>
 
+          {/* Reply Strategy Selector - con Brand Mode */}
+          {isBrandModeOn && (
+            <ReplyStrategySelector selected={strategy} onChange={setStrategy} />
+          )}
+
           {/* Sugerencias */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -428,11 +439,11 @@ export function AIReplyDialog({
               </button>
             </div>
 
-            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <>
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
+                    <div key={i} className="h-16 bg-muted/30 rounded-lg animate-pulse" />
                   ))}
                 </>
               ) : error ? (
@@ -441,18 +452,17 @@ export function AIReplyDialog({
                 </div>
               ) : suggestions.length > 0 ? (
                 suggestions.map((suggestion) => (
-                  <button
+                  <SuggestionCard
                     key={suggestion.id}
-                    onClick={() => handleUseSuggestion(suggestion)}
-                    className={cn(
-                      "w-full p-3 text-left text-sm rounded-lg border transition-all group",
-                      replyText === suggestion.text
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50 hover:bg-muted/30"
-                    )}
-                  >
-                    <p className="line-clamp-2">{suggestion.text}</p>
-                  </button>
+                    text={suggestion.text}
+                    length={suggestion.length}
+                    brandValidation={suggestion.brandValidation}
+                    isSelected={selectedSuggestionId === suggestion.id}
+                    onSelect={() => {
+                      handleUseSuggestion(suggestion)
+                      setSelectedSuggestionId(suggestion.id)
+                    }}
+                  />
                 ))
               ) : (
                 <div className="py-6 text-center text-sm text-muted-foreground">

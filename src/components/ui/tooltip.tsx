@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils"
 interface TooltipContextType {
   open: boolean
   setOpen: (open: boolean) => void
-  side?: "top" | "bottom" | "left" | "right"
-  content?: React.ReactNode
 }
 
 const TooltipContext = React.createContext<TooltipContextType | undefined>(undefined)
@@ -15,13 +13,9 @@ const TooltipContext = React.createContext<TooltipContextType | undefined>(undef
 function useTooltip() {
   const context = React.useContext(TooltipContext)
   if (!context) {
-    throw new Error("Tooltip components must be used within TooltipProvider")
+    throw new Error("Tooltip components must be used within Tooltip")
   }
   return context
-}
-
-const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
-  return <div>{children}</div>
 }
 
 interface TooltipProps {
@@ -30,11 +24,9 @@ interface TooltipProps {
 
 const Tooltip = ({ children }: TooltipProps) => {
   const [open, setOpen] = React.useState(false)
-  const [side, setSide] = React.useState<"top" | "bottom" | "left" | "right">("bottom")
-  const [content, setContent] = React.useState<React.ReactNode>(null)
 
   return (
-    <TooltipContext.Provider value={{ open, setOpen, side, content }}>
+    <TooltipContext.Provider value={{ open, setOpen }}>
       <div className="relative inline-block">{children}</div>
     </TooltipContext.Provider>
   )
@@ -116,5 +108,9 @@ const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
   }
 )
 TooltipContent.displayName = "TooltipContent"
+
+const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>
+}
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }

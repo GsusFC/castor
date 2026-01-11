@@ -19,6 +19,7 @@ const ComposeModal = dynamic(
   () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
 )
 import { cn } from '@/lib/utils'
+import { NAV } from '@/lib/spacing-system'
 import { Loader2, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
@@ -487,7 +488,7 @@ function FeedPageInner() {
         ) : (
           <div className="flex flex-col">
             {/* Tabs Header - sticky at top-0 to match ViewHeader consistency */}
-            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-3">
+            <div className={cn("sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50", NAV.PILL_TABS.containerPadding)}>
               <div className="flex items-center gap-2">
                 {/* Avatar/Profile button */}
                 <button
@@ -510,7 +511,7 @@ function FeedPageInner() {
                 </button>
 
                 {/* Feed tabs */}
-                <div className="flex-1 flex items-center gap-1 bg-muted/50 rounded-full p-1">
+                <div className={cn("flex-1 flex items-center", NAV.PILL_TABS.containerBg, NAV.PILL_TABS.containerPadding, NAV.PILL_TABS.gap)}>
                   {([
                     { id: 'home', label: 'Home' },
                     { id: 'following', label: 'Following' },
@@ -563,10 +564,11 @@ function FeedPageInner() {
                         })
                       }}
                       className={cn(
-                        "relative flex-1 h-9 px-3 text-sm rounded-full transition-all",
+                        "relative flex-1",
+                        NAV.PILL_TABS.pill.base,
                         activeTab === tab.id && activeTab !== 'channel'
-                          ? "bg-background text-foreground shadow-md border border-border/10 font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+                          ? NAV.PILL_TABS.pill.active
+                          : NAV.PILL_TABS.pill.inactive
                       )}
                     >
                       {tab.label}
@@ -580,7 +582,7 @@ function FeedPageInner() {
                     onClick={() => {
                       clearChannelFromUrl()
                     }}
-                    className="h-9 px-3 text-sm font-medium rounded-full bg-primary text-primary-foreground shadow-sm ml-1"
+                    className={cn(NAV.PILL_TABS.pill.base, "bg-primary text-primary-foreground hover:bg-primary/90 ml-1")}
                   >
                     #{selectedChannel.name} ✕
                   </button>

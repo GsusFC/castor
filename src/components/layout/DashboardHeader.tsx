@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
-import { LogOut, Plus, LayoutDashboard, Rss, BarChart3 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { LogOut, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ComposeModal } from '@/components/compose/ComposeModal'
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { GlobalSearch } from '@/components/feed/GlobalSearch'
+import { TabNav } from './TabNav'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { HEADER } from '@/lib/spacing-system'
 
 export function DashboardHeader() {
   const [composeOpen, setComposeOpen] = useState(false)
@@ -18,10 +20,7 @@ export function DashboardHeader() {
   const [isVisible, setIsVisible] = useState(true)
   const lastScrollY = useRef(0)
   const router = useRouter()
-  const pathname = usePathname()
   const { selectedAccountId } = useSelectedAccount()
-  
-  const isFeed = pathname === '/'
 
   // Hide on scroll down, show on scroll up
   useEffect(() => {
@@ -29,19 +28,19 @@ export function DashboardHeader() {
       const currentScrollY = window.scrollY
       const scrollingDown = currentScrollY > lastScrollY.current
       const scrollingUp = currentScrollY < lastScrollY.current
-      
+
       // Only hide after scrolling past 100px
       if (currentScrollY > 100 && scrollingDown) {
         setIsVisible(false)
       } else if (scrollingUp) {
         setIsVisible(true)
       }
-      
+
       // Always show at top
       if (currentScrollY < 50) {
         setIsVisible(true)
       }
-      
+
       lastScrollY.current = currentScrollY
     }
 
@@ -54,7 +53,6 @@ export function DashboardHeader() {
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
       if (!res.ok) throw new Error('Error signing out')
-      // Force full page reload to clear all client state
       window.location.href = '/landing'
     } catch (err) {
       toast.error('Error signing out')
@@ -64,86 +62,52 @@ export function DashboardHeader() {
 
   return (
     <>
+      {/* Primary Navigation Header */}
       <header className={cn(
-        "fixed top-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-b border-border z-20 safe-top transition-transform duration-300",
+        "fixed top-0 left-0 right-0 z-40 safe-top transition-transform duration-300",
+        HEADER.PRIMARY.bgClass,
         !isVisible && "-translate-y-full"
       )}>
-        <div className="h-14 sm:h-16 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between">
-          {/* Logo + Nav */}
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/" 
-              className="flex items-center gap-2 group min-h-[44px] touch-target"
+        <div className={cn(
+          "h-14 sm:h-16 max-w-[1440px] mx-auto flex items-center justify-between",
+          HEADER.PRIMARY.padding
+        )}>
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <Link
+              href="/"
+              className="flex items-center h-10 w-10 rounded-lg hover:bg-muted transition-colors group min-h-[44px] touch-target"
             >
-              <img 
-                src="/brand/logo.png" 
-                alt="Castor" 
-                className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform"
+              <img
+                src="/brand/logo.png"
+                alt="Castor"
+                className="w-8 h-8 flex-shrink-0 group-hover:scale-110 transition-transform"
               />
             </Link>
-
-            {/* Nav Tabs - hidden on mobile */}
-            <nav className="hidden sm:flex items-center bg-muted/50 rounded-lg p-1">
-              <Link
-                href="/"
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  isFeed
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Rss className="w-4 h-4" />
-                <span>Feed</span>
-              </Link>
-              <Link
-                href="/studio"
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  pathname === '/studio'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Studio</span>
-              </Link>
-              <Link
-                href="/accounts"
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  pathname.startsWith('/accounts')
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span>Accounts</span>
-              </Link>
-            </nav>
           </div>
 
-          {/* Search - hidden on mobile */}
-          <div className="hidden md:block flex-1 max-w-md mx-4">
-            <GlobalSearch 
+          {/* Search - grows on md+, hidden on mobile */}
+          <div className="hidden md:flex flex-1 max-w-sm mx-4">
+            <GlobalSearch
               onSelectUser={(user) => router.push(`/user/${user.username}`)}
               onSelectChannel={(channel) => router.push(`/?channel=${channel.id}`)}
-              onSelectCast={(cast) => {
-                router.push(`/cast/${cast.hash}`)
-              }}
+              onSelectCast={(cast) => router.push(`/cast/${cast.hash}`)}
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-1">
+          {/* Spacer for centering on md+ */}
+          <div className="hidden md:flex flex-1" />
+
+          {/* Actions - better spacing */}
+          <div className={cn("flex items-center", HEADER.PRIMARY.gap)}>
             {/* New Cast button - hidden on mobile */}
-            <Button 
-              onClick={() => setComposeOpen(true)} 
-              size="sm" 
+            <Button
+              onClick={() => setComposeOpen(true)}
+              size="sm"
               className="hidden sm:flex gap-2 h-9 px-3"
             >
               <Plus className="w-4 h-4" />
-              <span>New Cast</span>
+              <span>New</span>
             </Button>
             <ThemeToggle collapsed />
             <Button
@@ -160,9 +124,14 @@ export function DashboardHeader() {
         </div>
       </header>
 
-      <ComposeModal 
-        open={composeOpen} 
-        onOpenChange={setComposeOpen} 
+      {/* Secondary Navigation - Tab Nav (Sticky) */}
+      <div className="pt-14 sm:pt-16">
+        <TabNav />
+      </div>
+
+      <ComposeModal
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
         defaultAccountId={selectedAccountId}
       />
     </>

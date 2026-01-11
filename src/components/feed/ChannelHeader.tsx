@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Hash, ExternalLink, Loader2 } from 'lucide-react'
+import { Hash, ExternalLink, Loader2, Heart, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { HERO, CARD, ACTIONS, CONTENT } from '@/lib/spacing-system'
 
 interface ChannelHeaderProps {
   channelId: string
@@ -47,7 +49,6 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
     ? channel.name.charAt(0).toUpperCase() + channel.name.slice(1).replace(/-/g, ' ')
     : ''
 
-  // Initialize isFollowing from API response
   useEffect(() => {
     if (data?.viewerContext?.following !== undefined) {
       setIsFollowing(data.viewerContext.following)
@@ -85,7 +86,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
   if (isLoading) {
     return (
       <div className="mb-6">
-        <div className="h-48 bg-muted animate-pulse rounded-lg" />
+        <div className={cn(HERO.BANNER.CHANNEL, "bg-muted animate-pulse rounded-lg")} />
       </div>
     )
   }
@@ -93,14 +94,17 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
   if (!channel) return null
 
   return (
-    <div className="mb-6 relative">
+    <div className="mb-6 relative -mx-3 sm:-mx-4 lg:-mx-6">
       <ViewHeader
         title={channelName}
         onBack={onBack}
       />
 
-      {/* Banner/Header Image */}
-      <div className="h-32 sm:h-40 w-full bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg">
+      {/* Banner/Header Image - Larger for more impact */}
+      <div className={cn(
+        "w-full bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg mx-3 sm:mx-4 lg:mx-6",
+        HERO.BANNER.CHANNEL
+      )}>
         {channel.header_image_url && (
           <img
             src={channel.header_image_url}
@@ -110,77 +114,123 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
         )}
       </div>
 
-      {/* Content below banner */}
-      <div className="px-4 sm:px-0 pb-4 bg-card border-x border-b border-border rounded-b-lg">
-        {/* Avatar superpuesto + Stats */}
-        <div className="flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
+      {/* Profile Card Container */}
+      <div className={cn(
+        "bg-card border-x border-b border-border rounded-b-lg mx-3 sm:mx-4 lg:mx-6",
+        CARD.PROFILE
+      )}>
+        {/* Avatar Row + Stats - Proportional offset */}
+        <div className={cn(
+          "flex justify-between items-end gap-6 sm:gap-8 px-4 sm:px-6",
+          HERO.AVATAR_OFFSET.STANDARD,
+          "mb-6 sm:mb-8"
+        )}>
           {/* Avatar */}
-          {channel.image_url ? (
-            <img
-              src={channel.image_url}
-              alt={channel.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-card bg-card"
-            />
-          ) : (
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-card flex items-center justify-center">
-              <Hash className="w-10 h-10 text-muted-foreground" />
-            </div>
-          )}
+          <div className="flex-shrink-0">
+            {channel.image_url ? (
+              <img
+                src={channel.image_url}
+                alt={channel.name}
+                className={cn(
+                  "rounded-full object-cover",
+                  HERO.AVATAR_SIZE.STANDARD,
+                  HERO.AVATAR_BORDER,
+                  "bg-card"
+                )}
+              />
+            ) : (
+              <div className={cn(
+                "rounded-full bg-muted border-[4px] border-card flex items-center justify-center",
+                HERO.AVATAR_SIZE.STANDARD
+              )}>
+                <Hash className="w-12 h-12 text-muted-foreground" />
+              </div>
+            )}
+          </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 text-sm mb-2">
+          {/* Stats - Better positioned */}
+          <div className={cn("flex items-center gap-6 sm:gap-8 text-sm")}>
             {channel.member_count !== undefined && (
-              <div className="text-center">
-                <div className="font-bold text-foreground">{channel.member_count.toLocaleString()}</div>
+              <div className="text-right">
+                <div className="font-bold text-foreground text-lg">
+                  {channel.member_count.toLocaleString()}
+                </div>
                 <div className="text-muted-foreground text-xs">members</div>
               </div>
             )}
             {channel.follower_count !== undefined && (
-              <div className="text-center">
-                <div className="font-bold text-foreground">{channel.follower_count.toLocaleString()}</div>
+              <div className="text-right">
+                <div className="font-bold text-foreground text-lg">
+                  {channel.follower_count.toLocaleString()}
+                </div>
                 <div className="text-muted-foreground text-xs">followers</div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Channel Info */}
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-tight">
+        {/* Channel Info Section */}
+        <div className={cn(
+          "space-y-3 sm:space-y-4 pb-6 sm:pb-8 border-b border-border/50 px-4 sm:px-6"
+        )}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
                 {channelName}
               </h1>
-              <p className="text-muted-foreground text-sm">/{channel.id}</p>
+              <p className="text-muted-foreground text-sm mt-1">/{channel.id}</p>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Actions - Separate section */}
+            <div className={cn("flex items-center flex-shrink-0", ACTIONS.CONTAINER_GENEROUS)}>
               {signerUuid && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
-                  size="sm"
-                  className="rounded-full h-9 px-4 font-medium"
+                  className={cn(
+                    "rounded-full",
+                    ACTIONS.PRIMARY_BUTTON.height,
+                    ACTIONS.PRIMARY_BUTTON.padding,
+                    ACTIONS.PRIMARY_BUTTON.text,
+                    "flex items-center",
+                    ACTIONS.PRIMARY_BUTTON.gap,
+                    "transition-all hover:shadow-md"
+                  )}
                   onClick={handleFollow}
                   disabled={followLoading}
+                  title={isFollowing ? "Unfollow this channel" : "Join this community"}
                 >
                   {followLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isFollowing ? (
-                    'Following'
+                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                   ) : (
-                    'Follow'
+                    <>
+                      <Heart className={cn(
+                        "w-4 h-4 sm:w-5 sm:h-5",
+                        isFollowing ? "fill-current" : ""
+                      )} />
+                      <span>{isFollowing ? 'Following' : 'Follow'}</span>
+                    </>
                   )}
                 </Button>
               )}
               <Button
                 variant="ghost"
-                size="sm"
-                className="rounded-full h-9 w-9 p-0 hover:bg-muted"
-                onClick={() => window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')}
-                title="Ver en Warpcast"
+                className={cn(
+                  "rounded-full",
+                  ACTIONS.SECONDARY_BUTTON.height,
+                  ACTIONS.SECONDARY_BUTTON.padding,
+                  ACTIONS.SECONDARY_BUTTON.text,
+                  "flex items-center",
+                  ACTIONS.SECONDARY_BUTTON.gap,
+                  "transition-all hover:bg-muted"
+                )}
+                onClick={() => {
+                  window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')
+                  toast.success('Opened in Warpcast')
+                }}
+                title="View on Warpcast"
               >
-                <ExternalLink className="w-4 h-4" />
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Share</span>
               </Button>
             </div>
           </div>

@@ -18,7 +18,7 @@ export type { SupportedTargetLanguage }
 // Configuración según entorno
 const AI_CONFIG = {
   model: 'gemini-2.0-flash', // Modelo de alto rendimiento (2k RPM en plan pago)
-  analysisPromptSize: env.NODE_ENV === 'production' ? 25 : 15, // Aumentamos contexto
+  analysisPromptSize: env.NODE_ENV === 'production' ? 50 : 30, // Aumentado para mejor análisis
   cacheProfileDays: env.NODE_ENV === 'production' ? 7 : 30,
 }
 
@@ -163,18 +163,20 @@ export class CastorAI {
 
       // Analyze style with AI
       const analysisPrompt = `
-Analyze the writing style of this Farcaster user based on their casts:
+Analyze the writing style and patterns of this Farcaster user based on their casts:
 
 ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number) => `${i + 1}. "${text}"`).join('\n')}
 
 Respond ONLY with valid JSON (no markdown):
 {
   "tone": "casual|formal|technical|humorous|mixed",
-  "avgLength": <average number of characters>,
-  "commonPhrases": ["phrase1", "phrase2", "phrase3"],
-  "topics": ["topic1", "topic2", "topic3"],
+  "avgLength": <average number of characters, calculate from sample>,
+  "commonPhrases": ["phrase1", "phrase2", "phrase3", "phrase4", "phrase5"],
+  "topics": ["topic1", "topic2", "topic3", "topic4", "topic5"],
   "emojiUsage": "none|light|heavy",
-  "languagePreference": "en|es|mixed"
+  "languagePreference": "en|es|mixed",
+  "powerPhrases": ["engaging_phrase1", "engaging_phrase2"],
+  "contentPatterns": "describe dominant content patterns (e.g., 'shares insights with examples', 'asks questions', 'uses humor')"
 }`
 
       const resultText = await this.generate(analysisPrompt)

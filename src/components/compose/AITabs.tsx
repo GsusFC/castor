@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { AI_LANGUAGE_OPTIONS, type SupportedTargetLanguage } from '@/lib/ai/languages'
 import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
+import { NAV } from '@/lib/spacing-system'
 
 type AIMode = 'translate' | 'propose' | 'improve' | null
 
@@ -221,10 +222,15 @@ export function AITabs({
       )}
 
       {/* Tabs */}
-      <div className="px-3 py-2">
+      <div className={cn(NAV.PILL_TABS.containerPadding)}>
         <div
           role="tablist"
-          className="flex w-full items-center gap-1 rounded-full bg-muted/50 p-1"
+          className={cn(
+            'flex w-full items-center',
+            NAV.PILL_TABS.containerBg,
+            NAV.PILL_TABS.containerPadding,
+            NAV.PILL_TABS.gap
+          )}
         >
           <button
             type="button"
@@ -232,16 +238,17 @@ export function AITabs({
             aria-selected={activeTab === 'translate'}
             onClick={() => handleTabClick('translate')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
               activeTab === 'translate'
-                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
             )}
           >
-            <span className="flex items-center justify-center gap-1.5">
-              <Languages className="w-4 h-4" />
-              Translate
-            </span>
+            <Languages className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Translate</span>
+            <span className="sm:hidden">Trans</span>
           </button>
 
           <button
@@ -250,16 +257,17 @@ export function AITabs({
             aria-selected={activeTab === 'propose'}
             onClick={() => handleTabClick('propose')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
               activeTab === 'propose'
-                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
             )}
           >
-            <span className="flex items-center justify-center gap-1.5">
-              <FileEdit className="w-4 h-4" />
-              Propose
-            </span>
+            <FileEdit className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Propose</span>
+            <span className="sm:hidden">Prop</span>
           </button>
 
           <button
@@ -268,16 +276,17 @@ export function AITabs({
             aria-selected={activeTab === 'improve'}
             onClick={() => handleTabClick('improve')}
             className={cn(
-              'flex-1 rounded-full px-3 py-1.5 text-sm transition-all',
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
               activeTab === 'improve'
-                ? 'bg-background text-foreground shadow-md border border-border/10 font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
             )}
           >
-            <span className="flex items-center justify-center gap-1.5">
-              <Wand2 className="w-4 h-4" />
-              Improve
-            </span>
+            <Wand2 className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Improve</span>
+            <span className="sm:hidden">Impr</span>
           </button>
         </div>
       </div>

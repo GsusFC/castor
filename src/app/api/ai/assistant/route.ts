@@ -3,6 +3,7 @@ import { getSession, canAccess } from '@/lib/auth'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI, AIMode, SuggestionContext, assertSupportedTargetLanguage } from '@/lib/ai/castor-ai'
+import { brandValidator } from '@/lib/ai/brand-validator'
 import { getMaxChars } from '@/lib/compose/constants'
 import { nanoid } from 'nanoid'
 
@@ -204,14 +205,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const suggestionObjects = suggestions.map((text: string) => ({
-      id: nanoid(),
-      text,
-      length: text.length,
-      mode,
-      targetTone: targetTone ?? null,
-      targetLanguage: targetLanguage ?? null,
-    }))
+    // Validar coherencia de marca para cada sugerencia
+    const suggestionObjects = await Promise.all(
+      suggestions.map(async (text: string) => {
+        let brandValidation = undefined
+
+        // Validar solo si hay contexto de marca (Brand Mode ON)
+        if (accountContext?.brandVoice) {
+          try {
+            brandValidation = await brandValidator.validate(text, profile, accountContext)
+          } catch (validationError) {
+            console.warn('[AI Assistant] Brand validation error, skipping:', validationError)
+            // Si falla la validación, continuar sin ella
+          }
+        }
+
+        return {
+          id: nanoid(),
+          text,
+          length: text.length,
+          mode,
+          targetTone: targetTone ?? null,
+          targetLanguage: targetLanguage ?? null,
+          brandValidation,
+        }
+      })
+    )
 
     return NextResponse.json({
       suggestions: suggestionObjects,
@@ -220,6 +239,7 @@ export async function POST(request: NextRequest) {
         avgLength: profile.avgLength,
         languagePreference: profile.languagePreference,
       },
+      hasBrandMode: !!accountContext?.brandVoice,
     })
   } catch (error) {
     console.error('[AI Assistant] Error:', error)

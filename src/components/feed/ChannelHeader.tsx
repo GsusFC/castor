@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Hash, ExternalLink, Loader2 } from 'lucide-react'
+import { Hash, ExternalLink, Loader2, Heart, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { toast } from 'sonner'
@@ -182,32 +182,55 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
             </div>
 
             {/* Actions - Separate section */}
-            <div className={cn("flex items-center flex-shrink-0", ACTIONS.CONTAINER)}>
+            <div className={cn("flex items-center flex-shrink-0", ACTIONS.CONTAINER_GENEROUS)}>
               {signerUuid && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
-                  size="sm"
-                  className="rounded-full h-9 px-4 font-medium"
+                  className={cn(
+                    "rounded-full",
+                    ACTIONS.PRIMARY_BUTTON.height,
+                    ACTIONS.PRIMARY_BUTTON.padding,
+                    ACTIONS.PRIMARY_BUTTON.text,
+                    "flex items-center",
+                    ACTIONS.PRIMARY_BUTTON.gap,
+                    "transition-all hover:shadow-md"
+                  )}
                   onClick={handleFollow}
                   disabled={followLoading}
+                  title={isFollowing ? "Unfollow this channel" : "Join this community"}
                 >
                   {followLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isFollowing ? (
-                    'Following'
+                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                   ) : (
-                    'Follow'
+                    <>
+                      <Heart className={cn(
+                        "w-4 h-4 sm:w-5 sm:h-5",
+                        isFollowing ? "fill-current" : ""
+                      )} />
+                      <span>{isFollowing ? 'Following' : 'Follow'}</span>
+                    </>
                   )}
                 </Button>
               )}
               <Button
                 variant="ghost"
-                size="sm"
-                className="rounded-full h-9 w-9 p-0 hover:bg-muted"
-                onClick={() => window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')}
-                title="Ver en Warpcast"
+                className={cn(
+                  "rounded-full",
+                  ACTIONS.SECONDARY_BUTTON.height,
+                  ACTIONS.SECONDARY_BUTTON.padding,
+                  ACTIONS.SECONDARY_BUTTON.text,
+                  "flex items-center",
+                  ACTIONS.SECONDARY_BUTTON.gap,
+                  "transition-all hover:bg-muted"
+                )}
+                onClick={() => {
+                  window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')
+                  toast.success('Opened in Warpcast')
+                }}
+                title="View on Warpcast"
               >
-                <ExternalLink className="w-4 h-4" />
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Share</span>
               </Button>
             </div>
           </div>

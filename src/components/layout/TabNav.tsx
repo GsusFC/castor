@@ -46,11 +46,14 @@ export function TabNav() {
     )}>
       <div className={cn(
         "max-w-[1440px] mx-auto",
-        HEADER.TABS.padding,
-        "flex items-center"
+        HEADER.TABS.containerPadding,
+        HEADER.TABS.container,
+        "flex items-center justify-center"
       )}>
         <div className={cn(
-          "flex items-center rounded-full bg-muted/50 p-1",
+          "flex items-center",
+          HEADER.TABS.containerBg,
+          HEADER.TABS.containerPadding,
           HEADER.TABS.gap
         )}>
           {tabs.map((tab) => {
@@ -60,14 +63,19 @@ export function TabNav() {
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all",
+                  "flex items-center",
+                  HEADER.TABS.iconText,
+                  HEADER.TABS.pill.base,
                   isActive
-                    ? "bg-background text-foreground shadow-sm border border-border/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? HEADER.TABS.pill.active
+                    : HEADER.TABS.pill.inactive
                 )}
               >
-                {tab.icon}
-                <span>{tab.label}</span>
+                <span className={HEADER.TABS.iconSize}>
+                  {tab.icon}
+                </span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden text-xs">{tab.label}</span>
               </Link>
             )
           })}

@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Hash, Star, ChevronRight, Loader2, TrendingUp } from 'lucide-react'
+import { Star, Loader2, TrendingUp, Plus } from 'lucide-react'
+import { ChannelItem } from './ChannelItem'
+import { CONTENT } from '@/lib/spacing-system'
+import { cn } from '@/lib/utils'
 
 interface Channel {
   id: string
@@ -56,100 +59,100 @@ export function LeftSidebar({ onSelectChannel }: LeftSidebarProps) {
     : trendingChannels.slice(0, 5)
 
   return (
-    <aside className="sticky top-20 space-y-6">
+    <aside className="sticky top-20 space-y-6 sm:space-y-8">
       {/* Mis Canales */}
       <section>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
-          <Star className="w-4 h-4 text-yellow-500" />
-          Mis Canales
-        </h3>
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <h3 className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-foreground">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-500/20">
+              <Star className="w-4 h-4 text-yellow-500" />
+            </span>
+            Mis Canales
+          </h3>
+        </div>
+
         {isLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-6 sm:py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : userChannels.length > 0 ? (
           <>
-            <ul className="space-y-1">
+            <ul className={cn('space-y-3 sm:space-y-4')}>
               {displayUserChannels.filter((c: Channel) => c.id).map((channel: Channel, idx: number) => (
                 <li key={`user-${channel.id || idx}`}>
-                  <button
+                  <ChannelItem
+                    channel={channel}
                     onClick={() => onSelectChannel?.(channel)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-sm group text-left"
-                  >
-                    {channel.image_url ? (
-                      <img 
-                        src={channel.image_url} 
-                        alt={channel.name}
-                        className="w-5 h-5 rounded"
-                      />
-                    ) : (
-                      <Hash className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <span className="truncate flex-1">{channel.name}</span>
-                    <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
+                    variant="default"
+                    showMeta={true}
+                  />
                 </li>
               ))}
             </ul>
             {userChannels.length > 5 && (
               <button
                 onClick={() => setShowAllUserChannels(!showAllUserChannels)}
-                className="w-full mt-2 px-2 py-1.5 text-xs text-primary hover:bg-primary/10 rounded-md transition-colors"
+                className="w-full mt-4 sm:mt-5 px-4 py-2.5 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors flex items-center justify-center gap-2 font-medium"
               >
+                <Plus className="w-4 h-4" />
                 {showAllUserChannels ? 'Ver menos' : `Ver todos (${userChannels.length})`}
               </button>
             )}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground px-2">
-            No sigues ningún canal
-          </p>
+          <div className="text-center py-6 sm:py-8 bg-muted/20 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              No sigues ningún canal
+            </p>
+          </div>
         )}
       </section>
 
       {/* Canales Trending */}
-      <section>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3">
-          <TrendingUp className="w-4 h-4 text-orange-500" />
-          Trending
-        </h3>
+      <section className="border-t border-border/50 pt-6 sm:pt-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <h3 className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-foreground">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/20">
+              <TrendingUp className="w-4 h-4 text-orange-500" />
+            </span>
+            Trending
+          </h3>
+        </div>
+
         {isLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-6 sm:py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
-        ) : (
+        ) : trendingChannels.length > 0 ? (
           <>
-            <ul className="space-y-1">
+            <ul className={cn('space-y-3 sm:space-y-4')}>
               {displayTrendingChannels.filter((c: Channel) => c.id).map((channel: Channel, idx: number) => (
                 <li key={`trending-${channel.id || idx}`}>
-                  <button
+                  <ChannelItem
+                    channel={channel}
                     onClick={() => onSelectChannel?.(channel)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-sm group text-left"
-                  >
-                    {channel.image_url ? (
-                      <img 
-                        src={channel.image_url} 
-                        alt={channel.name}
-                        className="w-5 h-5 rounded"
-                      />
-                    ) : (
-                      <Hash className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <span className="truncate flex-1">{channel.name}</span>
-                    <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
+                    variant="default"
+                    showMeta={true}
+                  />
                 </li>
               ))}
             </ul>
             {trendingChannels.length > 5 && (
               <button
                 onClick={() => setShowAllTrending(!showAllTrending)}
-                className="w-full mt-2 px-2 py-1.5 text-xs text-primary hover:bg-primary/10 rounded-md transition-colors"
+                className="w-full mt-4 sm:mt-5 px-4 py-2.5 text-sm text-primary hover:bg-primary/10 rounded-md transition-colors flex items-center justify-center gap-2 font-medium"
               >
+                <Plus className="w-4 h-4" />
                 {showAllTrending ? 'Ver menos' : `Ver todos (${trendingChannels.length})`}
               </button>
             )}
           </>
+        ) : (
+          <div className="text-center py-6 sm:py-8 bg-muted/20 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              No hay canales trending
+            </p>
+          </div>
         )}
       </section>
     </aside>

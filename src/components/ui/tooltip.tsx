@@ -76,6 +76,7 @@ TooltipTrigger.displayName = "TooltipTrigger"
 
 interface TooltipContentProps extends React.HTMLAttributes<HTMLDivElement> {
   side?: "top" | "bottom" | "left" | "right"
+  className?: string
 }
 
 const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(

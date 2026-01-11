@@ -10,6 +10,7 @@ import { PowerBadge } from '@/components/ui/PowerBadge'
 import { CastCard } from '@/components/feed/CastCard'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { cn } from '@/lib/utils'
+import { HERO, CONTENT } from '@/lib/spacing-system'
 
 interface ProfileViewProps {
   username: string
@@ -173,10 +174,10 @@ export function ProfileView({
         onBack={onBack}
       />
 
-      {/* Header Area */}
+      {/* Header Area - Premium Profile */}
       <div className="relative mb-6">
-        {/* Cover Image */}
-        <div className="relative h-32 sm:h-48 w-full bg-muted overflow-hidden sm:rounded-xl sm:mt-2">
+        {/* Cover Image - Larger */}
+        <div className="relative h-56 sm:h-64 w-full bg-muted overflow-hidden rounded-xl sm:mt-2">
           {coverImage && (
             <Image
               src={coverImage}
@@ -188,30 +189,30 @@ export function ProfileView({
           )}
         </div>
 
-        {/* Avatar & Actions Row */}
+        {/* Avatar & Actions Row - Proportional */}
         <div>
-          <div className="relative flex justify-between items-end -mt-10 sm:-mt-12 mb-3">
+          <div className="relative flex justify-between items-end gap-6 sm:gap-8 -mt-20 sm:-mt-24 px-4 sm:px-6 mb-6 sm:mb-8">
             {/* Avatar with border */}
-            <div className="relative">
+            <div className="flex-shrink-0">
               {profile.pfp_url ? (
                 <Image
                   src={profile.pfp_url}
                   alt={profile.username}
                   width={96}
                   height={96}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-[4px] border-background bg-background shadow-sm"
+                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-[5px] border-background bg-background shadow-md"
                   priority
                   unoptimized
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted border-[4px] border-background flex items-center justify-center shadow-sm">
-                  <span className="text-2xl font-bold">{profile.display_name?.[0]}</span>
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-muted border-[5px] border-background flex items-center justify-center shadow-md">
+                  <span className="text-4xl font-bold">{profile.display_name?.[0]}</span>
                 </div>
               )}
             </div>
 
-            {/* Actions - hide follow button for own profile */}
-            <div className="flex gap-2 mb-1">
+            {/* Actions - Aligned with avatar */}
+            <div className="flex gap-2 sm:gap-3 mb-1">
               {currentUserFid !== profile.fid && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
@@ -262,43 +263,42 @@ export function ProfileView({
             </div>
           </div>
 
-          {/* User Info */}
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
+          {/* User Info - Modular Sections */}
+          <div className="px-4 sm:px-6 space-y-3 sm:space-y-4">
+            {/* Name + Badge */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight text-foreground">
                   {profile.display_name}
                 </h1>
-                {profile.power_badge && <PowerBadge size={22} />}
+                {profile.power_badge && <PowerBadge size={26} />}
               </div>
-              <p className="text-muted-foreground text-[15px]">@{profile.username}</p>
+              <p className="text-muted-foreground text-sm">@{profile.username}</p>
             </div>
 
             {/* Bio */}
             {bio && (
-              <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/90">
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/85">
                 {bio}
               </p>
             )}
 
-            {/* Meta Info (Location, etc) */}
+            {/* Meta Info - Location */}
             {location && (
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-muted-foreground/70" />
-                  <span>{location}</span>
-                </div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span>{location}</span>
               </div>
             )}
 
-            {/* Stats */}
-            <div className="flex items-center gap-5 pt-1">
-              <div className="flex items-center gap-1.5 group">
-                <span className="font-bold text-foreground">{profile.following_count?.toLocaleString()}</span>
+            {/* Stats - Separated with visual divide */}
+            <div className="flex items-center gap-6 pt-3 border-t border-border/50">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground text-lg">{profile.following_count?.toLocaleString()}</span>
                 <span className="text-muted-foreground text-sm">Following</span>
               </div>
-              <div className="flex items-center gap-1.5 group">
-                <span className="font-bold text-foreground">{profile.follower_count?.toLocaleString()}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground text-lg">{profile.follower_count?.toLocaleString()}</span>
                 <span className="text-muted-foreground text-sm">Followers</span>
               </div>
             </div>

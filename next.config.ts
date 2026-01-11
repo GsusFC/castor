@@ -115,6 +115,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'd1kgk9u8ytew77.cloudfront.net',
       },
+      {
+        protocol: 'https',
+        hostname: 'warpcast.com',
+      },
     ],
   },
 }

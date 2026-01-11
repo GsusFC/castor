@@ -232,7 +232,7 @@ Analyze and respond ONLY with valid JSON (no markdown):
     } else if (score >= 60) {
       return `Mostly aligned: ${violations[0] || 'consider adjusting'}`
     } else {
-      return `Off-brand: ${violations[0] || 'doesn't match your style'}`
+      return `Off-brand: ${violations[0] || "doesn't match your style"}`
     }
   }
 }

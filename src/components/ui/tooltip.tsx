@@ -47,7 +47,7 @@ interface TooltipTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const TooltipTrigger = React.forwardRef<HTMLDivElement, TooltipTriggerProps>(
   ({ asChild, children, onMouseEnter, onMouseLeave, ...props }, ref) => {
-    const { setOpen, setSide } = useTooltip()
+    const { setOpen } = useTooltip()
 
     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
       setOpen(true)

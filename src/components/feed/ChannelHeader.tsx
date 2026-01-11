@@ -94,7 +94,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
   if (!channel) return null
 
   return (
-    <div className="mb-6 relative">
+    <div className="mb-6 relative -mx-3 sm:-mx-4 lg:-mx-6">
       <ViewHeader
         title={channelName}
         onBack={onBack}
@@ -102,7 +102,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
       {/* Banner/Header Image - Larger for more impact */}
       <div className={cn(
-        "w-full bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg",
+        "w-full bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg mx-3 sm:mx-4 lg:mx-6",
         HERO.BANNER.CHANNEL
       )}>
         {channel.header_image_url && (
@@ -116,7 +116,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
       {/* Profile Card Container */}
       <div className={cn(
-        "bg-card border-x border-b border-border rounded-b-lg",
+        "bg-card border-x border-b border-border rounded-b-lg mx-3 sm:mx-4 lg:mx-6",
         CARD.PROFILE
       )}>
         {/* Avatar Row + Stats - Proportional offset */}

@@ -175,9 +175,9 @@ export function ProfileView({
       />
 
       {/* Header Area - Premium Profile */}
-      <div className="relative mb-6">
+      <div className="relative mb-6 -mx-3 sm:-mx-4 lg:-mx-6">
         {/* Cover Image - Larger */}
-        <div className="relative h-56 sm:h-64 w-full bg-muted overflow-hidden rounded-xl sm:mt-2">
+        <div className="relative h-56 sm:h-64 w-full bg-muted overflow-hidden rounded-xl sm:mt-2 mx-3 sm:mx-4 lg:mx-6">
           {coverImage && (
             <Image
               src={coverImage}
@@ -190,7 +190,7 @@ export function ProfileView({
         </div>
 
         {/* Avatar & Actions Row - Proportional */}
-        <div>
+        <div className="mx-3 sm:mx-4 lg:mx-6">
           <div className="relative flex justify-between items-end gap-6 sm:gap-8 -mt-20 sm:-mt-24 px-4 sm:px-6 mb-6 sm:mb-8">
             {/* Avatar with border */}
             <div className="flex-shrink-0">
@@ -264,7 +264,7 @@ export function ProfileView({
           </div>
 
           {/* User Info - Modular Sections */}
-          <div className="px-4 sm:px-6 space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 mx-3 sm:mx-4 lg:mx-6 px-4 sm:px-6">
             {/* Name + Badge */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -307,7 +307,7 @@ export function ProfileView({
       </div>
 
       {/* Tabs - unificado con estilo de Pills del Feed */}
-      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3">
+      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3 px-3 sm:px-4 lg:px-6">
         <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
           {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
             <button
@@ -329,7 +329,7 @@ export function ProfileView({
       </div>
 
       {/* Casts */}
-      <div className="space-y-3 sm:space-y-4 pt-2">
+      <div className="space-y-3 sm:space-y-4 pt-2 px-3 sm:px-4 lg:px-6">
         {isCastsLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

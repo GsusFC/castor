@@ -121,7 +121,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
       )}>
         {/* Avatar Row + Stats - Proportional offset */}
         <div className={cn(
-          "flex justify-between items-end gap-6 sm:gap-8",
+          "flex justify-between items-end gap-6 sm:gap-8 px-4 sm:px-6",
           HERO.AVATAR_OFFSET.STANDARD,
           "mb-6 sm:mb-8"
         )}>
@@ -171,7 +171,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
         {/* Channel Info Section */}
         <div className={cn(
-          "space-y-3 sm:space-y-4 pb-6 sm:pb-8 border-b border-border/50"
+          "space-y-3 sm:space-y-4 pb-6 sm:pb-8 border-b border-border/50 px-4 sm:px-6"
         )}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">

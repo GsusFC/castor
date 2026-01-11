@@ -339,13 +339,13 @@ export default function UserProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border mb-4">
+      <div className="flex border-b border-border/50 mb-4">
         {tabs.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
             className={cn(
-              "flex-1 py-3 text-sm font-medium transition-colors relative",
+              "px-4 py-3 text-sm font-medium transition-colors relative",
               activeTab === tab.value
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -353,7 +353,7 @@ export default function UserProfilePage() {
           >
             {tab.label}
             {activeTab === tab.value && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
             )}
           </button>
         ))}

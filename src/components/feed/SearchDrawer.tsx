@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Search, X, User, Hash, MessageSquare, Loader2, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PowerBadge } from '@/components/ui/PowerBadge'
@@ -10,6 +10,7 @@ import { useUserChannels } from '@/hooks/useUserChannels'
 import { useSearch } from '@/context/SearchContext'
 import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 import { z } from 'zod'
+import { useFeedNavigation } from '@/hooks/useFeedNavigation'
 import {
     Sheet,
     SheetContent,
@@ -58,7 +59,9 @@ const searchResponseSchema = z.object({
 
 export function SearchDrawer() {
     const router = useRouter()
+    const pathname = usePathname()
     const { isOpen, close, open } = useSearch()
+    const { openCast, openUser, openChannel } = useFeedNavigation()
     const isMobile = useMediaQueryBelow('sm')
     const [query, setQuery] = useState('')
     const [activeTab, setActiveTab] = useState<SearchTab>('all')
@@ -141,16 +144,28 @@ export function SearchDrawer() {
 
     const onSelectUser = (username: string) => {
         close()
+        if (pathname === '/') {
+            openUser(username)
+            return
+        }
         router.push(`/?user=${encodeURIComponent(username)}`)
     }
 
     const onSelectCast = (castHash: string) => {
         close()
+        if (pathname === '/') {
+            openCast(castHash)
+            return
+        }
         router.push(`/?cast=${encodeURIComponent(castHash)}`)
     }
 
     const onSelectChannel = (channelId: string) => {
         close()
+        if (pathname === '/') {
+            openChannel(channelId)
+            return
+        }
         router.push(`/?channel=${channelId}`)
     }
 

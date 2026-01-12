@@ -11,6 +11,7 @@ import type { ReplyToCast } from '@/components/compose/types'
 import { useNotifications } from '@/context/NotificationsContext'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
+import { useFeedNavigation } from '@/hooks/useFeedNavigation'
 
 type NotificationFilter = 'all' | 'reply' | 'mention' | 'like' | 'recast' | 'follow'
 
@@ -44,6 +45,7 @@ export function NotificationsDrawer() {
   const router = useRouter()
   const pathname = usePathname()
   const { isOpen, close } = useNotifications()
+  const { openCast, openUser } = useFeedNavigation()
   const isMobile = useMediaQueryBelow('sm')
 
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
@@ -146,22 +148,22 @@ export function NotificationsDrawer() {
   const handleOpenUser = useCallback((username: string) => {
     close()
     if (pathname === '/') {
-      window.dispatchEvent(new CustomEvent('castor:feed:open-user', { detail: { username } }))
+      openUser(username)
       return
     }
 
     router.push(`/?user=${encodeURIComponent(username)}`)
-  }, [close, pathname, router])
+  }, [close, openUser, pathname, router])
 
   const handleOpenCast = useCallback((castHash: string) => {
     close()
     if (pathname === '/') {
-      window.dispatchEvent(new CustomEvent('castor:feed:open-cast', { detail: { castHash } }))
+      openCast(castHash)
       return
     }
 
     router.push(`/?cast=${encodeURIComponent(castHash)}`)
-  }, [close, pathname, router])
+  }, [close, openCast, pathname, router])
 
   return (
     <Sheet

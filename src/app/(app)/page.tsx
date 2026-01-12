@@ -377,9 +377,6 @@ function FeedPageInner() {
                             if ((type === 'following' || type === 'home') && fid) {
                               payload.fid = fid
                             }
-                            if (type === 'channel' && channelId) {
-                              payload.channel = channelId
-                            }
                             const r = await fetch('/api/feed', {
                               method: 'POST',
                               headers: {

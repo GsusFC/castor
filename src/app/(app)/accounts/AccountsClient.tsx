@@ -1,22 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ConnectAccountModal } from '@/components/accounts/ConnectAccountModal'
 
 export function AccountsClient() {
-  const searchParams = useSearchParams()
   const router = useRouter()
   const [connectOpen, setConnectOpen] = useState(false)
 
   // Abrir modal si viene con ?connect=true
   useEffect(() => {
-    if (searchParams.get('connect') === 'true') {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('connect') === 'true') {
       setConnectOpen(true)
       // Limpiar el query param
       router.replace('/accounts', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [router])
 
   const handleSuccess = () => {
     router.refresh()

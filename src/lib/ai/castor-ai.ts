@@ -451,13 +451,21 @@ Return ONLY valid JSON (no markdown, no extra text):
       .replace(/```\n?/g, '')
       .trim()
 
-    const parsed = JSON.parse(cleaned) as unknown
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('Invalid AI response: expected JSON object')
-    }
+    const parsed = this.safeParseJson(cleaned)
+    const suggestionsRaw = parsed?.suggestions
 
-    const suggestionsRaw = (parsed as { suggestions?: unknown }).suggestions
     if (!Array.isArray(suggestionsRaw)) {
+      // Fallback: treat response as plain text and split into lines/paragraphs
+      const fallback = cleaned
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && line.length <= maxChars)
+        .slice(0, 3)
+
+      if (fallback.length > 0) {
+        return fallback
+      }
+
       throw new Error('Invalid AI response: expected suggestions array')
     }
 
@@ -473,6 +481,21 @@ Return ONLY valid JSON (no markdown, no extra text):
     }
 
     return suggestions
+  }
+
+  private safeParseJson(input: string): { suggestions?: unknown } | null {
+    try {
+      return JSON.parse(input) as { suggestions?: unknown }
+    } catch {
+      // Attempt to extract the first JSON object from the response
+      const match = input.match(/\{[\s\S]*\}/)
+      if (!match) return null
+      try {
+        return JSON.parse(match[0]) as { suggestions?: unknown }
+      } catch {
+        return null
+      }
+    }
   }
 
   private createDefaultProfile(userId: string, fid: number): StyleProfile {

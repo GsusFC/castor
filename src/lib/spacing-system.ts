@@ -91,9 +91,9 @@ export const HERO = {
   // Channel/Profile banner sizes
   BANNER: {
     // Channel header
-    CHANNEL: 'h-48 sm:h-56',
+    CHANNEL: 'aspect-[3/1]',
     // Profile header - larger
-    PROFILE: 'h-56 sm:h-64',
+    PROFILE: 'aspect-[3/1]',
   },
 
   // Avatar overlap - proportional to avatar size

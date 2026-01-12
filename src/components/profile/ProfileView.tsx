@@ -175,9 +175,9 @@ export function ProfileView({
       />
 
       {/* Header Area - Premium Profile */}
-      <div className="relative mb-6 -mx-3 sm:-mx-4 lg:-mx-6">
+      <div className="relative mb-6">
         {/* Cover Image - Larger */}
-        <div className="relative h-56 sm:h-64 w-full bg-muted overflow-hidden rounded-xl sm:mt-2 mx-3 sm:mx-4 lg:mx-6">
+        <div className="relative aspect-[3/1] bg-muted overflow-hidden rounded-xl sm:mt-2 mx-3 sm:mx-4 lg:mx-6">
           {coverImage && (
             <Image
               src={coverImage}

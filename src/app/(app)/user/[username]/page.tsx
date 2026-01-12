@@ -190,7 +190,7 @@ export default function UserProfilePage() {
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-4">
         {/* Banner - Pro feature */}
         {user.profile?.banner?.url ? (
-          <div className="h-32 md:h-40 overflow-hidden">
+          <div className="aspect-[3/1] overflow-hidden">
             <img
               src={user.profile.banner.url}
               alt="Banner"
@@ -198,7 +198,7 @@ export default function UserProfilePage() {
             />
           </div>
         ) : (
-          <div className="h-32 md:h-40 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5" />
+          <div className="aspect-[3/1] bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5" />
         )}
 
         {/* Avatar & Info */}

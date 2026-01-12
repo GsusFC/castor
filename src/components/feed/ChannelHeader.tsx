@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { HERO, CARD, ACTIONS, CONTENT } from '@/lib/spacing-system'
+import { HERO, CARD } from '@/lib/spacing-system'
 
 interface ChannelHeaderProps {
   channelId: string
@@ -102,137 +102,121 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
 
       {/* Banner/Header Image - Larger for more impact */}
       <div className={cn(
-        "bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg mx-3 sm:mx-4 lg:mx-6",
+        "relative z-0 bg-gradient-to-b from-primary/30 to-primary/10 overflow-hidden rounded-t-lg",
         HERO.BANNER.CHANNEL
       )}>
         {channel.header_image_url && (
           <img
             src={channel.header_image_url}
             alt=""
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-center"
           />
         )}
+
+        {/* Header Actions */}
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex items-center gap-2 z-10">
+          {signerUuid && (
+            <Button
+              variant="ghost"
+              className="rounded-full h-9 px-3 text-xs sm:text-sm font-medium bg-background/70 backdrop-blur border border-border/60 hover:bg-background/90"
+              onClick={handleFollow}
+              disabled={followLoading}
+              title={isFollowing ? "Unfollow this channel" : "Join this community"}
+            >
+              {followLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Heart className={cn(
+                    "w-4 h-4",
+                    isFollowing ? "fill-current" : ""
+                  )} />
+                  <span className="hidden sm:inline">{isFollowing ? 'Following' : 'Follow'}</span>
+                </>
+              )}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            className="rounded-full h-9 w-9 p-0 bg-background/70 backdrop-blur border border-border/60 hover:bg-background/90"
+            onClick={() => {
+              window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')
+              toast.success('Opened in Warpcast')
+            }}
+            title="View on Warpcast"
+            aria-label="View on Warpcast"
+          >
+            <Share2 className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Profile Card Container */}
       <div className={cn(
-        "bg-card border-x border-b border-border rounded-b-lg mx-3 sm:mx-4 lg:mx-6",
+        "relative z-10 bg-card border-x border-b border-border rounded-b-lg",
         CARD.PROFILE
       )}>
-        {/* Avatar Row + Stats - Proportional offset */}
-        <div className={cn(
-          "flex justify-between items-end gap-6 sm:gap-8 px-4 sm:px-6",
-          HERO.AVATAR_OFFSET.STANDARD,
-          "mb-6 sm:mb-8"
-        )}>
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            {channel.image_url ? (
-              <img
-                src={channel.image_url}
-                alt={channel.name}
-                className={cn(
-                  "rounded-full object-cover",
-                  HERO.AVATAR_SIZE.STANDARD,
-                  HERO.AVATAR_BORDER,
-                  "bg-card"
-                )}
-              />
-            ) : (
-              <div className={cn(
-                "rounded-full bg-muted border-[4px] border-card flex items-center justify-center",
-                HERO.AVATAR_SIZE.STANDARD
-              )}>
-                <Hash className="w-12 h-12 text-muted-foreground" />
-              </div>
-            )}
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 border-b border-border/50">
+          {/* Avatar Row + Stats */}
+          <div className={cn(
+            "relative z-20 flex justify-between items-end gap-6 sm:gap-8"
+          )}>
+            {/* Avatar */}
+            <div className={cn("flex-shrink-0", HERO.AVATAR_OFFSET.SMALL)}>
+              {channel.image_url ? (
+                <img
+                  src={channel.image_url}
+                  alt={channel.name}
+                  className={cn(
+                    "rounded-full object-cover",
+                    HERO.AVATAR_SIZE.SMALL,
+                    HERO.AVATAR_BORDER,
+                    "bg-card"
+                  )}
+                />
+              ) : (
+                <div className={cn(
+                  "rounded-full bg-muted border-[4px] border-card flex items-center justify-center",
+                  HERO.AVATAR_SIZE.SMALL
+                )}>
+                  <Hash className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className={cn("flex items-center gap-6 sm:gap-8 text-xs sm:text-sm")}>
+              {channel.member_count !== undefined && (
+                <div className="text-right">
+                  <div className="font-semibold text-foreground text-base sm:text-lg">
+                    {channel.member_count.toLocaleString()}
+                  </div>
+                  <div className="text-muted-foreground text-[10px] sm:text-xs">members</div>
+                </div>
+              )}
+              {channel.follower_count !== undefined && (
+                <div className="text-right">
+                  <div className="font-semibold text-foreground text-base sm:text-lg">
+                    {channel.follower_count.toLocaleString()}
+                  </div>
+                  <div className="text-muted-foreground text-[10px] sm:text-xs">followers</div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Stats - Better positioned */}
-          <div className={cn("flex items-center gap-6 sm:gap-8 text-sm")}>
-            {channel.member_count !== undefined && (
-              <div className="text-right">
-                <div className="font-bold text-foreground text-lg">
-                  {channel.member_count.toLocaleString()}
-                </div>
-                <div className="text-muted-foreground text-xs">members</div>
-              </div>
-            )}
-            {channel.follower_count !== undefined && (
-              <div className="text-right">
-                <div className="font-bold text-foreground text-lg">
-                  {channel.follower_count.toLocaleString()}
-                </div>
-                <div className="text-muted-foreground text-xs">followers</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Channel Info Section */}
-        <div className={cn(
-          "space-y-3 sm:space-y-4 pb-6 sm:pb-8 border-b border-border/50 px-4 sm:px-6"
-        )}>
+          {/* Channel Info Section */}
+          <div className={cn(
+            "space-y-3 sm:space-y-4"
+          )}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold text-foreground leading-tight">
                 {channelName}
               </h1>
-              <p className="text-muted-foreground text-sm mt-1">/{channel.id}</p>
+              <p className="text-muted-foreground text-xs sm:text-sm mt-1">/{channel.id}</p>
             </div>
 
-            {/* Actions - Separate section */}
-            <div className={cn("flex items-center flex-shrink-0", ACTIONS.CONTAINER_GENEROUS)}>
-              {signerUuid && (
-                <Button
-                  variant={isFollowing ? "outline" : "default"}
-                  className={cn(
-                    "rounded-full",
-                    ACTIONS.PRIMARY_BUTTON.height,
-                    ACTIONS.PRIMARY_BUTTON.padding,
-                    ACTIONS.PRIMARY_BUTTON.text,
-                    "flex items-center",
-                    ACTIONS.PRIMARY_BUTTON.gap,
-                    "transition-all hover:shadow-md"
-                  )}
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                  title={isFollowing ? "Unfollow this channel" : "Join this community"}
-                >
-                  {followLoading ? (
-                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                  ) : (
-                    <>
-                      <Heart className={cn(
-                        "w-4 h-4 sm:w-5 sm:h-5",
-                        isFollowing ? "fill-current" : ""
-                      )} />
-                      <span>{isFollowing ? 'Following' : 'Follow'}</span>
-                    </>
-                  )}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                className={cn(
-                  "rounded-full",
-                  ACTIONS.SECONDARY_BUTTON.height,
-                  ACTIONS.SECONDARY_BUTTON.padding,
-                  ACTIONS.SECONDARY_BUTTON.text,
-                  "flex items-center",
-                  ACTIONS.SECONDARY_BUTTON.gap,
-                  "transition-all hover:bg-muted"
-                )}
-                onClick={() => {
-                  window.open(`https://warpcast.com/~/channel/${channel.id}`, '_blank')
-                  toast.success('Opened in Warpcast')
-                }}
-                title="View on Warpcast"
-              >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Share</span>
-              </Button>
-            </div>
           </div>
 
           {/* Description */}
@@ -241,6 +225,7 @@ export function ChannelHeader({ channelId, onBack, signerUuid }: ChannelHeaderPr
               {channel.description}
             </p>
           )}
+        </div>
         </div>
       </div>
     </div>

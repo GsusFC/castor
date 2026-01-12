@@ -10,7 +10,8 @@ import { PowerBadge } from '@/components/ui/PowerBadge'
 import { CastCard } from '@/components/feed/CastCard'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { cn } from '@/lib/utils'
-import { HERO, CONTENT } from '@/lib/spacing-system'
+import { HERO } from '@/lib/spacing-system'
+import type { Cast } from '@/components/feed/cast-card'
 
 interface ProfileViewProps {
   username: string
@@ -40,22 +41,6 @@ interface UserProfile {
     banner?: { url?: string } // Cover/banner image
   }
   viewer_context?: { following: boolean }
-}
-
-interface Cast {
-  hash: string
-  text: string
-  timestamp: string
-  author: {
-    fid: number
-    username: string
-    display_name: string
-    pfp_url?: string
-  }
-  reactions: { likes_count: number; recasts_count: number }
-  replies: { count: number }
-  embeds?: any[]
-  channel?: { id: string; name: string; image_url?: string }
 }
 
 type ProfileTab = 'casts' | 'replies' | 'likes'
@@ -176,145 +161,168 @@ export function ProfileView({
 
       {/* Header Area - Premium Profile */}
       <div className="relative mb-6">
-        {/* Cover Image - Larger */}
-        <div className="relative aspect-[3/1] bg-muted overflow-hidden rounded-xl sm:mt-2 mx-3 sm:mx-4 lg:mx-6">
+        {/* Cover Image */}
+        <div className={cn(
+          "relative z-0 bg-muted overflow-hidden rounded-t-lg",
+          HERO.BANNER.PROFILE
+        )}>
           {coverImage && (
             <Image
               src={coverImage}
               alt="Cover"
               fill
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
               unoptimized
             />
           )}
-        </div>
 
-        {/* Avatar & Actions Row - Proportional */}
-        <div className="mx-3 sm:mx-4 lg:mx-6">
-          <div className="relative flex justify-between items-end gap-6 sm:gap-8 -mt-20 sm:-mt-24 px-4 sm:px-6 mb-6 sm:mb-8">
-            {/* Avatar with border */}
-            <div className="flex-shrink-0">
-              {profile.pfp_url ? (
-                <Image
-                  src={profile.pfp_url}
-                  alt={profile.username}
-                  width={96}
-                  height={96}
-                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-[5px] border-background bg-background shadow-md"
-                  priority
-                  unoptimized
-                />
-              ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-muted border-[5px] border-background flex items-center justify-center shadow-md">
-                  <span className="text-4xl font-bold">{profile.display_name?.[0]}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Actions - Aligned with avatar */}
-            <div className="flex gap-2 sm:gap-3 mb-1">
-              {currentUserFid !== profile.fid && (
-                <Button
-                  variant={isFollowing ? "outline" : "default"}
-                  size="sm"
-                  className="rounded-full font-medium h-9 px-4"
-                  disabled={isFollowLoading}
-                  onClick={async () => {
-                    const targetFid = profile.fid
-                    setIsFollowLoading(true)
-                    try {
-                      const res = await fetch('/api/users/follow', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ targetFid }),
-                      })
-                      if (res.ok) {
-                        setIsFollowing(true)
-                        toast.success(`Now following @${profile.username}`)
-                      } else {
-                        const data = await res.json()
-                        toast.error(data.error || 'Failed to follow')
-                      }
-                    } catch {
-                      toast.error('Failed to follow')
-                    } finally {
-                      setIsFollowLoading(false)
-                    }
-                  }}
-                >
-                  {isFollowLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isFollowing ? (
-                    'Following'
-                  ) : (
-                    'Follow'
-                  )}
-                </Button>
-              )}
+          {/* Header Actions */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex items-center gap-2 z-10">
+            {currentUserFid !== profile.fid && (
               <Button
                 variant="ghost"
-                size="sm"
-                className="rounded-full h-9 w-9 p-0 hover:bg-muted"
-                onClick={() => window.open(`https://warpcast.com/${profile.username}`, '_blank')}
-                title="View on Farcaster"
+                className="rounded-full h-9 px-3 text-xs sm:text-sm font-medium bg-background/70 backdrop-blur border border-border/60 hover:bg-background/90"
+                disabled={isFollowLoading}
+                onClick={async () => {
+                  const targetFid = profile.fid
+                  setIsFollowLoading(true)
+                  try {
+                    const res = await fetch('/api/users/follow', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ targetFid }),
+                    })
+                    if (res.ok) {
+                      setIsFollowing(true)
+                      toast.success(`Now following @${profile.username}`)
+                    } else {
+                      const data = await res.json()
+                      toast.error(data.error || 'Failed to follow')
+                    }
+                  } catch {
+                    toast.error('Failed to follow')
+                  } finally {
+                    setIsFollowLoading(false)
+                  }
+                }}
+                title={isFollowing ? 'Following' : 'Follow'}
               >
-                <ExternalLink className="w-4 h-4" />
+                {isFollowLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    {isFollowing ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{isFollowing ? 'Following' : 'Follow'}</span>
+                  </>
+                )}
               </Button>
-            </div>
+            )}
+            <Button
+              variant="ghost"
+              className="rounded-full h-9 w-9 p-0 bg-background/70 backdrop-blur border border-border/60 hover:bg-background/90"
+              onClick={() => window.open(`https://warpcast.com/${profile.username}`, '_blank')}
+              title="View on Farcaster"
+              aria-label="View on Warpcast"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
           </div>
+        </div>
 
-          {/* User Info - Modular Sections */}
-          <div className="space-y-3 sm:space-y-4 mx-3 sm:mx-4 lg:mx-6 px-4 sm:px-6">
-            {/* Name + Badge */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight text-foreground">
-                  {profile.display_name}
-                </h1>
-                {profile.power_badge && <PowerBadge size={26} />}
+        {/* Profile Card Container */}
+        <div className="relative z-10 bg-card border-x border-b border-border rounded-b-lg">
+          <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 border-b border-border/50">
+            {/* Avatar Row + Stats */}
+            <div className={cn(
+              "relative z-20 flex justify-between items-end gap-6 sm:gap-8"
+            )}>
+              {/* Avatar */}
+              <div className={cn("flex-shrink-0", HERO.AVATAR_OFFSET.LARGE)}>
+                {profile.pfp_url ? (
+                  <Image
+                    src={profile.pfp_url}
+                    alt={profile.username}
+                    width={96}
+                    height={96}
+                    className={cn(
+                      "rounded-full object-cover bg-background shadow-md",
+                      HERO.AVATAR_SIZE.STANDARD,
+                      HERO.AVATAR_BORDER
+                    )}
+                    priority
+                    unoptimized
+                  />
+                ) : (
+                  <div className={cn(
+                    "rounded-full bg-muted flex items-center justify-center shadow-md",
+                    HERO.AVATAR_SIZE.STANDARD,
+                    HERO.AVATAR_BORDER
+                  )}>
+                    <span className="text-2xl font-bold">{profile.display_name?.[0]}</span>
+                  </div>
+                )}
               </div>
-              <p className="text-muted-foreground text-sm">@{profile.username}</p>
+
+              {/* Stats */}
+              <div className="flex items-center gap-6 sm:gap-8 text-xs sm:text-sm">
+                <div className="text-right">
+                  <div className="font-semibold text-foreground text-base sm:text-lg">
+                    {profile.following_count?.toLocaleString()}
+                  </div>
+                  <div className="text-muted-foreground text-[10px] sm:text-xs">following</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold text-foreground text-base sm:text-lg">
+                    {profile.follower_count?.toLocaleString()}
+                  </div>
+                  <div className="text-muted-foreground text-[10px] sm:text-xs">followers</div>
+                </div>
+              </div>
+            </div>
+
+            {/* User Info Section */}
+            <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-semibold leading-tight tracking-tight text-foreground">
+                    {profile.display_name}
+                  </h1>
+                  {profile.power_badge && <PowerBadge size={20} />}
+                </div>
+                <p className="text-muted-foreground text-xs sm:text-sm">@{profile.username}</p>
+              </div>
+
             </div>
 
             {/* Bio */}
             {bio && (
-              <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/85">
+              <p className="text-sm sm:text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/85">
                 {bio}
               </p>
             )}
 
             {/* Meta Info - Location */}
             {location && (
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span>{location}</span>
               </div>
             )}
-
-            {/* Stats - Separated with visual divide */}
-            <div className="flex items-center gap-6 pt-3 border-t border-border/50">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-foreground text-lg">{profile.following_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground text-sm">Following</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-foreground text-lg">{profile.follower_count?.toLocaleString()}</span>
-                <span className="text-muted-foreground text-sm">Followers</span>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs - unificado con estilo de Pills del Feed */}
-      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-3 px-3 sm:px-4 lg:px-6">
+      <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-2 sm:py-2.5">
         <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
           {(['casts', 'replies', 'likes'] as ProfileTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "relative flex-1 h-9 px-3 text-sm rounded-full transition-all",
+                "relative flex-1 h-8 sm:h-9 px-3 text-xs sm:text-sm rounded-full transition-all",
                 activeTab === tab
                   ? "bg-background text-foreground shadow-md border border-border/10 font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
@@ -329,7 +337,7 @@ export function ProfileView({
       </div>
 
       {/* Casts */}
-      <div className="space-y-3 sm:space-y-4 pt-2 px-3 sm:px-4 lg:px-6">
+      <div className="space-y-3 sm:space-y-4 pt-2">
         {isCastsLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

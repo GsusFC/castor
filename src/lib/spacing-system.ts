@@ -46,13 +46,13 @@ export const HEADER = {
   // TabNav - Secondary navigation (sticky below primary)
   TABS: {
     // Container styling
-    container: 'h-14 sm:h-16',
-    containerPadding: 'p-2 sm:p-3',
+    container: 'h-12 sm:h-14',
+    containerPadding: 'p-1.5 sm:p-2',
     containerBg: 'rounded-full bg-muted/40',
 
     // Pills styling
     pill: {
-      base: 'px-4 py-2.5 text-sm sm:text-base font-medium rounded-full transition-all',
+      base: 'px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all',
       active: 'bg-background text-foreground shadow-md border border-border/30',
       inactive: 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
     },
@@ -65,7 +65,7 @@ export const HEADER = {
     bgClass: 'bg-background/95 backdrop-blur-sm border-b border-border/50',
 
     // Icon styling
-    iconSize: 'w-4 h-4 sm:w-5 sm:h-5',
+    iconSize: 'w-4 h-4 sm:w-4 sm:h-4',
     iconText: 'gap-1.5 sm:gap-2',
   },
 
@@ -191,13 +191,13 @@ export const NAV = {
   // Pill Tabs (used in AITabs, compose modes)
   PILL_TABS: {
     // Container styling
-    container: 'h-12 sm:h-14',
-    containerPadding: 'p-2 sm:p-3',
+    container: 'h-10 sm:h-12',
+    containerPadding: 'p-1.5 sm:p-2',
     containerBg: 'rounded-full bg-muted/40',
 
     // Individual pill styling
     pill: {
-      base: 'px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base font-medium rounded-full transition-all flex items-center justify-center',
+      base: 'px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all flex items-center justify-center',
       active: 'bg-background text-foreground shadow-md border border-border/30',
       inactive: 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
     },
@@ -205,7 +205,7 @@ export const NAV = {
     // Icon + text spacing within pill
     gap: 'gap-2 sm:gap-3',
     iconText: 'gap-1.5 sm:gap-2',
-    iconSize: 'w-4 h-4 sm:w-5 sm:h-5',
+    iconSize: 'w-4 h-4 sm:w-4 sm:h-4',
   },
 } as const
 

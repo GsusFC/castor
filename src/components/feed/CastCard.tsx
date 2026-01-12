@@ -2,17 +2,22 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import dynamic from 'next/dynamic'
-import Image from 'next/image'
-import { Heart, Repeat2, MessageCircle, Share, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { UserPopover } from './UserPopover'
-import { HLSVideo } from '@/components/ui/HLSVideo'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTickerDrawer } from '@/context/TickerDrawerContext'
-import { CastHeader, CastActions, CastContent, CastReplies } from './cast-card'
+import {
+  CastHeader,
+  CastActions,
+  CastContent,
+  CastReplies,
+  BLOCKED_FIDS_STORAGE_KEY,
+  MUTED_FIDS_STORAGE_KEY,
+  MAX_TEXT_LENGTH,
+} from './cast-card'
+import { readFidListFromStorage, writeFidListToStorage } from './cast-card/utils'
+import type { Cast, CastCardProps } from './cast-card/types'
 
 // Lazy load modals
 const ImageLightbox = dynamic(() => import('./cast-card/ImageLightbox').then(mod => ({ default: mod.ImageLightbox })), {
@@ -22,120 +27,6 @@ const ImageLightbox = dynamic(() => import('./cast-card/ImageLightbox').then(mod
 const VideoModal = dynamic(() => import('./cast-card/VideoModal').then(mod => ({ default: mod.VideoModal })), {
   ssr: false,
 })
-
-interface CastAuthor {
-  fid: number
-  username: string
-  display_name: string
-  pfp_url?: string
-  power_badge?: boolean
-  pro?: { status: string }
-}
-
-interface CastChannel {
-  id: string
-  name: string
-  image_url?: string
-}
-
-interface CastReactions {
-  likes_count: number
-  recasts_count: number
-}
-
-interface EmbeddedCast {
-  hash: string
-  text: string
-  timestamp: string
-  author: {
-    fid: number
-    username: string
-    display_name: string
-    pfp_url?: string
-  }
-  embeds?: { url: string; metadata?: { content_type?: string } }[]
-  channel?: { id: string; name: string }
-}
-
-interface CastEmbed {
-  url?: string
-  cast?: EmbeddedCast
-  metadata?: {
-    content_type?: string
-    image?: { width_px: number; height_px: number }
-    video?: {
-      streams?: { codec_name?: string }[]
-      duration_s?: number
-    }
-    html?: {
-      ogImage?: { url: string }[]
-      ogTitle?: string
-      ogDescription?: string
-      favicon?: string
-    }
-    frame?: {
-      version?: string
-      title?: string
-      image?: string
-      buttons?: { title?: string; index?: number }[]
-    }
-  }
-}
-
-const MUTED_FIDS_STORAGE_KEY = 'castor:mutedFids'
-const BLOCKED_FIDS_STORAGE_KEY = 'castor:blockedFids'
-const MODERATION_UPDATED_EVENT = 'castor:moderation-updated'
-
-interface Cast {
-  hash: string
-  text: string
-  timestamp: string
-  author: CastAuthor
-  reactions: CastReactions
-  replies: { count: number }
-  embeds?: CastEmbed[]
-  channel?: CastChannel
-}
-
-interface CastCardProps {
-  cast: Cast
-  onOpenMiniApp?: (url: string, title: string) => void
-  onOpenCast?: (castHash: string) => void
-  onQuote?: (castUrl: string) => void
-  onDelete?: (castHash: string) => void
-  onReply?: (cast: Cast) => void
-  onSelectUser?: (username: string) => void
-  currentUserFid?: number
-  currentUserFids?: number[]
-  isPro?: boolean
-}
-
-const NEXT_IMAGE_ALLOWED_HOSTNAMES = new Set<string>([
-  'imagedelivery.net',
-  'videodelivery.net',
-  'watch.cloudflarestream.com',
-  'avatar.vercel.sh',
-  'i.imgur.com',
-  'imgur.com',
-  'pbs.twimg.com',
-  'media.giphy.com',
-  'i.giphy.com',
-  'giphy.com',
-  'cdn.discordapp.com',
-  'firesidebase.vercel.app',
-  'upgrader.co',
-])
-
-const isNextImageAllowedSrc = (src: string): boolean => {
-  try {
-    const hostname = new URL(src).hostname
-    if (NEXT_IMAGE_ALLOWED_HOSTNAMES.has(hostname)) return true
-    if (hostname.endsWith('.googleusercontent.com')) return true
-    return false
-  } catch {
-    return false
-  }
-}
 
 function CastCardComponent({
   cast,
@@ -172,8 +63,6 @@ function CastCardComponent({
     : currentUserFid === cast.author.fid
   const castUrl = `https://farcaster.xyz/${cast.author.username}/${cast.hash.slice(0, 10)}`
 
-  // Truncar texto largo (> 280 caracteres)
-  const MAX_TEXT_LENGTH = 280
   const needsTruncation = cast.text.length > MAX_TEXT_LENGTH
   const displayText = showFullText || !needsTruncation
     ? cast.text
@@ -195,23 +84,6 @@ function CastCardComponent({
     router.push(`/?${qs.toString()}`)
   }, [router])
 
-  const readFidListFromStorage = useCallback((key: string): number[] => {
-    try {
-      const raw = localStorage.getItem(key)
-      if (!raw) return []
-      const parsed = JSON.parse(raw) as unknown
-      if (!Array.isArray(parsed)) return []
-      return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
-    } catch {
-      return []
-    }
-  }, [])
-
-  const writeFidListToStorage = useCallback((key: string, fids: number[]): void => {
-    const unique = Array.from(new Set(fids)).filter((v) => Number.isFinite(v))
-    localStorage.setItem(key, JSON.stringify(unique))
-  }, [])
-
   const handleCopyCastHash = useCallback(async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(cast.hash)
@@ -232,11 +104,11 @@ function CastCardComponent({
     }
 
     const current = readFidListFromStorage(MUTED_FIDS_STORAGE_KEY)
-    writeFidListToStorage(MUTED_FIDS_STORAGE_KEY, [...current, fid])
-    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    const next = Array.from(new Set([...current, fid]))
+    writeFidListToStorage(MUTED_FIDS_STORAGE_KEY, next)
     toast.success(`Muted @${cast.author.username}`)
     setShowMoreMenu(false)
-  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
+  }, [cast.author.fid, cast.author.username, currentUserFid])
 
   const handleBlockUser = useCallback((): void => {
     const fid = cast.author.fid
@@ -251,11 +123,11 @@ function CastCardComponent({
     if (!confirmed) return
 
     const current = readFidListFromStorage(BLOCKED_FIDS_STORAGE_KEY)
-    writeFidListToStorage(BLOCKED_FIDS_STORAGE_KEY, [...current, fid])
-    window.dispatchEvent(new Event(MODERATION_UPDATED_EVENT))
+    const next = Array.from(new Set([...current, fid]))
+    writeFidListToStorage(BLOCKED_FIDS_STORAGE_KEY, next)
     toast.success(`Blocked @${cast.author.username}`)
     setShowMoreMenu(false)
-  }, [cast.author.fid, cast.author.username, currentUserFid, readFidListFromStorage, writeFidListToStorage])
+  }, [cast.author.fid, cast.author.username, currentUserFid])
 
   // Cerrar al hacer click fuera
   useEffect(() => {

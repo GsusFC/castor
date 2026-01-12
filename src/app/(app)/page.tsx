@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import Image from 'next/image'
 import { Virtuoso } from 'react-virtuoso'
@@ -13,6 +13,14 @@ import { RightSidebar } from '@/components/feed/RightSidebar'
 import { ConversationView } from '@/components/feed/ConversationView'
 import { ProfileView } from '@/components/profile/ProfileView'
 import type { ReplyToCast } from '@/components/compose/types'
+import { useFeedNavigation } from '@/hooks/useFeedNavigation'
+import type { Cast } from '@/components/feed/cast-card'
+import {
+  MUTED_FIDS_STORAGE_KEY,
+  BLOCKED_FIDS_STORAGE_KEY,
+  MODERATION_UPDATED_EVENT,
+  readFidListFromStorage,
+} from '@/components/feed/cast-card'
 
 // Lazy load ComposeModal (561 lines, only needed when composing)
 const ComposeModal = dynamic(
@@ -23,12 +31,6 @@ import { NAV } from '@/lib/spacing-system'
 import { Loader2, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-
-type FeedTab = 'home' | 'following' | 'trending' | 'channel'
-
-const MUTED_FIDS_STORAGE_KEY = 'castor:mutedFids'
-const BLOCKED_FIDS_STORAGE_KEY = 'castor:blockedFids'
-const MODERATION_UPDATED_EVENT = 'castor:moderation-updated'
 
 interface SelectedChannel {
   id: string
@@ -49,66 +51,19 @@ type MeResponse = {
   manageableFids?: number[]
 }
 
-interface Cast {
-  hash: string
-  text: string
-  timestamp: string
-  author: {
-    fid: number
-    username: string
-    display_name: string
-    pfp_url?: string
-    pro?: { status: string }
-  }
-  reactions: {
-    likes_count: number
-    recasts_count: number
-  }
-  replies: { count: number }
-  embeds?: {
-    url?: string
-    cast?: {
-      hash: string
-      text: string
-      timestamp: string
-      author: {
-        fid: number
-        username: string
-        display_name: string
-        pfp_url?: string
-      }
-      embeds?: { url: string; metadata?: { content_type?: string } }[]
-      channel?: { id: string; name: string }
-    }
-    metadata?: {
-      content_type?: string
-      image?: { width_px: number; height_px: number }
-      video?: {
-        streams?: { codec_name?: string }[]
-        duration_s?: number
-      }
-      html?: {
-        ogImage?: { url: string }[]
-        ogTitle?: string
-      }
-      frame?: {
-        title?: string
-        image?: string
-      }
-    }
-  }[]
-  channel?: {
-    id: string
-    name: string
-    image_url?: string
-  }
-}
-
 function FeedPageInner() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const searchParamsString = searchParams.toString()
-  const [activeTab, setActiveTab] = useState<FeedTab>('home')
+  const {
+    activeTab,
+    selectedCast,
+    selectedUser,
+    selectedChannelId,
+    setTab,
+    openCast,
+    openUser,
+    closeOverlay,
+    clearChannel,
+  } = useFeedNavigation()
   const [userFid, setUserFid] = useState<number | null>(null)
   const [userAccountId, setUserAccountId] = useState<string | null>(null)
   const [userSignerUuid, setUserSignerUuid] = useState<string | null>(null)
@@ -117,66 +72,13 @@ function FeedPageInner() {
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
-  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(null)
-  const [selectedConversationHash, setSelectedConversationHash] = useState<string | null>(null)
 
   const [moderationState, setModerationState] = useState<{
     mutedFids: Set<number>
     blockedFids: Set<number>
   }>(() => ({ mutedFids: new Set(), blockedFids: new Set() }))
 
-  const channelIdFromUrl = searchParams.get('channel')
-  const castHashFromUrl = searchParams.get('cast')
-  const usernameFromUrl = searchParams.get('user')
-
-  const pushSearchParams = useCallback((updater: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParamsString)
-    updater(next)
-
-    const qs = next.toString()
-    router.push(qs ? `/?${qs}` : '/')
-  }, [router, searchParamsString])
-
-  const openProfile = useCallback((username: string) => {
-    setSelectedConversationHash(null)
-    setSelectedProfileUsername(username)
-    pushSearchParams((next) => {
-      next.set('user', username)
-      next.delete('cast')
-    })
-  }, [pushSearchParams])
-
-  const openConversation = useCallback((castHash: string) => {
-    setSelectedProfileUsername(null)
-    setSelectedConversationHash(castHash)
-    pushSearchParams((next) => {
-      next.set('cast', castHash)
-      next.delete('user')
-    })
-  }, [pushSearchParams])
-
-  const closeOverlay = useCallback(() => {
-    setSelectedConversationHash(null)
-    setSelectedProfileUsername(null)
-    pushSearchParams((next) => {
-      next.delete('cast')
-      next.delete('user')
-    })
-  }, [pushSearchParams])
-
   useEffect(() => {
-    const readFidListFromStorage = (key: string): number[] => {
-      try {
-        const raw = localStorage.getItem(key)
-        if (!raw) return []
-        const parsed = JSON.parse(raw) as unknown
-        if (!Array.isArray(parsed)) return []
-        return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
-      } catch {
-        return []
-      }
-    }
-
     const syncModeration = () => {
       const muted = readFidListFromStorage(MUTED_FIDS_STORAGE_KEY)
       const blocked = readFidListFromStorage(BLOCKED_FIDS_STORAGE_KEY)
@@ -196,50 +98,18 @@ function FeedPageInner() {
     }
   }, [])
 
-  const clearChannelFromUrl = useCallback(() => {
-    const next = new URLSearchParams(searchParamsString)
-    next.delete('channel')
-
-    const qs = next.toString()
-    router.push(qs ? `/?${qs}` : '/')
-  }, [router, searchParamsString])
-
   useEffect(() => {
-    if (castHashFromUrl) {
-      setSelectedProfileUsername(null)
-      setSelectedConversationHash(castHashFromUrl)
-      return
-    }
-    setSelectedConversationHash(null)
-  }, [castHashFromUrl])
-
-  useEffect(() => {
-    // If a cast is selected via URL, it takes precedence.
-    if (castHashFromUrl) return
-
-    if (usernameFromUrl) {
-      setSelectedConversationHash(null)
-      setSelectedProfileUsername(usernameFromUrl)
-      return
-    }
-
-    setSelectedProfileUsername(null)
-  }, [castHashFromUrl, usernameFromUrl])
-
-  useEffect(() => {
-    if (!channelIdFromUrl) {
-      // Si no hay channel en URL, limpiar selección
-      // NOTE: Do NOT auto-switch to home tab here - the onClick handler already set the correct tab
+    if (!selectedChannelId) {
       setSelectedChannel(null)
       return
     }
 
     // Si el canal ya está seleccionado, no hacer nada
     setSelectedChannel(prev => {
-      if (prev?.id === channelIdFromUrl) return prev
+      if (prev?.id === selectedChannelId) return prev
 
       // Fetch channel info async
-      fetch(`/api/channels/${channelIdFromUrl}`)
+      fetch(`/api/channels/${selectedChannelId}`)
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.channel) {
@@ -251,14 +121,13 @@ function FeedPageInner() {
           }
         })
         .catch(() => {
-          setSelectedChannel({ id: channelIdFromUrl, name: channelIdFromUrl })
+          setSelectedChannel({ id: selectedChannelId, name: selectedChannelId })
         })
 
-      setActiveTab('channel')
       // Retornar placeholder mientras carga
-      return { id: channelIdFromUrl, name: channelIdFromUrl }
+      return { id: selectedChannelId, name: selectedChannelId }
     })
-  }, [channelIdFromUrl])
+  }, [selectedChannelId])
   const [composeOpen, setComposeOpen] = useState(false)
   const [quoteContent, setQuoteContent] = useState<string>('')
   const [replyToCast, setReplyToCast] = useState<ReplyToCast | null>(null)
@@ -281,30 +150,6 @@ function FeedPageInner() {
       <div className="mt-3 h-40 rounded-xl bg-muted/40" />
     </div>
   )
-
-  useEffect(() => {
-    const handleOpenCast = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { castHash?: string } | undefined
-      const castHash = detail?.castHash
-      if (!castHash) return
-      openConversation(castHash)
-    }
-
-    const handleOpenUser = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { username?: string } | undefined
-      const username = detail?.username
-      if (!username) return
-      openProfile(username)
-    }
-
-    window.addEventListener('castor:feed:open-cast', handleOpenCast)
-    window.addEventListener('castor:feed:open-user', handleOpenUser)
-
-    return () => {
-      window.removeEventListener('castor:feed:open-cast', handleOpenCast)
-      window.removeEventListener('castor:feed:open-user', handleOpenUser)
-    }
-  }, [openConversation, openProfile])
 
   // Obtener FID y perfil del usuario logueado
   useEffect(() => {
@@ -336,19 +181,13 @@ function FeedPageInner() {
     fetchUser()
   }, [])
 
-  // Handler para seleccionar canal
-  const handleSelectChannel = (channel: SelectedChannel) => {
-    setSelectedChannel(channel)
-    setActiveTab('channel')
-  }
-
   const requiresFidForTab = activeTab === 'home' || activeTab === 'following'
   const isWaitingForFid = requiresFidForTab && userFid === null
   const isFeedEnabled = !requiresFidForTab || userFid !== null
 
   // Feed query - optimized for mobile with cache, retry and larger batches
   const feedQuery = useInfiniteQuery({
-    queryKey: ['feed', activeTab, userFid, selectedChannel?.id ?? null] as const,
+    queryKey: ['feed', activeTab, userFid, selectedChannelId ?? null] as const,
     queryFn: async ({ queryKey, pageParam }) => {
       const [_key, type, fid, channelId] = queryKey
       const payload: Record<string, unknown> = {
@@ -442,28 +281,28 @@ function FeedPageInner() {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 max-w-2xl">
         {/* Show Conversation, Profile or Feed */}
-        {selectedConversationHash ? (
+        {selectedCast ? (
           <ConversationView
-            castHash={selectedConversationHash}
+            castHash={selectedCast}
             onBack={() => {
               router.back()
             }}
             onSelectUser={(username) => {
-              openProfile(username)
+              openUser(username)
             }}
-            onSelectCast={(hash) => openConversation(hash)}
+            onSelectCast={(hash) => openCast(hash)}
             onQuote={handleQuote}
             currentUserFid={userFid || undefined}
             currentUserFids={manageableFids || undefined}
             onDelete={handleDelete}
           />
-        ) : selectedProfileUsername ? (
+        ) : selectedUser ? (
           <ProfileView
-            username={selectedProfileUsername}
+            username={selectedUser}
             onBack={() => closeOverlay()}
-            onSelectUser={openProfile}
+            onSelectUser={openUser}
             onOpenCast={(castHash: string) => {
-              openConversation(castHash)
+              openCast(castHash)
             }}
             onQuote={handleQuote}
             onReply={(c) => {
@@ -492,7 +331,7 @@ function FeedPageInner() {
               <div className="flex items-center gap-2">
                 {/* Avatar/Profile button */}
                 <button
-                  onClick={() => profile.username && openProfile(profile.username)}
+                  onClick={() => profile.username && openUser(profile.username)}
                   className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
                 >
                   {profile.pfpUrl ? (
@@ -516,13 +355,11 @@ function FeedPageInner() {
                     { id: 'home', label: 'Home' },
                     { id: 'following', label: 'Following' },
                     { id: 'trending', label: 'Trending' },
-                  ] as { id: FeedTab; label: string }[]).map((tab) => (
+                  ] as { id: 'home' | 'following' | 'trending'; label: string }[]).map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => {
-                        clearChannelFromUrl()
-                        setActiveTab(tab.id)
-                        if (tab.id !== 'channel') setSelectedChannel(null)
+                        setTab(tab.id)
                       }}
                       onMouseEnter={() => {
                         if (tab.id === activeTab) return
@@ -564,7 +401,7 @@ function FeedPageInner() {
                         })
                       }}
                       className={cn(
-                        "relative flex-1",
+                        "relative flex-1 text-xs sm:text-sm",
                         NAV.PILL_TABS.pill.base,
                         activeTab === tab.id && activeTab !== 'channel'
                           ? NAV.PILL_TABS.pill.active
@@ -580,9 +417,9 @@ function FeedPageInner() {
                 {selectedChannel && (
                   <button
                     onClick={() => {
-                      clearChannelFromUrl()
+                      clearChannel()
                     }}
-                    className={cn(NAV.PILL_TABS.pill.base, "bg-primary text-primary-foreground hover:bg-primary/90 ml-1")}
+                    className={cn(NAV.PILL_TABS.pill.base, "text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90 ml-1")}
                   >
                     #{selectedChannel.name} ✕
                   </button>
@@ -594,7 +431,7 @@ function FeedPageInner() {
             {activeTab === 'channel' && selectedChannel && (
               <ChannelHeader
                 channelId={selectedChannel.id}
-                onBack={clearChannelFromUrl}
+                onBack={clearChannel}
                 signerUuid={userSignerUuid || undefined}
               />
             )}
@@ -618,12 +455,12 @@ function FeedPageInner() {
                           key={cast.hash}
                           cast={cast}
                           onOpenCast={(castHash) => {
-                            openConversation(castHash)
+                            openCast(castHash)
                           }}
                           onOpenMiniApp={(url, title) => setMiniApp({ url, title })}
                           onQuote={handleQuote}
                           onDelete={handleDelete}
-                          onSelectUser={openProfile}
+                          onSelectUser={openUser}
                           onReply={(c) => {
                             setReplyToCast({
                               hash: c.hash,
@@ -666,9 +503,9 @@ function FeedPageInner() {
       {/* Right Sidebar - desktop only, sticky */}
       <div className="hidden lg:block w-80 shrink-0 sticky top-0 h-screen py-6">
         <RightSidebar
-          onSelectUser={openProfile}
+          onSelectUser={openUser}
           onSelectCast={(castHash: string) => {
-            openConversation(castHash)
+            openCast(castHash)
           }}
         />
       </div>

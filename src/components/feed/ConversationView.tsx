@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { CastCard } from '@/components/feed/CastCard'
 import { ViewHeader } from '@/components/ui/ViewHeader'
 import { cn } from '@/lib/utils'
+import type { Cast } from '@/components/feed/cast-card'
 
 interface ConversationViewProps {
   castHash: string
@@ -18,10 +19,10 @@ interface ConversationViewProps {
 }
 
 interface ConversationResponse {
-  thread: any[]
+  thread: Cast[]
   targetHash: string
   replies: {
-    casts: any[]
+    casts: Cast[]
     cursor: string | null
     hasMore: boolean
   }

@@ -23,6 +23,7 @@ import {
 import { AI_LANGUAGE_OPTIONS, type SupportedTargetLanguage } from '@/lib/ai/languages'
 import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
 import { NAV } from '@/lib/spacing-system'
+import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
 
 type AIMode = 'translate' | 'propose' | 'improve' | null
 
@@ -151,29 +152,26 @@ export function AITabs({
     setSuggestions([])
 
     try {
-      const modeMap = { translate: 'translate', propose: 'write', improve: 'improve' }
-
       const response = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: modeMap[activeTab],
-          draft: activeTab !== 'propose' ? currentDraft : undefined,
+        body: JSON.stringify(buildAssistantRequest({
+          mode: activeTab,
+          draft: currentDraft,
           replyingTo,
           quotingCast,
           targetTone: selectedTone,
           targetLanguage,
           isPro,
           accountId,
-        }),
+        })),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
         console.error('AI API error:', data)
-        const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
-        throw new Error(message || 'Error generating suggestions')
+        throw new Error(getAssistantErrorMessage(data, 'Error generating suggestions'))
       }
 
       const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []

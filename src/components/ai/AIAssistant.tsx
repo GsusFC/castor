@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
+import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
 
 type AIMode = 'write' | 'improve' | 'translate'
 
@@ -159,23 +160,22 @@ export function AIAssistant({
       const response = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(buildAssistantRequest({
           mode,
-          draft: mode !== 'write' ? draft : undefined,
+          draft,
           replyingTo,
           quotingCast,
           targetTone: selectedTone,
-          targetLanguage: mode === 'translate' ? targetLanguage : undefined,
+          targetLanguage,
           isPro,
           accountId: selectedAccountId,
-        }),
+        })),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        const message = (data?.message as string | undefined) ?? (data?.error as string | undefined)
-        throw new Error(message || 'Error generating suggestions')
+        throw new Error(getAssistantErrorMessage(data, 'Error generating suggestions'))
       }
 
       const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []

@@ -400,7 +400,7 @@ function FeedPageInner() {
                       className={cn(
                         "relative flex-1 text-xs sm:text-sm",
                         NAV.PILL_TABS.pill.base,
-                        activeTab === tab.id && activeTab !== 'channel'
+                        activeTab === tab.id
                           ? NAV.PILL_TABS.pill.active
                           : NAV.PILL_TABS.pill.inactive
                       )}

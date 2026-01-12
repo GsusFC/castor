@@ -53,8 +53,12 @@ export default function DashboardLayout({
                     {/* Mobile Bottom Nav */}
                     <MobileNav />
 
-                    <NotificationsDrawer />
-                    <SearchDrawer />
+                    <Suspense fallback={null}>
+                      <NotificationsDrawer />
+                    </Suspense>
+                    <Suspense fallback={null}>
+                      <SearchDrawer />
+                    </Suspense>
                     <Toaster position="bottom-right" richColors />
                   </div>
                 </TickerDrawerProvider>

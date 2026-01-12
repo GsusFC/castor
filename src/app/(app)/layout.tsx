@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { ResponsiveSidebar } from '@/components/layout/ResponsiveSidebar'
 import { SelectedAccountProvider } from '@/context/SelectedAccountContext'
@@ -43,7 +44,9 @@ export default function DashboardLayout({
 
                       {/* Main content */}
                       <main className="flex-1 min-w-0 px-2 sm:px-4 lg:px-6 py-4 lg:py-6 pb-24 lg:pb-6">
-                        {children}
+                        <Suspense fallback={null}>
+                          {children}
+                        </Suspense>
                       </main>
                     </div>
 

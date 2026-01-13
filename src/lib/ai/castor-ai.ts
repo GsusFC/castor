@@ -87,6 +87,7 @@ export class CastorAI {
   }
 
   private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
+  private accountContextCache = new Map<string, { value: AccountContext | null; expiresAt: number }>()
 
   private getModel() {
     if (this.model) return this.model
@@ -247,13 +248,24 @@ Respond ONLY with valid JSON (no markdown):
    */
   async getAccountContext(accountId: string): Promise<AccountContext | null> {
     try {
+      const cached = this.accountContextCache.get(accountId)
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.value
+      }
+
       const kb = await db.query.accountKnowledgeBase.findFirst({
         where: eq(accountKnowledgeBase.accountId, accountId),
       })
 
-      if (!kb) return null
+      if (!kb) {
+        this.accountContextCache.set(accountId, {
+          value: null,
+          expiresAt: Date.now() + 5 * 60 * 1000,
+        })
+        return null
+      }
 
-      return {
+      const value: AccountContext = {
         brandVoice: kb.brandVoice || undefined,
         bio: kb.bio || undefined,
         expertise: kb.expertise ? JSON.parse(kb.expertise) : undefined,
@@ -263,6 +275,11 @@ Respond ONLY with valid JSON (no markdown):
         defaultTone: kb.defaultTone || undefined,
         defaultLanguage: kb.defaultLanguage || undefined,
       }
+      this.accountContextCache.set(accountId, {
+        value,
+        expiresAt: Date.now() + 5 * 60 * 1000,
+      })
+      return value
     } catch (error) {
       console.error('Error getting account context:', error)
       return null

@@ -2,7 +2,6 @@ export type AssistantApiMode = 'write' | 'improve' | 'translate'
 export type AssistantUiMode = AssistantApiMode | 'propose'
 
 type AssistantRequest = {
-  mode: AssistantApiMode
   draft?: string
   replyingTo?: { text: string; author: string }
   quotingCast?: { text: string; author: string }

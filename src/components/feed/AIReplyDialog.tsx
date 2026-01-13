@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { BrandValidationResult } from '@/lib/ai/brand-validator'
 import { ReplyStrategySelector, type ReplyStrategy } from '@/components/ai/ReplyStrategySelector'
 import { SuggestionCard } from '@/components/ai/SuggestionCard'
+import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
 
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 
@@ -52,12 +53,6 @@ type AISuggestion = {
   text: string
   length: number
   brandValidation?: BrandValidationResult
-}
-
-const toTranslateLanguageName = (language: string): string => {
-  if (language === 'en') return 'English'
-  if (language === 'es') return 'Spanish'
-  return 'English'
 }
 
 export function AIReplyDialog({ 
@@ -142,22 +137,30 @@ export function AIReplyDialog({
 
   const translateReply = async () => {
     if (!replyText.trim()) return
-    
+    if (!selectedAccountId) {
+      setError('Selecciona una cuenta para usar IA')
+      return
+    }
+
     setIsTranslatingReply(true)
     try {
-      const targetLang = toTranslateLanguageName(language)
-      const res = await fetch('/api/ai/translate', {
+      const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: replyText,
-          targetLanguage: targetLang,
-        }),
+        body: JSON.stringify(buildAssistantRequest({
+          mode: 'translate',
+          draft: replyText,
+          targetLanguage: language,
+          accountId: selectedAccountId,
+          isPro: false,
+        })),
       })
       const data = await res.json()
-      if (data.translation) {
-        setReplyText(data.translation)
+      if (!res.ok) {
+        throw new Error(getAssistantErrorMessage(data, 'Error al traducir'))
       }
+      const nextTranslation = (data?.suggestions?.[0]?.text as string | undefined)?.trim()
+      if (nextTranslation) setReplyText(nextTranslation)
     } catch (error) {
       console.error('Translation error:', error)
     } finally {

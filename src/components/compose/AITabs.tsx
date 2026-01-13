@@ -147,6 +147,11 @@ export function AITabs({
       return
     }
 
+    if (activeTab === 'translate' && !enabledLanguages.includes(targetLanguage)) {
+      setError('Selected language is not available')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     setSuggestions([])

@@ -205,18 +205,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar coherencia de marca para cada sugerencia
+    // Validar coherencia de marca para cada sugerencia (con cache)
+    const validationCache = new Map<string, Awaited<ReturnType<typeof brandValidator.validate>>>()
+    const shouldValidateBrand = Boolean(accountContext?.brandVoice)
     const suggestionObjects = await Promise.all(
       suggestions.map(async (text: string) => {
         let brandValidation = undefined
 
-        // Validar solo si hay contexto de marca (Brand Mode ON)
-        if (accountContext?.brandVoice) {
+        if (shouldValidateBrand) {
           try {
-            brandValidation = await brandValidator.validate(text, profile, accountContext)
+            const cached = validationCache.get(text)
+            if (cached) {
+              brandValidation = cached
+            } else {
+              brandValidation = await brandValidator.validate(text, profile, accountContext)
+              if (brandValidation) validationCache.set(text, brandValidation)
+            }
           } catch (validationError) {
             console.warn('[AI Assistant] Brand validation error, skipping:', validationError)
-            // Si falla la validación, continuar sin ella
           }
         }
 

@@ -17,7 +17,9 @@ export type { SupportedTargetLanguage }
 // Initialize Google AI with the stable SDK
 // Configuración según entorno
 const AI_CONFIG = {
-  model: 'gemini-2.0-flash', // Modelo de alto rendimiento (2k RPM en plan pago)
+  model: 'gemini-3-flash-preview', // Modelo estándar de alta velocidad
+  proModel: 'gemini-3-pro-preview', // Modelo de alto razonamiento para Pro/Análisis
+  translationModel: 'gemini-3-flash-preview', // Modelo especializado en traducción
   analysisPromptSize: env.NODE_ENV === 'production' ? 50 : 30, // Aumentado para mejor análisis
   cacheProfileDays: env.NODE_ENV === 'production' ? 7 : 30,
 }
@@ -87,6 +89,8 @@ export class CastorAI {
   }
 
   private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
+  private proModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
+  private tModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
   private accountContextCache = new Map<string, { value: AccountContext | null; expiresAt: number }>()
 
   private getModel() {
@@ -97,12 +101,46 @@ export class CastorAI {
     return this.model
   }
 
+  private getProModel() {
+    if (this.proModel) return this.proModel
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    this.proModel = genAI.getGenerativeModel({ model: AI_CONFIG.proModel })
+    return this.proModel
+  }
+
+  private getTranslationModel() {
+    if (this.tModel) return this.tModel
+    const { GEMINI_API_KEY } = requireGeminiEnv()
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
+    this.tModel = genAI.getGenerativeModel({
+      model: AI_CONFIG.translationModel,
+      generationConfig: {
+        temperature: 0.1,
+        topP: 0.9,
+        maxOutputTokens: 8192,
+        responseMimeType: 'text/plain',
+      },
+      systemInstruction: 'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
+    })
+    return this.tModel
+  }
+
   /**
    * Genera contenido usando el modelo configurado
    */
-  private async generate(prompt: string): Promise<string> {
+  private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean }): Promise<string> {
     try {
-      const model = this.getModel()
+      let model
+      if (options?.isTranslation) {
+        model = this.getTranslationModel()
+      } else if (options?.usePro) {
+        model = this.getProModel()
+      } else {
+        model = this.getModel()
+      }
+
       const result = await model.generateContent(prompt)
       const response = await result.response
       return response.text().trim()
@@ -180,7 +218,7 @@ Respond ONLY with valid JSON (no markdown):
   "contentPatterns": "describe dominant content patterns (e.g., 'shares insights with examples', 'asks questions', 'uses humor')"
 }`
 
-      const resultText = await this.generate(analysisPrompt)
+      const resultText = await this.generate(analysisPrompt, { usePro: true })
       const analysisText = resultText
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
@@ -293,7 +331,8 @@ Respond ONLY with valid JSON (no markdown):
     mode: AIMode,
     profile: StyleProfile,
     context: SuggestionContext,
-    maxChars: number = 320
+    maxChars: number = 320,
+    isProUser: boolean = false
   ): Promise<string[]> {
     const systemContext = this.buildSystemContext(profile, maxChars, context.accountContext)
     let userPrompt: string
@@ -313,7 +352,10 @@ Respond ONLY with valid JSON (no markdown):
     }
 
     const fullPrompt = `${systemContext}\n\n---\n\n${userPrompt}`
-    const resultText = await this.generate(fullPrompt)
+    const resultText = await this.generate(fullPrompt, {
+      isTranslation: mode === 'translate',
+      usePro: isProUser || mode === 'improve' // Force Pro for improvements or Pro users
+    })
     return this.parseSuggestions(resultText, maxChars)
   }
 
@@ -323,11 +365,11 @@ Respond ONLY with valid JSON (no markdown):
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
-    const prompt = `Translate this text to ${langName}. Respond ONLY with the translation, no explanations:
+    const prompt = `Translate this text to ${langName}:
 
 "${text}"`
 
-    const resultText = await this.generate(prompt)
+    const resultText = await this.generate(prompt, { isTranslation: true })
     return resultText.trim().replace(/^["']|["']$/g, '')
   }
 
@@ -472,17 +514,6 @@ Return ONLY valid JSON (no markdown, no extra text):
     const suggestionsRaw = parsed?.suggestions
 
     if (!Array.isArray(suggestionsRaw)) {
-      // Fallback: treat response as plain text and split into lines/paragraphs
-      const fallback = cleaned
-        .split(/\n+/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0 && line.length <= maxChars)
-        .slice(0, 3)
-
-      if (fallback.length > 0) {
-        return fallback
-      }
-
       throw new Error('Invalid AI response: expected suggestions array')
     }
 

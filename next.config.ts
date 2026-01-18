@@ -119,6 +119,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'warpcast.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'tba-mobile.mypinata.cloud',
+      },
     ],
   },
 }

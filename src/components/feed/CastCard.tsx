@@ -7,15 +7,15 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTickerDrawer } from '@/context/TickerDrawerContext'
+import { CastHeader } from './cast-card/CastHeader'
+import { CastActions } from './cast-card/CastActions'
+import { CastContent } from './cast-card/CastContent'
+import { CastReplies } from './cast-card/CastReplies'
 import {
-  CastHeader,
-  CastActions,
-  CastContent,
-  CastReplies,
   BLOCKED_FIDS_STORAGE_KEY,
   MUTED_FIDS_STORAGE_KEY,
   MAX_TEXT_LENGTH,
-} from './cast-card'
+} from './cast-card/constants'
 import { readFidListFromStorage, writeFidListToStorage } from './cast-card/utils'
 import type { Cast, CastCardProps } from './cast-card/types'
 

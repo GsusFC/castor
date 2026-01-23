@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { requireGeminiEnv } from '@/lib/env'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 import { AccountContext, StyleProfile } from './castor-ai'
 
 /**
@@ -23,25 +23,16 @@ export interface BrandValidationResult {
 }
 
 export class BrandValidator {
-  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
-
-  private getModel() {
-    if (this.model) return this.model
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-    this.model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    return this.model
-  }
-
   /**
    * Genera contenido usando el modelo
    */
   private async generate(prompt: string): Promise<string> {
     try {
-      const model = this.getModel()
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      return response.text().trim()
+      return await generateGeminiText({
+        modelId: GEMINI_MODELS.brandValidation,
+        fallbackModelId: GEMINI_MODELS.fallback,
+        prompt,
+      })
     } catch (error) {
       console.error('Gemini validation error:', error)
       throw error

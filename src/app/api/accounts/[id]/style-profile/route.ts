@@ -3,9 +3,10 @@ import { getSession } from '@/lib/auth'
 import { db, accounts, accountMembers, userStyleProfiles } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { requireGeminiEnv } from '@/lib/env'
 import { neynar } from '@/lib/farcaster/client'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 const CASTS_PER_PAGE = 100
 const MAX_PAGES = 10 // 1000 casts total
 const BATCH_SIZE = 100 // casts por batch para análisis
@@ -56,7 +57,7 @@ async function fetchAllCasts(fid: number, maxCasts: number = 1000): Promise<stri
 }
 
 // Función para analizar un batch de casts
-async function analyzeBatch(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, casts: string[], batchNum: number): Promise<string> {
+async function analyzeBatch(casts: string[], batchNum: number): Promise<string> {
   const prompt = `Analiza estos ${casts.length} posts de redes sociales (batch ${batchNum}). Resume en 2-3 oraciones:
 - Tono predominante
 - Temas principales
@@ -70,8 +71,11 @@ ${casts.slice(0, 50).map((t, i) => `${i + 1}. "${t.substring(0, 200)}"`).join('\
 Responde en español, máximo 100 palabras.`
 
   try {
-    const result = await model.generateContent(prompt)
-    return result.response.text().trim()
+    return await generateGeminiText({
+      modelId: GEMINI_MODELS.styleProfile,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+    })
   } catch (error) {
     console.error(`[Style Profile] Error analyzing batch ${batchNum}:`, error)
     return ''
@@ -79,7 +83,7 @@ Responde en español, máximo 100 palabras.`
 }
 
 // Función para sintetizar todos los análisis en Brand Voice completo
-async function synthesizeBrandVoice(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, batchAnalyses: string[], totalCasts: number): Promise<{
+async function synthesizeBrandVoice(batchAnalyses: string[], totalCasts: number): Promise<{
   brandVoice: string
   tone: string
   topics: string[]
@@ -120,8 +124,12 @@ Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (
   "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"]
 }`
 
-  const result = await model.generateContent(prompt)
-  const text = result.response.text().trim()
+  const text = await generateGeminiText({
+    modelId: GEMINI_MODELS.styleProfile,
+    fallbackModelId: GEMINI_MODELS.fallback,
+    prompt,
+  })
+    .trim()
     .replace(/```json\n?/g, '')
     .replace(/```\n?/g, '')
     .trim()
@@ -131,8 +139,7 @@ Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    requireGeminiEnv()
 
     const session = await getSession()
     if (!session) {
@@ -177,7 +184,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // 2. Analizar por batches
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
     const batchAnalyses: string[] = []
     const numBatches = Math.ceil(allCasts.length / BATCH_SIZE)
 
@@ -185,7 +191,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     for (let i = 0; i < Math.min(numBatches, 10); i++) {
       const batchCasts = allCasts.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE)
-      const analysis = await analyzeBatch(model, batchCasts, i + 1)
+      const analysis = await analyzeBatch(batchCasts, i + 1)
       if (analysis) {
         batchAnalyses.push(analysis)
       }
@@ -195,7 +201,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // 3. Sintetizar Brand Voice final
     console.log('[Style Profile] Synthesizing brand voice...')
-    const brandVoiceData = await synthesizeBrandVoice(model, batchAnalyses, allCasts.length)
+    const brandVoiceData = await synthesizeBrandVoice(batchAnalyses, allCasts.length)
 
     // 4. Guardar en DB
     const existingProfile = await db.query.userStyleProfiles.findFirst({

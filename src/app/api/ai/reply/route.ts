@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 import { canAccess, getSession } from '@/lib/auth'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
@@ -20,8 +21,7 @@ const toneDescriptions: Record<Tone, string> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    requireGeminiEnv()
 
     const session = await getSession()
     if (!session) {
@@ -89,11 +89,11 @@ Devuelve SOLO un JSON con el siguiente formato (sin markdown, sin explicaciones)
   "detectedTone": "tono del autor original"
 }`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const generation = await model.generateContent(prompt)
-    const response = await generation.response
-
-    const responseText = response.text().trim() || '{}'
+    const responseText = await generateGeminiText({
+      modelId: GEMINI_MODELS.reply,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+    }) || '{}'
 
     // Limpiar posibles marcadores de código
     const cleanJson = responseText

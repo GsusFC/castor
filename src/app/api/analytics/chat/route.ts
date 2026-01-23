@@ -3,8 +3,9 @@ import { canAccess, getSession } from '@/lib/auth'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { requireGeminiEnv } from '@/lib/env'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -44,8 +45,7 @@ const buildBrandContext = (accountContext: Awaited<ReturnType<typeof castorAI.ge
  */
 export async function POST(request: NextRequest) {
   try {
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    requireGeminiEnv()
 
     const session = await getSession()
     if (!session) {
@@ -154,11 +154,11 @@ Sigue la voz de marca y sus reglas si están disponibles, pero prioriza precisi�
 Si no tienes suficiente información para responder algo específico, dilo claramente.
 Responde en español.`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-
-    const answer = response.text().trim() || 'No pude generar una respuesta.'
+    const answer = (await generateGeminiText({
+      modelId: GEMINI_MODELS.analytics,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+    })) || 'No pude generar una respuesta.'
 
     return NextResponse.json({ answer })
   } catch (error) {

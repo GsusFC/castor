@@ -10,6 +10,8 @@ import {
   type SupportedTargetLanguage,
 } from './languages'
 import { env, requireGeminiEnv, requireNeynarEnv } from '@/lib/env'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 
 export { assertSupportedTargetLanguage, toEnglishLanguageName, toSpanishLanguageName }
 export type { SupportedTargetLanguage }
@@ -17,9 +19,9 @@ export type { SupportedTargetLanguage }
 // Initialize Google AI with the stable SDK
 // Configuración según entorno
 const AI_CONFIG = {
-  model: 'gemini-3-flash-preview', // Modelo estándar de alta velocidad
-  proModel: 'gemini-3-pro-preview', // Modelo de alto razonamiento para Pro/Análisis
-  translationModel: 'gemini-3-flash-preview', // Modelo especializado en traducción
+  model: GEMINI_MODELS.default, // Modelo estándar de alta velocidad
+  proModel: GEMINI_MODELS.pro, // Modelo de alto razonamiento para Pro/Análisis
+  translationModel: GEMINI_MODELS.translation, // Modelo especializado en traducción
   analysisPromptSize: env.NODE_ENV === 'production' ? 50 : 30, // Aumentado para mejor análisis
   cacheProfileDays: env.NODE_ENV === 'production' ? 7 : 30,
 }
@@ -90,7 +92,6 @@ export class CastorAI {
 
   private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
   private proModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
-  private tModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
   private accountContextCache = new Map<string, { value: AccountContext | null; expiresAt: number }>()
 
   private getModel() {
@@ -109,41 +110,36 @@ export class CastorAI {
     return this.proModel
   }
 
-  private getTranslationModel() {
-    if (this.tModel) return this.tModel
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-
-    this.tModel = genAI.getGenerativeModel({
-      model: AI_CONFIG.translationModel,
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.9,
-        maxOutputTokens: 8192,
-        responseMimeType: 'text/plain',
-      },
-      systemInstruction: 'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
-    })
-    return this.tModel
-  }
-
   /**
    * Genera contenido usando el modelo configurado
    */
   private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean }): Promise<string> {
     try {
-      let model
       if (options?.isTranslation) {
-        model = this.getTranslationModel()
+        return await generateGeminiText({
+          modelId: AI_CONFIG.translationModel,
+          fallbackModelId: GEMINI_MODELS.fallback,
+          prompt,
+          generationConfig: {
+            temperature: 0.1,
+            topP: 0.9,
+            maxOutputTokens: 8192,
+            responseMimeType: 'text/plain',
+          },
+          systemInstruction:
+            'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
+        })
       } else if (options?.usePro) {
-        model = this.getProModel()
+        const model = this.getProModel()
+        const result = await model.generateContent(prompt)
+        const response = await result.response
+        return response.text().trim()
       } else {
-        model = this.getModel()
+        const model = this.getModel()
+        const result = await model.generateContent(prompt)
+        const response = await result.response
+        return response.text().trim()
       }
-
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      return response.text().trim()
     } catch (error) {
       console.error('Gemini generation error:', error)
       throw error

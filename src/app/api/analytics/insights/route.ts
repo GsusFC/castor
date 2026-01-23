@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { db, accounts, castAnalytics, analyticsInsightsCache, accountMembers } from '@/lib/db'
 import { eq, or, and, desc, inArray, gt } from 'drizzle-orm'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { nanoid } from 'nanoid'
 import { requireGeminiEnv } from '@/lib/env'
+import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
+import { generateGeminiText } from '@/lib/ai/gemini-helpers'
 
 // Cache válido por 24 horas
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000
@@ -16,8 +17,7 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000
  */
 export async function GET(request: NextRequest) {
   try {
-    const { GEMINI_API_KEY } = requireGeminiEnv()
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    requireGeminiEnv()
 
     const session = await getSession()
     if (!session) {
@@ -162,11 +162,11 @@ Dame un JSON con este formato exacto (sin markdown):
   "summary": "Resumen de 1-2 frases sobre el rendimiento general"
 }`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-
-    const responseText = response.text().trim() || '{}'
+    const responseText = await generateGeminiText({
+      modelId: GEMINI_MODELS.analytics,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+    }) || '{}'
     const cleanJson = responseText
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')

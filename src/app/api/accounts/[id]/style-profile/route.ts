@@ -124,11 +124,13 @@ Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (
   "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"]
 }`
 
-  const text = await generateGeminiText({
+  const responseText = await generateGeminiText({
     modelId: GEMINI_MODELS.styleProfile,
     fallbackModelId: GEMINI_MODELS.fallback,
     prompt,
   })
+
+  const text = responseText
     .trim()
     .replace(/```json\n?/g, '')
     .replace(/```\n?/g, '')

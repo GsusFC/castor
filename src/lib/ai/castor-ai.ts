@@ -361,11 +361,25 @@ Respond ONLY with valid JSON (no markdown):
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
+    const estimatedTokens = Math.ceil(text.length / 4)
+    const maxOutputTokens = Math.min(512, Math.max(128, estimatedTokens + 64))
     const prompt = `Translate this text to ${langName}:
 
 "${text}"`
 
-    const resultText = await this.generate(prompt, { isTranslation: true })
+    const resultText = await generateGeminiText({
+      modelId: AI_CONFIG.translationModel,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+      generationConfig: {
+        temperature: 0.1,
+        topP: 0.9,
+        maxOutputTokens,
+        responseMimeType: 'text/plain',
+      },
+      systemInstruction:
+        'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
+    })
     return resultText.trim().replace(/^["']|["']$/g, '')
   }
 

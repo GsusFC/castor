@@ -51,6 +51,7 @@ export const publishCastSchema = z.object({
   embeds: z.array(z.object({
     url: z.preprocess((v) => typeof v === 'string' ? normalizeHttpUrl(v) : v, z.string().url('Invalid embed URL')),
   })).max(MAX_EMBEDS_PRO, 'Maximum embeds exceeded').optional(),
+  wasGeneratedByAI: z.boolean().optional(),
 }).refine(
   (data) => data.content.trim().length > 0 || (data.embeds && data.embeds.length > 0),
   { message: 'content or embeds is required', path: ['content'] }

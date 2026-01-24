@@ -125,17 +125,23 @@ export async function POST(request: NextRequest) {
 
     // Obtener contexto de la cuenta si se proporciona accountId
     let accountContext: SuggestionContext['accountContext']
+    let isProValidated = isPro // Fallback al valor enviado pero preferiremos el de DB
+
     if (accountId) {
       const account = await db.query.accounts.findFirst({
         where: eq(accounts.id, accountId),
         columns: {
           ownerId: true,
+          isPremium: true,
         },
       })
 
       if (!account) {
         return NextResponse.json({ error: 'Account not found' }, { status: 404 })
       }
+
+      // Validar Pro status desde DB
+      isProValidated = account.isPremium
 
       const membership = await db.query.accountMembers.findFirst({
         where: and(
@@ -178,7 +184,7 @@ export async function POST(request: NextRequest) {
     console.log('[AI Assistant] Generating suggestions for mode:', mode)
     let suggestions
     try {
-      suggestions = await castorAI.generateSuggestions(mode, profile, context, maxChars)
+      suggestions = await castorAI.generateSuggestions(mode, profile, context, maxChars, isProValidated)
       console.log('[AI Assistant] Generated', suggestions.length, 'suggestions')
     } catch (genError) {
       console.error('[AI Assistant] Generation error:', genError)

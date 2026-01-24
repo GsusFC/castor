@@ -129,6 +129,35 @@ describe('CastorAI language prompts', () => {
     expect(prompt).toContain('Return ONLY valid JSON')
   })
 
+  it('uses Japanese in translate prompt when targetLanguage=ja', async () => {
+    await castorAI.generateSuggestions(
+      'translate',
+      {
+        id: 'p1',
+        userId: 'u1',
+        fid: 1,
+        tone: 'casual',
+        avgLength: 150,
+        commonPhrases: [],
+        topics: [],
+        emojiUsage: 'light',
+        languagePreference: 'en',
+        sampleCasts: [],
+        analyzedAt: new Date(),
+      },
+      {
+        currentDraft: 'hello',
+        targetLanguage: 'ja',
+      },
+      320
+    )
+
+    const prompt = getLastPrompt()
+    expect(prompt).toBeTypeOf('string')
+    expect(prompt).toContain('Translate this text to Japanese')
+    expect(prompt).toContain('Return ONLY valid JSON')
+  })
+
   it('defaults write language to profile preference when targetLanguage is omitted (es)', async () => {
     await castorAI.generateSuggestions(
       'write',

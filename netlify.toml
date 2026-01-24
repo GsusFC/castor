@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = ".next"
 
+[functions."analyze-cast-performance"]
+  schedule = "@hourly"
+
 [build.environment]
   NODE_VERSION = "20"
 

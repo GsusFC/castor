@@ -197,8 +197,8 @@ export const NAV = {
 
     // Individual pill styling
     pill: {
-      base: 'px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all flex items-center justify-center',
-      active: 'bg-background text-foreground shadow-md border border-border/30',
+      base: 'px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all flex items-center justify-center relative',
+      active: 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)]',
       inactive: 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
     },
 

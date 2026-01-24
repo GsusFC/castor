@@ -24,6 +24,7 @@ import {
 
 import { useSelectedAccount } from '@/context/SelectedAccountContext'
 import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
+import { AI_LANGUAGE_OPTIONS } from '@/lib/ai/languages'
 
 type AIMode = 'write' | 'improve' | 'translate'
 
@@ -59,13 +60,7 @@ const TONES = [
   { value: 'controversial', label: 'Controversial' },
 ]
 
-const LANGUAGES = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'pt', label: 'Portuguese' },
-]
+const LANGUAGES = AI_LANGUAGE_OPTIONS
 
 export function AIAssistant({
   open,
@@ -363,11 +358,11 @@ export function AIAssistant({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
-                  Translate to: {LANGUAGES.find(l => l.value === targetLanguage)?.label}
+                  Translate to: {LANGUAGES.find(l => l.value === targetLanguage)?.label.split(' (')[0]}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="max-h-64 overflow-y-auto">
                 {LANGUAGES.map((lang) => (
                   <DropdownMenuItem
                     key={lang.value}

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getSession, canModify } from '@/lib/auth'
-import { db, accounts, castAnalytics, accountMembers } from '@/lib/db'
+import { db, accounts, castAnalytics, accountMembers, aiGeneratedCasts } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster/client'
 import { success, ApiErrors } from '@/lib/api/response'
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return validation.error
     }
 
-    const { accountId, content, channelId, embeds, parentHash, idempotencyKey } = validation.data
+    const { accountId, content, channelId, embeds, parentHash, idempotencyKey, wasGeneratedByAI } = validation.data
 
     const safeContent = content ?? ''
 
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
 
       // Registrar en analytics (no bloquea la respuesta)
       if (result.hash) {
+        // Track for standard analytics
         db.insert(castAnalytics).values({
           id: crypto.randomUUID(),
           castHash: result.hash,
@@ -130,6 +131,15 @@ export async function POST(request: NextRequest) {
           replies: 0,
           publishedAt: new Date(),
         }).catch(err => console.error('[Analytics] Track error:', err))
+
+        // Track for AI feedback loop if applicable
+        if (wasGeneratedByAI) {
+          db.insert(aiGeneratedCasts).values({
+            id: crypto.randomUUID(),
+            userId: session.userId,
+            castHash: result.hash,
+          }).catch(err => console.error('[AI Feedback] Track error:', err))
+        }
       }
 
       const payload = { hash: result.hash, cast: result.cast }

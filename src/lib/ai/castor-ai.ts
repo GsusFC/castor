@@ -54,6 +54,7 @@ export interface StyleProfile {
   languagePreference: 'en' | 'es' | 'mixed'
   sampleCasts: string[]
   analyzedAt: Date
+  engagementInsights?: { topic: string; scores: number[] }[]
 }
 
 export interface AccountContext {
@@ -458,6 +459,22 @@ USER PROFILE:
 - Emoji usage: ${profile.emojiUsage}
 - Preferred language: ${profile.languagePreference}`
 
+    // Add engagement insights if available
+    if (profile.engagementInsights && profile.engagementInsights.length > 0) {
+      const sortedInsights = profile.engagementInsights
+        .map(insight => {
+          const avgScore = insight.scores.reduce((a, b) => a + b, 0) / insight.scores.length
+          return { topic: insight.topic, avgScore: Math.round(avgScore) }
+        })
+        .sort((a, b) => b.avgScore - a.avgScore)
+        .slice(0, 3) // Top 3 topics
+
+      if (sortedInsights.length > 0) {
+        context += `\n\nUSER'S SUCCESSFUL CONTENT (Topics that get high engagement):
+${sortedInsights.map(i => `- ${i.topic} (Engagement Score: ${i.avgScore})`).join('\n')}`
+      }
+    }
+
     // Add account context if exists
     if (accountContext) {
       if (accountContext.brandVoice) {
@@ -647,6 +664,7 @@ Return ONLY valid JSON (no markdown, no extra text):
       languagePreference: dbProfile.languagePreference as StyleProfile['languagePreference'],
       sampleCasts: JSON.parse(dbProfile.sampleCasts || '[]'),
       analyzedAt: dbProfile.analyzedAt,
+      engagementInsights: dbProfile.engagementInsights ? JSON.parse(dbProfile.engagementInsights) : [],
     }
   }
 }

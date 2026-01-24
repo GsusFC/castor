@@ -1,9 +1,27 @@
 'use client'
 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import Image from 'next/image'
 import { Virtuoso } from 'react-virtuoso'
 import { CastCard } from '@/components/feed/CastCard'
@@ -14,6 +32,7 @@ import { ConversationView } from '@/components/feed/ConversationView'
 import { ProfileView } from '@/components/profile/ProfileView'
 import type { ReplyToCast } from '@/components/compose/types'
 import { useFeedNavigation } from '@/hooks/useFeedNavigation'
+import { usePinnedChannels } from '@/hooks/usePinnedChannels'
 import type { Cast } from '@/components/feed/cast-card'
 import {
   MUTED_FIDS_STORAGE_KEY,
@@ -21,16 +40,10 @@ import {
   MODERATION_UPDATED_EVENT,
   readFidListFromStorage,
 } from '@/components/feed/cast-card'
-
-// Lazy load ComposeModal (561 lines, only needed when composing)
-const ComposeModal = dynamic(
-  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
-)
 import { cn } from '@/lib/utils'
 import { NAV } from '@/lib/spacing-system'
-import { Loader2, User } from 'lucide-react'
+import { Loader2, User, Hash } from 'lucide-react'
 import { toast } from 'sonner'
-import { useQueryClient } from '@tanstack/react-query'
 
 interface SelectedChannel {
   id: string
@@ -51,6 +64,77 @@ type MeResponse = {
   manageableFids?: number[]
 }
 
+// Lazy load ComposeModal
+const ComposeModal = dynamic(
+  () => import('@/components/compose/ComposeModal').then(mod => ({ default: mod.ComposeModal }))
+)
+
+interface SortableChannelTabProps {
+  channel: { id: string; name: string; image_url?: string }
+  isSelected: boolean
+  onClick: () => void
+  onMouseEnter: () => void
+}
+
+function SortableChannelTab({ channel, isSelected, onClick, onMouseEnter }: SortableChannelTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: channel.id })
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        // Prevent click if we're dragging
+        if (transform && (Math.abs(transform.x) > 5 || Math.abs(transform.y) > 5)) {
+          return
+        }
+        onClick()
+      }}
+      onMouseEnter={onMouseEnter}
+      className={cn(
+        "relative flex-none text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 cursor-grab active:cursor-grabbing touch-none",
+        NAV.PILL_TABS.pill.base,
+        isSelected
+          ? NAV.PILL_TABS.pill.active
+          : NAV.PILL_TABS.pill.inactive
+      )}
+    >
+      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-md overflow-hidden bg-muted/40 shrink-0 flex items-center justify-center pointer-events-none">
+        {channel.image_url ? (
+          <Image
+            src={channel.image_url}
+            alt=""
+            width={20}
+            height={20}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <Hash className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-muted-foreground" />
+        )}
+      </div>
+      <span className="truncate max-w-[80px] sm:max-w-[120px] pointer-events-none">
+        {channel.name}
+      </span>
+    </button>
+  )
+}
+
 function FeedPageInner() {
   const router = useRouter()
   const {
@@ -61,6 +145,7 @@ function FeedPageInner() {
     setTab,
     openCast,
     openUser,
+    openChannel,
     closeOverlay,
     clearChannel,
   } = useFeedNavigation()
@@ -72,6 +157,32 @@ function FeedPageInner() {
   const [miniApp, setMiniApp] = useState<{ url: string; title: string } | null>(null)
   const [profile, setProfile] = useState<UserProfile>({})
   const [selectedChannel, setSelectedChannel] = useState<SelectedChannel | null>(null)
+
+  const { pinnedChannels, reorder } = usePinnedChannels()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = pinnedChannels.findIndex((c) => c.id === active.id)
+      const newIndex = pinnedChannels.findIndex((c) => c.id === over.id)
+      const newOrder = arrayMove(pinnedChannels, oldIndex, newIndex)
+      reorder(newOrder)
+    }
+  }
+
+  // ... rest of the component state/effects ...
 
   const [moderationState, setModerationState] = useState<{
     mutedFids: Set<number>
@@ -350,7 +461,14 @@ function FeedPageInner() {
                 </button>
 
                 {/* Feed tabs */}
-                <div className={cn("flex-1 flex items-center", NAV.PILL_TABS.containerBg, NAV.PILL_TABS.containerPadding, NAV.PILL_TABS.gap)}>
+                <div
+                  className={cn(
+                    "flex-1 flex items-center flex-nowrap overflow-x-auto no-scrollbar min-w-0",
+                    NAV.PILL_TABS.containerBg,
+                    NAV.PILL_TABS.containerPadding,
+                    NAV.PILL_TABS.gap
+                  )}
+                >
                   {([
                     { id: 'home', label: 'Home' },
                     { id: 'following', label: 'Following' },
@@ -398,7 +516,7 @@ function FeedPageInner() {
                         })
                       }}
                       className={cn(
-                        "relative flex-1 text-xs sm:text-sm",
+                        "relative flex-none sm:flex-1 text-xs sm:text-sm",
                         NAV.PILL_TABS.pill.base,
                         activeTab === tab.id
                           ? NAV.PILL_TABS.pill.active
@@ -408,19 +526,59 @@ function FeedPageInner() {
                       {tab.label}
                     </button>
                   ))}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={pinnedChannels.map(c => c.id)}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      {pinnedChannels.slice(0, 5).map((channel) => (
+                        <SortableChannelTab
+                          key={`pinned-${channel.id}`}
+                          channel={channel}
+                          isSelected={selectedChannelId === channel.id}
+                          onClick={() => openChannel(channel.id)}
+                          onMouseEnter={() => {
+                            if (selectedChannelId === channel.id) return
+                            queryClient.prefetchInfiniteQuery({
+                              queryKey: ['feed', 'channel', userFid, channel.id] as const,
+                              queryFn: async ({ queryKey }) => {
+                                const [_key, type, _fid, channelId] = queryKey
+                                const payload: Record<string, unknown> = {
+                                  type,
+                                  limit: 20,
+                                  channel: channelId,
+                                }
+                                const r = await fetch('/api/feed', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify(payload),
+                                })
+                                return r.json()
+                              },
+                              getNextPageParam: (lastPage: any) => {
+                                const cursor = lastPage?.next?.cursor
+                                if (typeof cursor !== 'string') return undefined
+                                const trimmed = cursor.trim()
+                                if (trimmed.length === 0) return undefined
+                                return trimmed
+                              },
+                              initialPageParam: undefined as string | undefined,
+                              staleTime: 30 * 1000,
+                            })
+                          }}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
 
-                {/* Canal seleccionado */}
-                {selectedChannel && (
-                  <button
-                    onClick={() => {
-                      clearChannel()
-                    }}
-                    className={cn(NAV.PILL_TABS.pill.base, "text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90 ml-1")}
-                  >
-                    #{selectedChannel.name} ✕
-                  </button>
-                )}
+
               </div>
             </div>
 

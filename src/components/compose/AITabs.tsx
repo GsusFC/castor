@@ -14,13 +14,25 @@ import {
   Check,
   X,
 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AI_LANGUAGE_OPTIONS, type SupportedTargetLanguage } from '@/lib/ai/languages'
+
+const BeaverIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 2a10 10 0 0 0-10 10c0 4.42 2.87 8.17 6.84 9.39.5.09.68-.22.68-.48 0-.24-.01-.86-.01-1.69-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1.01.07 1.54 1.04 1.54 1.04.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.54 9.54 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
+    <circle cx="9" cy="11" r="0.5" fill="currentColor" />
+    <circle cx="15" cy="11" r="0.5" fill="currentColor" />
+    <path d="M10 14h4l-1 1-1-1h-2" fill="currentColor" />
+  </svg>
+)
 import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
 import { NAV } from '@/lib/spacing-system'
 import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
@@ -376,7 +388,16 @@ export function AITabs({
 
             <div className="flex-1" />
 
-            <Button onClick={generateSuggestions} disabled={isLoading} variant="outline" size="sm" className="h-8 gap-1.5">
+            <Button
+              onClick={generateSuggestions}
+              disabled={isLoading}
+              variant={isPro || activeTab === 'improve' ? 'default' : 'outline'}
+              size="sm"
+              className={cn(
+                "h-8 gap-1.5",
+                (isPro || activeTab === 'improve') && "bg-gradient-to-r from-primary to-primary/80 border-none shadow-sm"
+              )}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -389,10 +410,20 @@ export function AITabs({
                 </>
               ) : (
                 <>
-                  {activeTab === 'translate' && <Languages className="w-4 h-4" />}
-                  {activeTab === 'propose' && <FileEdit className="w-4 h-4" />}
-                  {activeTab === 'improve' && <Wand2 className="w-4 h-4" />}
-                  {activeTab === 'translate' ? 'Translate' : activeTab === 'propose' ? 'Propose' : 'Improve'}
+                  {(isPro || activeTab === 'improve') ? (
+                    <BeaverIcon className="w-4 h-4" />
+                  ) : (
+                    <>
+                      {activeTab === 'translate' && <Languages className="w-4 h-4" />}
+                      {activeTab === 'propose' && <FileEdit className="w-4 h-4" />}
+                    </>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    {activeTab === 'translate' ? 'Translate' : activeTab === 'propose' ? 'Propose' : 'Improve'}
+                    {(isPro || activeTab === 'improve') && (
+                      <span className="text-[10px] font-bold px-1 bg-white/20 rounded uppercase tracking-tighter">Pro</span>
+                    )}
+                  </span>
                 </>
               )}
             </Button>

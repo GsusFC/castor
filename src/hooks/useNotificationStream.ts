@@ -142,7 +142,11 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
 
         if (data.type === 'connected') {
           reconnectAttemptRef.current = 0
-          fastFailuresRef.current = 0 // Reset fallos rápidos
+          // Solo resetear contador de fallos rápidos si la conexión es estable (> 10s)
+          const connectionDuration = Date.now() - connectionStartTimeRef.current
+          if (connectionDuration >= FAST_FAILURE_WINDOW) {
+            fastFailuresRef.current = 0
+          }
           console.log('[Notifications] SSE connected')
           return
         }

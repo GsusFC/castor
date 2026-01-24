@@ -361,8 +361,24 @@ Respond ONLY with valid JSON (no markdown):
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
+    const EXPANSION_FACTORS: Record<string, number> = {
+      es: 1.25,
+      fr: 1.15,
+      de: 1.1,
+      pt: 1.25,
+      it: 1.15,
+      ar: 1.35,
+      hi: 1.2,
+      ru: 1.1,
+      tr: 1.15,
+      vi: 1.1,
+      zh: 0.7,
+      ja: 0.8,
+      ko: 0.85,
+    }
+    const expansionFactor = EXPANSION_FACTORS[lang] ?? 1.2
     const estimatedTokens = Math.ceil(text.length / 4)
-    const maxOutputTokens = Math.min(512, Math.max(128, estimatedTokens + 64))
+    const maxOutputTokens = Math.min(2048, Math.max(256, Math.ceil(estimatedTokens * expansionFactor)))
     const basePrompt = `Translate this text to ${langName}:
 
 "${text}"`

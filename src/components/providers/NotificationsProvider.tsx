@@ -49,12 +49,16 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, [])
 
   const handleRealtimeNotification = useCallback((notification: any) => {
+    // Ignorar eventos de conexión
     if (notification.type === 'connected') return
 
+    // Invalidar queries para refrescar UI
     queryClient.invalidateQueries({ queryKey: ['notifications'] })
 
+    // No incrementar contador si estamos en la página de notificaciones
     if (pathname === '/notifications' || isOpen) return
 
+    // Incrementar contador de no leídas
     setUnreadCount((prev) => {
       const next = Math.min(prev + 1, 99)
       window.localStorage.setItem(NOTIFICATIONS_UNREAD_STORAGE_KEY, String(next))

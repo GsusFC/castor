@@ -363,24 +363,44 @@ Respond ONLY with valid JSON (no markdown):
     const langName = toEnglishLanguageName(lang)
     const estimatedTokens = Math.ceil(text.length / 4)
     const maxOutputTokens = Math.min(512, Math.max(128, estimatedTokens + 64))
-    const prompt = `Translate this text to ${langName}:
+    const basePrompt = `Translate this text to ${langName}:
 
 "${text}"`
 
-    const resultText = await generateGeminiText({
-      modelId: AI_CONFIG.translationModel,
-      fallbackModelId: GEMINI_MODELS.fallback,
-      prompt,
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.9,
-        maxOutputTokens,
-        responseMimeType: 'text/plain',
-      },
-      systemInstruction:
-        'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
-    })
-    return resultText.trim().replace(/^["']|["']$/g, '')
+    const systemInstruction =
+      'You are a professional translator engine. Return ONLY the translation. Do not summarize, shorten, paraphrase, or omit details. Preserve original formatting, punctuation, and line breaks. Keep similar sentence count and length.'
+
+    const generateOnce = async (prompt: string) =>
+      generateGeminiText({
+        modelId: AI_CONFIG.translationModel,
+        fallbackModelId: GEMINI_MODELS.fallback,
+        prompt,
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          maxOutputTokens,
+          responseMimeType: 'text/plain',
+        },
+        systemInstruction,
+      })
+
+    const sanitize = (value: string) => value.trim().replace(/^["']|["']$/g, '')
+
+    const wordCount = (value: string) => {
+      const tokens = value.trim().split(/\s+/).filter(Boolean)
+      return tokens.length
+    }
+
+    let resultText = sanitize(await generateOnce(basePrompt))
+    const sourceWords = Math.max(1, wordCount(text))
+    const targetWords = wordCount(resultText)
+
+    if (targetWords < Math.ceil(sourceWords * 0.6)) {
+      const strictPrompt = `${basePrompt}\n\nIMPORTANT: Do NOT summarize. Translate literally with context. Keep roughly the same length and sentence structure.`
+      resultText = sanitize(await generateOnce(strictPrompt))
+    }
+
+    return resultText
   }
 
   // === Private helpers ===

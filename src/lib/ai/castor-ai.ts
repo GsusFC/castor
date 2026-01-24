@@ -395,9 +395,35 @@ Respond ONLY with valid JSON (no markdown):
     const sourceWords = Math.max(1, wordCount(text))
     const targetWords = wordCount(resultText)
 
-    if (targetWords < Math.ceil(sourceWords * 0.6)) {
-      const strictPrompt = `${basePrompt}\n\nIMPORTANT: Do NOT summarize. Translate literally with context. Keep roughly the same length and sentence structure.`
+    if (targetWords < Math.ceil(sourceWords * 0.75)) {
+      const strictPrompt = `${basePrompt}
+
+IMPORTANT:
+- Do NOT summarize or shorten.
+- Translate literally with context.
+- Keep a similar length (around ${sourceWords} words).
+- Preserve sentence boundaries and clause order.`
       resultText = sanitize(await generateOnce(strictPrompt))
+    }
+
+    const stricterTargetWords = wordCount(resultText)
+    if (stricterTargetWords < Math.ceil(sourceWords * 0.75)) {
+      const sentences = text
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      if (sentences.length > 1 && sentences.length <= 6) {
+        const translatedSentences: string[] = []
+        for (const sentence of sentences) {
+          const sentencePrompt = `Translate this sentence to ${langName} literally.
+Do NOT summarize or shorten. Preserve punctuation.
+
+"${sentence}"`
+          translatedSentences.push(sanitize(await generateOnce(sentencePrompt)))
+        }
+        resultText = translatedSentences.join(' ')
+      }
     }
 
     return resultText

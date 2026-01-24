@@ -2,7 +2,7 @@ import { db, aiGeneratedCasts, userStyleProfiles } from '../../src/lib/db'
 import { neynar } from '../../src/lib/farcaster/client'
 import { castorAI } from '../../src/lib/ai/castor-ai'
 import { sql, eq, and, lte } from 'drizzle-orm'
-import type { UserStyleProfile } from '../../src/lib/ai/castor-ai'
+import type { StyleProfile } from '../../src/lib/ai/castor-ai'
 
 // This is a Netlify scheduled function
 export default async (req: Request) => {

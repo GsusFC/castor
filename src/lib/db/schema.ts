@@ -199,9 +199,13 @@ export const threads = sqliteTable(
 )
 
 // Relaciones
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   ownedAccounts: many(accounts),
   createdCasts: many(scheduledCasts),
+  styleProfile: one(userStyleProfiles, {
+    fields: [users.id],
+    references: [userStyleProfiles.userId],
+  }),
 }))
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({

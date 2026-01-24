@@ -39,10 +39,7 @@ export default async (req: Request) => {
 
     try {
       // 2. Obtener métricas de Neynar
-      const castDetailsResult = await neynar.fetchCast(cast.castHash, {
-        type: 'hash',
-        viewerFid: cast.user.fid.toString(),
-      })
+      const castDetailsResult = await neynar.cast.fetch({ hash: cast.castHash, viewerFid: cast.user.fid.toString() })
 
       if (!castDetailsResult?.cast) {
         throw new Error('Cast not found via Neynar')

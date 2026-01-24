@@ -560,3 +560,42 @@ export const analyticsInsightsCache = sqliteTable(
 
 export type AnalyticsInsightsCache = typeof analyticsInsightsCache.$inferSelect
 export type NewAnalyticsInsightsCache = typeof analyticsInsightsCache.$inferInsert
+
+/**
+ * Notificaciones de usuarios
+ */
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: text('id').primaryKey(),
+    recipientFid: integer('recipient_fid').notNull(),
+    type: text('type', {
+      enum: ['like', 'recast', 'reply', 'mention', 'follow']
+    }).notNull(),
+    castHash: text('cast_hash'),
+    actorFid: integer('actor_fid'),
+    actorUsername: text('actor_username'),
+    actorDisplayName: text('actor_display_name'),
+    actorPfpUrl: text('actor_pfp_url'),
+    content: text('content'),
+    read: integer('read', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    recipientIdx: index('notifications_recipient_idx').on(table.recipientFid),
+    createdIdx: index('notifications_created_idx').on(table.createdAt),
+    readIdx: index('notifications_read_idx').on(table.read),
+  })
+)
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.recipientFid],
+    references: [users.fid],
+  }),
+}))
+
+export type Notification = typeof notifications.$inferSelect
+export type NewNotification = typeof notifications.$inferInsert

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { nanoid } from 'nanoid'
 import { CastItem } from '@/components/compose/types'
 
 const createEmptyCast = (): CastItem => ({
-  id: Math.random().toString(36).slice(2),
+  id: nanoid(),
   content: '',
   media: [],
   links: [],

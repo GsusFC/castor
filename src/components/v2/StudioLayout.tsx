@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Calendar, List, Activity } from 'lucide-react'
+import { ErrorBoundary } from '@/components/v2/ErrorBoundary'
 
 type RightPanelTab = 'calendar' | 'queue' | 'activity'
 
@@ -31,7 +32,9 @@ export function StudioLayout({
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
       {/* Left Panel — Composer (~45%) */}
       <div className="w-[45%] min-w-[380px] max-w-[600px] border-r flex flex-col overflow-hidden">
-        {composerPanel}
+        <ErrorBoundary fallbackTitle="Composer failed to load">
+          {composerPanel}
+        </ErrorBoundary>
       </div>
 
       {/* Right Panel — Calendar / Queue / Activity (~55%) */}
@@ -61,9 +64,11 @@ export function StudioLayout({
 
         {/* Tab Content */}
         <div className="flex-1 overflow-auto px-4 pb-4">
-          {activeTab === 'calendar' && calendarPanel}
-          {activeTab === 'queue' && queuePanel}
-          {activeTab === 'activity' && activityPanel}
+          <ErrorBoundary fallbackTitle="Panel failed to load">
+            {activeTab === 'calendar' && calendarPanel}
+            {activeTab === 'queue' && queuePanel}
+            {activeTab === 'activity' && activityPanel}
+          </ErrorBoundary>
         </div>
       </div>
     </div>

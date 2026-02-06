@@ -3,69 +3,32 @@
 import { useMemo } from 'react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
+import { ComposerPanel } from '@/components/v2/ComposerPanel'
 import { CalendarView } from '@/components/calendar/CalendarView'
-import { Clock, FileText, Pen } from 'lucide-react'
-
-// Types matching serialized data from server
-interface Account {
-  id: string
-  fid: number
-  username: string
-  displayName: string | null
-  pfpUrl: string | null
-  signerStatus: string
-  type: string
-  isPremium: boolean
-  ownerId: string | null
-  owner: { id: string; username: string; displayName: string | null; pfpUrl: string | null } | null
-  hasBrandVoice: boolean
-}
-
-interface Cast {
-  id: string
-  content: string
-  status: string
-  scheduledAt: string
-  publishedAt: string | null
-  castHash: string | null
-  channelId: string | null
-  errorMessage: string | null
-  retryCount: number
-  accountId: string
-  account: { id: string; username: string; displayName: string | null; pfpUrl: string | null } | null
-  createdBy: { id: string; username: string; displayName: string | null; pfpUrl: string | null } | null
-  media: Array<{
-    id: string
-    url: string
-    type: 'image' | 'video'
-    thumbnailUrl: string | null
-  }>
-}
-
-interface Template {
-  id: string
-  accountId: string
-  name: string
-  content: string
-  channelId: string | null
-}
+import { SelectedAccountV2Provider } from '@/context/SelectedAccountV2Context'
+import { Clock, FileText } from 'lucide-react'
+import type {
+  SerializedAccount,
+  SerializedCast,
+  SerializedTemplate,
+  SessionUser,
+} from '@/types'
 
 interface StudioV2ClientProps {
-  user: {
-    userId: string
-    fid: number
-    username: string
-    displayName: string | null
-    pfpUrl: string | null
-    role: string
-  }
-  accounts: Account[]
-  casts: Cast[]
-  templates: Template[]
+  user: SessionUser
+  accounts: SerializedAccount[]
+  casts: SerializedCast[]
+  templates: SerializedTemplate[]
 }
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const approvedAccounts = accounts.filter(a => a.signerStatus === 'approved')
+
+  // Default account: user's own account (matching FID) or first approved
+  const defaultAccountId = useMemo(() => {
+    const userAccount = approvedAccounts.find(a => a.fid === user.fid)
+    return userAccount?.id || approvedAccounts[0]?.id || null
+  }, [approvedAccounts, user.fid])
 
   // Upcoming casts sorted by date
   const upcomingCasts = useMemo(() => {
@@ -96,7 +59,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
   }
 
   return (
-    <>
+    <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
       <AppHeader
         user={{
           username: user.username,
@@ -111,7 +74,13 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
       />
 
       <StudioLayout
-        composerPanel={<ComposerPanelStub />}
+        composerPanel={
+          <ComposerPanel
+            accounts={approvedAccounts}
+            userFid={user.fid}
+            defaultAccountId={defaultAccountId}
+          />
+        }
         calendarPanel={
           <CalendarView
             casts={casts.map(c => ({
@@ -127,40 +96,13 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         queuePanel={<QueuePanel casts={upcomingCasts} />}
         activityPanel={<ActivityPanel casts={recentActivity} />}
       />
-    </>
-  )
-}
-
-// ─── Stub: Composer Panel (Phase 2 will replace this) ────────────────────────
-
-function ComposerPanelStub() {
-  return (
-    <div className="flex flex-col h-full">
-      {/* Composer Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-        <Pen className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium">Composer</span>
-      </div>
-
-      {/* Composer Body — empty state */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Pen className="w-5 h-5 text-primary" />
-        </div>
-        <p className="text-sm font-medium text-foreground">
-          Ready to compose
-        </p>
-        <p className="text-xs text-muted-foreground max-w-[240px]">
-          Write your cast here. Click a day on the calendar to set the schedule date.
-        </p>
-      </div>
-    </div>
+    </SelectedAccountV2Provider>
   )
 }
 
 // ─── Queue Panel ─────────────────────────────────────────────────────────────
 
-function QueuePanel({ casts }: { casts: Cast[] }) {
+function QueuePanel({ casts }: { casts: SerializedCast[] }) {
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
@@ -216,7 +158,7 @@ function QueuePanel({ casts }: { casts: Cast[] }) {
 
 // ─── Activity Panel ──────────────────────────────────────────────────────────
 
-function ActivityPanel({ casts }: { casts: Cast[] }) {
+function ActivityPanel({ casts }: { casts: SerializedCast[] }) {
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">

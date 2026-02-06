@@ -52,7 +52,17 @@ function SignInButtonInner() {
       })
 
       if (res.ok) {
-        window.location.href = '/'
+        // Redirect based on version preference cookie
+        const match = document.cookie.match(/castor_studio_version=([^;]+)/)
+        const version = match?.[1]
+        if (version === 'v2') {
+          window.location.href = '/v2/studio'
+        } else if (version === 'v1') {
+          window.location.href = '/studio'
+        } else {
+          // No preference yet — reload landing to show version chooser
+          window.location.href = '/landing'
+        }
       } else {
         console.error(`[SignInButton] Verify failed: status=${res.status}`)
       }

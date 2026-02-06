@@ -1,17 +1,27 @@
 import Image from 'next/image'
+import { cookies } from 'next/headers'
 import { Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { SignInButton } from '@/app/SignInButton'
+import { getSession } from '@/lib/auth'
+import { VersionChooser } from './VersionChooser'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession()
+  const cookieStore = await cookies()
+  const versionPref = cookieStore.get('castor_studio_version')?.value
+
+  // Authenticated user without version preference → show version chooser
+  const showChooser = !!session && !versionPref
+
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">
       {/* Dot Pattern Background */}
       <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)]" />
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 max-w-5xl mx-auto w-full">
-        
+
         {/* Hero Section */}
         <div className="text-center space-y-6 mb-16 max-w-2xl">
           {/* Logo */}
@@ -25,42 +35,35 @@ export default function HomePage() {
               priority
             />
           </div>
-          
+
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
             <Sparkles className="w-3 h-3" />
             <span>Castor Beta</span>
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-display tracking-tight text-foreground leading-[1.1]">
             Smart scheduling for <span className="text-primary">Farcaster</span>
           </h1>
-          
+
           <p className="text-xl text-muted-foreground md:w-3/4 mx-auto leading-relaxed">
             The ultimate tool for studios and creators. Manage multiple accounts, schedule threads and collaborate with your team.
           </p>
 
-          <div className="pt-4 flex flex-col items-center gap-6">
-            <div className="scale-110 transition-transform hover:scale-115">
-              <SignInButton />
+          {/* Auth action area: sign-in button or version chooser */}
+          {showChooser ? (
+            <div className="pt-6">
+              <p className="text-sm text-muted-foreground mb-4">
+                Welcome back, <span className="font-medium text-foreground">{session.displayName || session.username}</span>! Choose your workspace:
+              </p>
+              <VersionChooser />
             </div>
-
-            {/* Version Selector */}
-            <div className="flex items-center gap-3 pt-2">
-              <a
-                href="/studio"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              >
-                Studio v1
-              </a>
-              <a
-                href="/v2/studio"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Try Studio v2
-              </a>
+          ) : (
+            <div className="pt-4">
+              <div className="scale-110 transition-transform hover:scale-115">
+                <SignInButton />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Bento Grid Features */}

@@ -64,28 +64,6 @@ export default async function HomePage() {
               </div>
             </div>
           )}
-          <div className="pt-4 flex flex-col items-center gap-6">
-            <div className="scale-110 transition-transform hover:scale-115">
-              <SignInButton />
-            </div>
-
-            {/* Version Selector */}
-            <div className="flex items-center gap-3 pt-2">
-              <a
-                href="/studio"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              >
-                Studio v1
-              </a>
-              <a
-                href="/v2/studio"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Try Studio v2
-              </a>
-            </div>
-          </div>
         </div>
 
         {/* Bento Grid Features */}

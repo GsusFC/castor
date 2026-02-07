@@ -4,6 +4,8 @@ import { QueryProvider } from '@/components/providers/QueryProvider'
 import { NotificationsProvider } from '@/components/providers/NotificationsProvider'
 import { AiLanguagePreferencesProvider } from '@/context/AiLanguagePreferencesContext'
 import { SearchProvider } from '@/context/SearchContext'
+import { SelectedAccountProvider } from '@/context/SelectedAccountContext'
+import { TickerDrawerProvider } from '@/context/TickerDrawerContext'
 import { ProviderComposer } from '@/components/v2/ProviderComposer'
 import { SearchDrawer } from '@/components/feed/SearchDrawer'
 import { NotificationsDrawer } from '@/components/feed/NotificationsDrawer'
@@ -32,6 +34,8 @@ export default function V2Layout({
         NotificationsProvider,
         SearchProvider,
         AiLanguagePreferencesProvider,
+        SelectedAccountProvider,
+        TickerDrawerProvider,
       ]}
     >
       <div className="min-h-screen bg-background text-foreground">

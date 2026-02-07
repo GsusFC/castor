@@ -364,90 +364,30 @@ Respond ONLY with valid JSON (no markdown):
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
-    const EXPANSION_FACTORS: Record<string, number> = {
-      es: 1.25,
-      fr: 1.15,
-      de: 1.1,
-      pt: 1.25,
-      it: 1.15,
-      ar: 1.35,
-      hi: 1.2,
-      ru: 1.1,
-      tr: 1.15,
-      vi: 1.1,
-      zh: 0.7,
-      ja: 0.8,
-      ko: 0.85,
-    }
-    const expansionFactor = EXPANSION_FACTORS[lang] ?? 1.2
+
+    // Generous token budget — single call, no retries
     const estimatedTokens = Math.ceil(text.length / 4)
-    // Use a safe minimum expansion of 1.3x so CJK languages don't get truncated
-    const safeExpansion = Math.max(1.3, expansionFactor)
-    const maxOutputTokens = Math.min(4096, Math.max(512, Math.ceil(estimatedTokens * safeExpansion)))
-    const basePrompt = `Translate this text to ${langName}:
+    const maxOutputTokens = Math.min(4096, Math.max(512, Math.ceil(estimatedTokens * 1.5)))
+
+    const prompt = `Translate this text to ${langName}. Translate EVERY sentence completely — do NOT summarize, shorten, or omit anything. Preserve formatting, punctuation, and line breaks.
 
 "${text}"`
 
-    const systemInstruction =
-      'You are a professional translator engine. Return ONLY the translation. Do not summarize, shorten, paraphrase, or omit details. Preserve original formatting, punctuation, and line breaks. Keep similar sentence count and length.'
+    const result = await generateGeminiText({
+      modelId: AI_CONFIG.translationModel,
+      fallbackModelId: GEMINI_MODELS.fallback,
+      prompt,
+      generationConfig: {
+        temperature: 0.1,
+        topP: 0.9,
+        maxOutputTokens,
+        responseMimeType: 'text/plain',
+      },
+      systemInstruction:
+        'You are a professional translator engine. Return ONLY the translated text. No explanations, no intro, no markdown. Preserve the original length and structure.',
+    })
 
-    const generateOnce = async (prompt: string) =>
-      generateGeminiText({
-        modelId: AI_CONFIG.translationModel,
-        fallbackModelId: GEMINI_MODELS.fallback,
-        prompt,
-        generationConfig: {
-          temperature: 0.1,
-          topP: 0.9,
-          maxOutputTokens,
-          responseMimeType: 'text/plain',
-        },
-        systemInstruction,
-      })
-
-    const sanitize = (value: string) => value.trim().replace(/^["']|["']$/g, '')
-
-    const wordCount = (value: string) => {
-      const tokens = value.trim().split(/\s+/).filter(Boolean)
-      return tokens.length
-    }
-
-    let resultText = sanitize(await generateOnce(basePrompt))
-    const sourceWords = Math.max(1, wordCount(text))
-    const targetWords = wordCount(resultText)
-
-    if (targetWords < Math.ceil(sourceWords * 0.75)) {
-      const strictPrompt = `${basePrompt}
-
-IMPORTANT:
-- Do NOT summarize or shorten.
-- Translate literally with context.
-- Keep a similar length (around ${sourceWords} words).
-- Preserve sentence boundaries and clause order.`
-      resultText = sanitize(await generateOnce(strictPrompt))
-    }
-
-    const stricterTargetWords = wordCount(resultText)
-    if (stricterTargetWords < Math.ceil(sourceWords * 0.75)) {
-      const sentences = text
-        .split(/(?<=[.!?¿¡…])\s+|\n+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-
-      if (sentences.length > 1) {
-        const translatedSentences: string[] = []
-        for (const sentence of sentences) {
-          const sentencePrompt = `Translate this sentence to ${langName} literally.
-Do NOT summarize or shorten. Preserve punctuation.
-
-"${sentence}"`
-          translatedSentences.push(sanitize(await generateOnce(sentencePrompt)))
-        }
-        resultText = translatedSentences.join(' ')
-      }
-    }
-
-    return resultText
+    return result.trim().replace(/^["']|["']$/g, '')
   }
 
   // === Private helpers ===

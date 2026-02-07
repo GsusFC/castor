@@ -51,7 +51,11 @@ function updateCastDate(cast: SerializedCast, castId: string, newDate: Date): Se
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
-  const approvedAccounts = accounts.filter(a => a.signerStatus === 'approved')
+  const didHydrateAccountFilter = useRef(false)
+  const approvedAccounts = useMemo(
+    () => accounts.filter(a => a.signerStatus === 'approved'),
+    [accounts]
+  )
 
   const [studioCasts, setStudioCasts] = useState<SerializedCast[]>(casts)
   const [queueExtraCasts, setQueueExtraCasts] = useState<SerializedCast[]>([])
@@ -70,6 +74,8 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
   }, [casts])
 
   useEffect(() => {
+    if (didHydrateAccountFilter.current) return
+
     const stored = typeof window !== 'undefined'
       ? window.localStorage.getItem(ACCOUNT_FILTER_STORAGE_KEY)
       : null
@@ -77,6 +83,8 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     if (stored && (stored === 'all' || approvedAccounts.some(account => account.id === stored))) {
       setAccountFilter(stored)
     }
+
+    didHydrateAccountFilter.current = true
   }, [approvedAccounts])
 
   useEffect(() => {

@@ -29,6 +29,11 @@ export function AppSidebar() {
   const pathname = usePathname()
   const [composeOpen, setComposeOpen] = useState(false)
   const { unreadCount, open: openNotifications, isOpen: isNotificationsOpen } = useNotifications()
+  
+  const handleGoToVersionChooser = () => {
+    document.cookie = 'castor_studio_version=; path=/; max-age=0'
+    window.location.href = '/landing'
+  }
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -40,10 +45,15 @@ export function AppSidebar() {
       <aside className="hidden lg:flex flex-col w-[260px] h-screen sticky top-0 border-r border-border/50 bg-background/50 backdrop-blur-sm">
         {/* Logo */}
         <div className="p-6">
-          <Link href="/" className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGoToVersionChooser}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            aria-label="Open version chooser"
+          >
             <img src="/brand/logo.png" alt="Castor" className="w-8 h-8" />
             <span className="font-semibold text-lg">Castor</span>
-          </Link>
+          </button>
         </div>
 
         {/* New Cast Button */}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LogOut, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +20,11 @@ export function DashboardHeader() {
   const lastScrollY = useRef(0)
   const router = useRouter()
   const { selectedAccountId } = useSelectedAccount()
+
+  const handleGoToVersionChooser = () => {
+    document.cookie = 'castor_studio_version=; path=/; max-age=0'
+    window.location.href = '/landing'
+  }
 
   // Hide on scroll down, show on scroll up
   useEffect(() => {
@@ -74,16 +78,18 @@ export function DashboardHeader() {
         )}>
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link
-              href="/"
+            <button
+              type="button"
+              onClick={handleGoToVersionChooser}
               className="flex items-center h-10 w-10 rounded-lg hover:bg-muted transition-colors group min-h-[44px] touch-target"
+              aria-label="Open version chooser"
             >
               <img
                 src="/brand/logo.png"
                 alt="Castor"
                 className="w-8 h-8 flex-shrink-0 group-hover:scale-110 transition-transform"
               />
-            </Link>
+            </button>
           </div>
 
           {/* Search - grows on md+, hidden on mobile */}

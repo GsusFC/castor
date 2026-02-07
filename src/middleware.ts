@@ -84,7 +84,11 @@ export async function middleware(request: NextRequest) {
       if (versionPref === 'v2') {
         return NextResponse.redirect(new URL('/v2/studio', request.url))
       }
-      // v1 o sin cookie → dejar pasar a / (feed actual)
+      if (versionPref === 'v1') {
+        return NextResponse.redirect(new URL('/studio', request.url))
+      }
+      // Sin preferencia o valor inválido → volver al selector de versión
+      return NextResponse.redirect(new URL('/landing', request.url))
     } catch {
       // Token inválido, fall through a la verificación normal
     }

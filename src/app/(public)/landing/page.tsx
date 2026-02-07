@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import { cookies } from 'next/headers'
 import { Calendar, Users, ShieldCheck, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -9,11 +8,9 @@ import { VersionChooser } from './VersionChooser'
 
 export default async function HomePage() {
   const session = await getSession()
-  const cookieStore = await cookies()
-  const versionPref = cookieStore.get('castor_studio_version')?.value
 
-  // Authenticated user without version preference → show version chooser
-  const showChooser = !!session && !versionPref
+  // Authenticated user → always show version chooser
+  const showChooser = !!session
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 flex flex-col relative overflow-hidden">

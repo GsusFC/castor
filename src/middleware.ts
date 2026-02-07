@@ -55,21 +55,7 @@ export async function middleware(request: NextRequest) {
   const method = request.method
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
-  // Si el usuario está en la landing y tiene sesión válida, redirigir según preferencia
-  if (pathname === '/landing' && token) {
-    try {
-      await jwtVerify(token, getSecretKey())
-      const versionPref = request.cookies.get('castor_studio_version')?.value
-      if (versionPref === 'v2') {
-        return NextResponse.redirect(new URL('/v2/studio', request.url))
-      } else if (versionPref === 'v1') {
-        return NextResponse.redirect(new URL('/studio', request.url))
-      }
-      // Sin cookie → dejar en la landing para que elija versión
-    } catch {
-      // Token inválido, continuar a la landing
-    }
-  }
+  // /landing siempre debe permanecer accesible para permitir re-elegir versión
 
   // Si el usuario NO tiene sesión y accede a /, redirigir a landing
   if (pathname === '/' && !token) {

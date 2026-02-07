@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { Clock, ChevronDown, Zap, Globe, X } from 'lucide-react'
+import { Clock, ChevronDown, Globe, X } from 'lucide-react'
 import { addHours, addDays, nextMonday, setHours, setMinutes, startOfDay, isBefore, format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,10 +30,10 @@ interface QuickPick {
 function getQuickPicks(): QuickPick[] {
   const now = new Date()
   return [
-    { label: 'In 1h', getDate: () => roundToNext5(addHours(now, 1)) },
-    { label: 'In 3h', getDate: () => roundToNext5(addHours(now, 3)) },
-    { label: 'Tomorrow 9am', getDate: () => setMinutes(setHours(addDays(startOfDay(now), 1), 9), 0) },
-    { label: 'Tomorrow 12pm', getDate: () => setMinutes(setHours(addDays(startOfDay(now), 1), 12), 0) },
+    { label: '1h', getDate: () => roundToNext5(addHours(now, 1)) },
+    { label: '3h', getDate: () => roundToNext5(addHours(now, 3)) },
+    { label: 'Tom 9am', getDate: () => setMinutes(setHours(addDays(startOfDay(now), 1), 9), 0) },
+    { label: 'Tom 12pm', getDate: () => setMinutes(setHours(addDays(startOfDay(now), 1), 12), 0) },
     { label: 'Mon 9am', getDate: () => setMinutes(setHours(nextMonday(now), 9), 0) },
   ]
 }
@@ -174,33 +174,20 @@ export function ScheduleDropdown({
       <PopoverContent className="w-auto p-0" align="start" sideOffset={8}>
         <div className="p-3 space-y-3">
           {/* ── Quick picks ── */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Zap className="w-3 h-3 text-amber-500" />
-              <span className="text-xs font-medium text-muted-foreground">Quick</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {getQuickPicks().map((pick) => (
-                <button
-                  key={pick.label}
-                  onClick={() => handleQuickPick(pick)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                    'bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                    'border border-transparent hover:border-primary/20'
-                  )}
-                >
-                  {pick.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Divider ── */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">or pick</span>
-            <div className="flex-1 h-px bg-border" />
+          <div className="grid grid-cols-3 gap-1.5">
+            {getQuickPicks().map((pick) => (
+              <button
+                key={pick.label}
+                onClick={() => handleQuickPick(pick)}
+                className={cn(
+                  'px-2 py-1.5 rounded-md text-xs font-medium text-center transition-colors',
+                  'bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                  'border border-transparent hover:border-primary/20'
+                )}
+              >
+                {pick.label}
+              </button>
+            ))}
           </div>
 
           {/* ── Calendar ── */}

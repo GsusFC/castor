@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, scheduledCasts, accounts, accountMembers } from '@/lib/db'
-import { eq, desc, or, inArray } from 'drizzle-orm'
+import { and, eq, desc, asc, or, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 
  type PublicAccount = {
@@ -30,7 +30,25 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
+    const statusesParam = searchParams.get('statuses')
     const accountId = searchParams.get('accountId')
+    const orderByParam = searchParams.get('orderBy')
+    const sortParam = searchParams.get('sort')
+    const limitParam = searchParams.get('limit')
+    const offsetParam = searchParams.get('offset')
+
+    const requestedStatuses = statusesParam
+      ? statusesParam.split(',').map((item) => item.trim()).filter(Boolean)
+      : status ? [status] : []
+
+    const validOrderBy = orderByParam === 'publishedAt' ? 'publishedAt' : 'scheduledAt'
+    const validSort = sortParam === 'asc' ? 'asc' : 'desc'
+    const parsedLimit = Number(limitParam)
+    const parsedOffset = Number(offsetParam)
+    const hasPagination = Number.isFinite(parsedLimit) && parsedLimit > 0
+    const limit = hasPagination ? Math.min(parsedLimit, 100) : undefined
+    const paginatedLimit = hasPagination ? Math.min(parsedLimit, 100) : 0
+    const offset = hasPagination && Number.isFinite(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0
 
     const memberships = await db.query.accountMembers.findMany({
       where: eq(accountMembers.userId, session.userId),
@@ -64,7 +82,12 @@ export async function GET(request: NextRequest) {
     }
 
     const casts = await db.query.scheduledCasts.findMany({
-      where: inArray(scheduledCasts.accountId, accountId ? [accountId] : accessibleAccountIds),
+      where: and(
+        inArray(scheduledCasts.accountId, accountId ? [accountId] : accessibleAccountIds),
+        requestedStatuses.length > 0
+          ? inArray(scheduledCasts.status, requestedStatuses as Array<typeof scheduledCasts.$inferSelect.status>)
+          : undefined
+      ),
       with: {
         account: {
           columns: {
@@ -75,26 +98,27 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [desc(scheduledCasts.scheduledAt)],
+      orderBy: [
+        validSort === 'asc'
+          ? asc(validOrderBy === 'publishedAt' ? scheduledCasts.publishedAt : scheduledCasts.scheduledAt)
+          : desc(validOrderBy === 'publishedAt' ? scheduledCasts.publishedAt : scheduledCasts.scheduledAt),
+      ],
+      limit: hasPagination ? paginatedLimit + 1 : undefined,
+      offset: hasPagination ? offset : undefined,
     })
 
-    // Filtrar en memoria (Drizzle con SQLite tiene limitaciones en queries complejas)
-    let filteredCasts = casts
-
-    if (status) {
-      filteredCasts = filteredCasts.filter((c) => c.status === status)
-    }
-
-    if (accountId) {
-      filteredCasts = filteredCasts.filter((c) => c.accountId === accountId)
-    }
-
-    const safeCasts = filteredCasts.map((cast) => ({
+    const slicedCasts = hasPagination ? casts.slice(0, paginatedLimit) : casts
+    const safeCasts = slicedCasts.map((cast) => ({
       ...cast,
       account: cast.account ? toPublicAccount(cast.account) : null,
     }))
+    const hasMore = hasPagination ? casts.length > paginatedLimit : false
 
-    return NextResponse.json({ casts: safeCasts })
+    return NextResponse.json({
+      casts: safeCasts,
+      hasMore,
+      nextOffset: hasPagination ? offset + safeCasts.length : null,
+    })
   } catch (error) {
     console.error('[API] Error fetching casts:', error)
     return NextResponse.json(

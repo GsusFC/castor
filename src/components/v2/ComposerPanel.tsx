@@ -16,6 +16,7 @@ import { useComposeSubmit } from '@/hooks/useComposeSubmit'
 import { useTemplates, Template } from '@/hooks/useTemplates'
 import type { SerializedCast } from '@/types'
 import { Button } from '@/components/ui/button'
+import { formatStudioDate } from '@/lib/studio-datetime'
 
 interface ComposerPanelProps {
   /** Accounts from the server — no client-side fetching needed */
@@ -34,6 +35,8 @@ export interface ComposerPanelRef {
   loadCast: (cast: SerializedCast) => void
   /** Set the schedule date (from calendar day click) */
   setScheduleDate: (date: Date) => void
+  /** Clear current draft/edit state and start a new cast */
+  startNewCast: () => void
 }
 
 /**
@@ -152,9 +155,15 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
           schedule.setTime(`${hours}:00`)
         }
 
-        toast.success(`Date set to ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
+        toast.success(
+          `Date set to ${formatStudioDate(date, { month: 'short', day: 'numeric' })}`
+        )
       },
-    }), [thread, schedule, setSelectedAccountId])
+      startNewCast: () => {
+        resetForm()
+        toast.success('Composer is ready for a new cast')
+      },
+    }), [thread, schedule, setSelectedAccountId, resetForm])
 
     // Submit hook
     const submit = useComposeSubmit({

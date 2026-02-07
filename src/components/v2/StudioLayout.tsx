@@ -18,6 +18,7 @@ interface StudioLayoutProps {
   calendarPanel: React.ReactNode
   queuePanel: React.ReactNode
   activityPanel: React.ReactNode
+  rightPanelControls?: React.ReactNode
 }
 
 export function StudioLayout({
@@ -25,11 +26,12 @@ export function StudioLayout({
   calendarPanel,
   queuePanel,
   activityPanel,
+  rightPanelControls,
 }: StudioLayoutProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('calendar')
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="flex h-[calc(100dvh-3.5rem)] overflow-hidden">
       {/* Left Panel — Composer (~45%) — hidden on mobile, compose via MobileNavV2 */}
       <div className="hidden lg:flex w-[45%] min-w-[380px] max-w-[600px] border-r flex-col overflow-hidden">
         <ErrorBoundary fallbackTitle="Composer failed to load">
@@ -40,13 +42,19 @@ export function StudioLayout({
       {/* Right Panel — Calendar / Queue / Activity — full width on mobile */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Tab Bar */}
-        <div className="flex items-center gap-1 px-4 pt-3 pb-2 shrink-0">
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 shrink-0">
+          <div className="flex items-center gap-1" role="tablist" aria-label="Studio right panel tabs">
           {TABS.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
+                type="button"
+                role="tab"
+                id={`studio-tab-${tab.id}`}
+                aria-selected={isActive}
+                aria-controls={`studio-panel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
@@ -60,10 +68,17 @@ export function StudioLayout({
               </button>
             )
           })}
+          </div>
+          {rightPanelControls}
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-auto px-4 pb-4">
+        <div
+          className="flex-1 overflow-auto px-4 pb-4"
+          role="tabpanel"
+          id={`studio-panel-${activeTab}`}
+          aria-labelledby={`studio-tab-${activeTab}`}
+        >
           <ErrorBoundary fallbackTitle="Panel failed to load">
             {activeTab === 'calendar' && calendarPanel}
             {activeTab === 'queue' && queuePanel}

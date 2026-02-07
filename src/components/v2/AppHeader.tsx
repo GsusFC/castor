@@ -38,6 +38,8 @@ export function AppHeader({ user, accounts }: AppHeaderProps) {
       <div className="flex h-14 items-center px-4 lg:px-6 gap-6">
         {/* Logo — click to go back to version chooser */}
         <button
+          type="button"
+          aria-label="Open version chooser"
           onClick={() => {
             document.cookie = 'castor_studio_version=; path=/; max-age=0'
             window.location.href = '/landing'
@@ -98,6 +100,7 @@ export function AppHeader({ user, accounts }: AppHeaderProps) {
           variant="ghost"
           size="icon"
           className="sm:hidden"
+          aria-label="Open search"
           onClick={() => search.open()}
         >
           <Search className="w-4.5 h-4.5" />
@@ -108,6 +111,7 @@ export function AppHeader({ user, accounts }: AppHeaderProps) {
           variant="ghost"
           size="icon"
           className="relative"
+          aria-label="Toggle notifications"
           onClick={() => notifications.toggle()}
         >
           <Bell className="w-4.5 h-4.5" />

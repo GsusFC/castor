@@ -1,6 +1,6 @@
 import { db, accounts as accountsTable, accountMembers, accountKnowledgeBase } from '@/lib/db'
-import { templates } from '@/lib/db/schema'
-import { and, eq, exists, or, inArray } from 'drizzle-orm'
+import { templates, scheduledCasts } from '@/lib/db/schema'
+import { and, eq, exists, or, inArray, gte, lte, desc, asc } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { StudioV2Client } from './StudioV2Client'
@@ -44,11 +44,24 @@ export default async function StudioV2Page() {
   })
 
   const accountIds = accounts.map(a => a.id)
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [allCasts, allTemplates, knowledgeBases] = await Promise.all([
+  const monthStatuses: Array<typeof scheduledCasts.$inferSelect.status> = ['scheduled', 'draft', 'retrying', 'failed', 'publishing']
+  const queueStatuses: Array<typeof scheduledCasts.$inferSelect.status> = ['scheduled', 'draft', 'retrying']
+
+  const [calendarWindowCasts, upcomingCasts, recentPublishedCasts, allTemplates, knowledgeBases] = await Promise.all([
     accountIds.length > 0
       ? db.query.scheduledCasts.findMany({
-          where: (casts, { inArray }) => inArray(casts.accountId, accountIds),
+          where: and(
+            inArray(scheduledCasts.accountId, accountIds),
+            inArray(scheduledCasts.status, monthStatuses),
+            gte(scheduledCasts.scheduledAt, monthStart),
+            lte(scheduledCasts.scheduledAt, monthEnd)
+          ),
+          limit: 120,
+          orderBy: [asc(scheduledCasts.scheduledAt)],
           with: {
             account: true,
             media: true,
@@ -61,7 +74,51 @@ export default async function StudioV2Page() {
               },
             },
           },
-          orderBy: (casts, { desc }) => [desc(casts.scheduledAt)],
+        })
+      : Promise.resolve([]),
+    accountIds.length > 0
+      ? db.query.scheduledCasts.findMany({
+          where: and(
+            inArray(scheduledCasts.accountId, accountIds),
+            inArray(scheduledCasts.status, queueStatuses),
+            gte(scheduledCasts.scheduledAt, now)
+          ),
+          limit: 80,
+          orderBy: [asc(scheduledCasts.scheduledAt)],
+          with: {
+            account: true,
+            media: true,
+            createdBy: {
+              columns: {
+                id: true,
+                username: true,
+                displayName: true,
+                pfpUrl: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    accountIds.length > 0
+      ? db.query.scheduledCasts.findMany({
+          where: and(
+            inArray(scheduledCasts.accountId, accountIds),
+            eq(scheduledCasts.status, 'published')
+          ),
+          limit: 60,
+          orderBy: [desc(scheduledCasts.publishedAt)],
+          with: {
+            account: true,
+            media: true,
+            createdBy: {
+              columns: {
+                id: true,
+                username: true,
+                displayName: true,
+                pfpUrl: true,
+              },
+            },
+          },
         })
       : Promise.resolve([]),
     accountIds.length > 0
@@ -94,7 +151,10 @@ export default async function StudioV2Page() {
     hasBrandVoice: brandVoiceMap.get(account.id) ?? false,
   }))
 
-  const serializedCasts = allCasts.map(cast => ({
+  const mergedCasts = [...calendarWindowCasts, ...upcomingCasts, ...recentPublishedCasts]
+  const uniqueCasts = Array.from(new Map(mergedCasts.map(cast => [cast.id, cast])).values())
+
+  const serializedCasts = uniqueCasts.map(cast => ({
     id: cast.id,
     content: cast.content,
     status: cast.status,

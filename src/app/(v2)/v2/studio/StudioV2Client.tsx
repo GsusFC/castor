@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef, useCallback } from 'react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
-import { ComposerPanel } from '@/components/v2/ComposerPanel'
+import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { SelectedAccountV2Provider } from '@/context/SelectedAccountV2Context'
 import { Clock, FileText } from 'lucide-react'
@@ -22,6 +22,7 @@ interface StudioV2ClientProps {
 }
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
+  const composerRef = useRef<ComposerPanelRef>(null)
   const approvedAccounts = accounts.filter(a => a.signerStatus === 'approved')
 
   // Default account: user's own account (matching FID) or first approved
@@ -58,6 +59,19 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     }
   }
 
+  // Calendar day click → set date in composer schedule picker
+  const handleSelectDate = useCallback((date: Date) => {
+    composerRef.current?.setScheduleDate(date)
+  }, [])
+
+  // Calendar cast click / Queue cast click → load in composer
+  const handleSelectCast = useCallback((castId: string) => {
+    const cast = casts.find(c => c.id === castId)
+    if (cast) {
+      composerRef.current?.loadCast(cast)
+    }
+  }, [casts])
+
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
       <AppHeader
@@ -76,6 +90,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
       <StudioLayout
         composerPanel={
           <ComposerPanel
+            ref={composerRef}
             accounts={approvedAccounts}
             userFid={user.fid}
             defaultAccountId={defaultAccountId}
@@ -91,10 +106,12 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
               account: c.account ? { username: c.account.username, pfpUrl: c.account.pfpUrl } : null,
             }))}
             onMoveCast={handleMoveCast}
+            onSelectDate={handleSelectDate}
+            onSelectCast={handleSelectCast}
           />
         }
-        queuePanel={<QueuePanel casts={upcomingCasts} />}
-        activityPanel={<ActivityPanel casts={recentActivity} />}
+        queuePanel={<QueuePanel casts={upcomingCasts} onSelectCast={handleSelectCast} />}
+        activityPanel={<ActivityPanel casts={recentActivity} onSelectCast={handleSelectCast} />}
       />
     </SelectedAccountV2Provider>
   )
@@ -102,7 +119,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
 
 // ─── Queue Panel ─────────────────────────────────────────────────────────────
 
-function QueuePanel({ casts }: { casts: SerializedCast[] }) {
+function QueuePanel({ casts, onSelectCast }: { casts: SerializedCast[]; onSelectCast: (castId: string) => void }) {
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
@@ -118,6 +135,7 @@ function QueuePanel({ casts }: { casts: SerializedCast[] }) {
       {casts.map(cast => (
         <div
           key={cast.id}
+          onClick={() => onSelectCast(cast.id)}
           className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
         >
           {/* Account avatar */}
@@ -158,7 +176,7 @@ function QueuePanel({ casts }: { casts: SerializedCast[] }) {
 
 // ─── Activity Panel ──────────────────────────────────────────────────────────
 
-function ActivityPanel({ casts }: { casts: SerializedCast[] }) {
+function ActivityPanel({ casts, onSelectCast }: { casts: SerializedCast[]; onSelectCast: (castId: string) => void }) {
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
@@ -173,7 +191,8 @@ function ActivityPanel({ casts }: { casts: SerializedCast[] }) {
       {casts.map(cast => (
         <div
           key={cast.id}
-          className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+          onClick={() => onSelectCast(cast.id)}
+          className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
         >
           {cast.account?.pfpUrl ? (
             <img src={cast.account.pfpUrl} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
@@ -197,6 +216,7 @@ function ActivityPanel({ casts }: { casts: SerializedCast[] }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   View on Warpcast
                 </a>

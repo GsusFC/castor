@@ -28,9 +28,11 @@ interface Cast {
 interface CalendarViewProps {
   casts: Cast[]
   onMoveCast: (castId: string, newDate: Date) => Promise<void>
+  onSelectDate?: (date: Date) => void
+  onSelectCast?: (castId: string) => void
 }
 
-export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
+export function CalendarView({ casts, onMoveCast, onSelectDate, onSelectCast }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [activeCast, setActiveCast] = useState<Cast | null>(null)
 
@@ -203,6 +205,8 @@ export function CalendarView({ casts, onMoveCast }: CalendarViewProps) {
                 casts={dayCasts}
                 isCurrentMonth={isCurrentMonth(date)}
                 isToday={isToday(date)}
+                onSelectDate={onSelectDate}
+                onSelectCast={onSelectCast}
               />
             )
           })}
@@ -223,12 +227,16 @@ function CalendarDay({
   casts,
   isCurrentMonth,
   isToday,
+  onSelectDate,
+  onSelectCast,
 }: {
   date: Date
   dateKey: string
   casts: Cast[]
   isCurrentMonth: boolean
   isToday: boolean
+  onSelectDate?: (date: Date) => void
+  onSelectCast?: (castId: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: dateKey,
@@ -240,19 +248,21 @@ function CalendarDay({
       className={`min-h-[120px] border-b border-r p-1 ${!isCurrentMonth ? 'bg-muted' : ''
         } ${isOver ? 'bg-castor-light' : ''}`}
     >
-      <div
-        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday
-            ? 'bg-castor-black text-white'
+      {/* Day number — clickable to set schedule date */}
+      <button
+        onClick={() => onSelectDate?.(date)}
+        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full transition-colors hover:bg-primary/10 hover:text-primary ${isToday
+            ? 'bg-castor-black text-white hover:bg-castor-black hover:text-white'
             : !isCurrentMonth
               ? 'text-muted-foreground'
               : 'text-foreground'
           }`}
       >
         {date.getDate()}
-      </div>
+      </button>
       <div className="space-y-1">
         {casts.slice(0, 3).map((cast) => (
-          <DraggableCast key={cast.id} cast={cast} />
+          <DraggableCast key={cast.id} cast={cast} onSelectCast={onSelectCast} />
         ))}
         {casts.length > 3 && (
           <div className="text-xs text-muted-foreground pl-1">
@@ -264,7 +274,7 @@ function CalendarDay({
   )
 }
 
-function DraggableCast({ cast }: { cast: Cast }) {
+function DraggableCast({ cast, onSelectCast }: { cast: Cast; onSelectCast?: (castId: string) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: cast.id,
     disabled: cast.status !== 'scheduled',
@@ -276,6 +286,13 @@ function DraggableCast({ cast }: { cast: Cast }) {
       {...listeners}
       {...attributes}
       className={isDragging ? 'opacity-50' : ''}
+      onClick={(e) => {
+        // Only fire click if not dragging (distance < 8px threshold)
+        if (!isDragging && onSelectCast) {
+          e.stopPropagation()
+          onSelectCast(cast.id)
+        }
+      }}
     >
       <CastCard cast={cast} />
     </div>

@@ -35,8 +35,14 @@ export function AppHeader({ user, accounts, unreadNotifications = 0 }: AppHeader
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="flex h-14 items-center px-4 lg:px-6 gap-6">
-        {/* Logo */}
-        <Link href="/v2/studio" className="flex items-center gap-2 shrink-0">
+        {/* Logo — click to go back to version chooser */}
+        <button
+          onClick={() => {
+            document.cookie = 'castor_studio_version=; path=/; max-age=0'
+            window.location.href = '/landing'
+          }}
+          className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity"
+        >
           <Image
             src="/brand/logo.png"
             alt="Castor"
@@ -47,7 +53,7 @@ export function AppHeader({ user, accounts, unreadNotifications = 0 }: AppHeader
           <span className="font-display text-lg font-semibold tracking-tight hidden sm:inline">
             Castor
           </span>
-        </Link>
+        </button>
 
         {/* Nav Tabs */}
         <nav className="flex items-center gap-1">

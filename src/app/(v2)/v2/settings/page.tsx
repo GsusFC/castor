@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { SettingsV2Client } from './SettingsV2Client'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,9 +9,12 @@ export default async function SettingsV2Page() {
   if (!session) redirect('/login')
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-display font-bold mb-6">Configuration</h1>
-      <p className="text-sm text-muted-foreground">Settings page — coming soon in v2.</p>
-    </div>
+    <SettingsV2Client
+      user={{
+        username: session.username,
+        displayName: session.displayName,
+        pfpUrl: session.pfpUrl,
+      }}
+    />
   )
 }

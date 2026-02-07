@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Users, Star, Shield } from 'lucide-react'
+import { User, Users, Star, Shield, Plus } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
-import { AccountCard } from '@/app/(app)/accounts/AccountCard'
-import { AddAccountButton } from '@/app/(app)/accounts/add-account-button'
+import { PageHeader } from '@/components/v2/PageHeader'
+import { AccountCardV2 } from '@/components/v2/AccountCardV2'
 import { ConnectAccountModal } from '@/components/accounts/ConnectAccountModal'
+import { Button } from '@/components/ui/button'
 
 interface AccountOwner {
   id: string
@@ -69,19 +70,17 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
       />
 
       <main className="max-w-4xl xl:max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-display font-semibold">Manage accounts</h1>
-              <p className="text-sm text-muted-foreground">{accounts.length} connected</p>
-            </div>
-          </div>
-          <AddAccountButton />
-        </div>
+        <PageHeader
+          icon={<Users className="w-5 h-5 text-primary" />}
+          title="Manage accounts"
+          subtitle={`${accounts.length} connected`}
+          action={
+            <Button size="sm" onClick={() => setConnectOpen(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add account</span>
+            </Button>
+          }
+        />
 
         {/* Content */}
         <div className="space-y-6">
@@ -94,7 +93,10 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                 Connect your Farcaster accounts to start scheduling casts and managing your presence.
               </p>
-              <AddAccountButton />
+              <Button onClick={() => setConnectOpen(true)} className="gap-1.5">
+                <Plus className="w-4 h-4" />
+                Add account
+              </Button>
             </div>
           ) : (
             <>
@@ -107,7 +109,7 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                     {proAccounts.map((account) => (
-                      <AccountCard
+                      <AccountCardV2
                         key={account.id}
                         account={account}
                         currentUserId={user.userId}
@@ -129,7 +131,7 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                     {standardAccounts.map((account) => (
-                      <AccountCard
+                      <AccountCardV2
                         key={account.id}
                         account={account}
                         currentUserId={user.userId}

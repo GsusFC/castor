@@ -30,14 +30,14 @@ export function StudioLayout({
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* Left Panel — Composer (~45%) */}
-      <div className="w-[45%] min-w-[380px] max-w-[600px] border-r flex flex-col overflow-hidden">
+      {/* Left Panel — Composer (~45%) — hidden on mobile, compose via MobileNavV2 */}
+      <div className="hidden lg:flex w-[45%] min-w-[380px] max-w-[600px] border-r flex-col overflow-hidden">
         <ErrorBoundary fallbackTitle="Composer failed to load">
           {composerPanel}
         </ErrorBoundary>
       </div>
 
-      {/* Right Panel — Calendar / Queue / Activity (~55%) */}
+      {/* Right Panel — Calendar / Queue / Activity — full width on mobile */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Tab Bar */}
         <div className="flex items-center gap-1 px-4 pt-3 pb-2 shrink-0">

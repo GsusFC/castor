@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input'
 import { AI_LANGUAGE_OPTIONS } from '@/lib/ai/languages'
 import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
 import { AppHeader } from '@/components/v2/AppHeader'
+import { PageHeader } from '@/components/v2/PageHeader'
 import { toast } from 'sonner'
 
 type ChannelOption = {
@@ -174,16 +175,11 @@ export function SettingsV2Client({ user }: SettingsV2ClientProps) {
       <AppHeader user={user} />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <Settings className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-display font-semibold">Configuration</h1>
-            <p className="text-sm text-muted-foreground">Customize your experience</p>
-          </div>
-        </div>
+        <PageHeader
+          icon={<Settings className="w-5 h-5 text-primary" />}
+          title="Configuration"
+          subtitle="Customize your experience"
+        />
 
         {/* Content */}
         <div className="space-y-6">

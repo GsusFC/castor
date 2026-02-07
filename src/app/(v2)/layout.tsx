@@ -9,6 +9,7 @@ import { TickerDrawerProvider } from '@/context/TickerDrawerContext'
 import { ProviderComposer } from '@/components/v2/ProviderComposer'
 import { SearchDrawer } from '@/components/feed/SearchDrawer'
 import { NotificationsDrawer } from '@/components/feed/NotificationsDrawer'
+import { MobileNavV2 } from '@/components/v2/MobileNavV2'
 import { Toaster } from 'sonner'
 
 /**
@@ -44,18 +45,23 @@ export default function V2Layout({
           className="fixed inset-0 -z-10 bg-background"
           style={{
             backgroundImage: 'radial-gradient(hsl(var(--border)) 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-            opacity: 0.5,
+            backgroundSize: '24px 24px',
+            opacity: 0.35,
           }}
         />
 
         <Suspense fallback={null}>
-          {children}
+          <div className="pb-16 lg:pb-0">
+            {children}
+          </div>
         </Suspense>
 
         {/* Global drawers — available on all v2 pages */}
         <SearchDrawer />
         <NotificationsDrawer />
+
+        {/* Mobile bottom nav — visible on < lg */}
+        <MobileNavV2 />
 
         <Toaster position="bottom-right" richColors />
       </div>

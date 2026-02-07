@@ -171,7 +171,7 @@ export function SettingsV2Client({ user }: SettingsV2ClientProps) {
 
   return (
     <>
-      <AppHeader user={user} unreadNotifications={0} />
+      <AppHeader user={user} />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}

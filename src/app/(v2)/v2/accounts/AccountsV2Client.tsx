@@ -66,7 +66,6 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
           displayName: user.displayName,
           pfpUrl: user.pfpUrl,
         }}
-        unreadNotifications={0}
       />
 
       <main className="max-w-4xl xl:max-w-6xl mx-auto px-4 py-8">

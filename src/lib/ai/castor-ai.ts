@@ -353,7 +353,9 @@ Respond ONLY with valid JSON (no markdown):
       isTranslation: mode === 'translate',
       usePro: isProUser || mode === 'improve' // Force Pro for improvements or Pro users
     })
-    return this.parseSuggestions(resultText, maxChars)
+    // Translations can expand beyond maxChars — don't discard them
+    const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
+    return this.parseSuggestions(resultText, parseLimit)
   }
 
   /**
@@ -379,7 +381,9 @@ Respond ONLY with valid JSON (no markdown):
     }
     const expansionFactor = EXPANSION_FACTORS[lang] ?? 1.2
     const estimatedTokens = Math.ceil(text.length / 4)
-    const maxOutputTokens = Math.min(2048, Math.max(256, Math.ceil(estimatedTokens * expansionFactor)))
+    // Use a safe minimum expansion of 1.3x so CJK languages don't get truncated
+    const safeExpansion = Math.max(1.3, expansionFactor)
+    const maxOutputTokens = Math.min(4096, Math.max(512, Math.ceil(estimatedTokens * safeExpansion)))
     const basePrompt = `Translate this text to ${langName}:
 
 "${text}"`
@@ -426,11 +430,11 @@ IMPORTANT:
     const stricterTargetWords = wordCount(resultText)
     if (stricterTargetWords < Math.ceil(sourceWords * 0.75)) {
       const sentences = text
-        .split(/(?<=[.!?])\s+/)
+        .split(/(?<=[.!?¿¡…])\s+|\n+/)
         .map((s) => s.trim())
         .filter(Boolean)
 
-      if (sentences.length > 1 && sentences.length <= 6) {
+      if (sentences.length > 1) {
         const translatedSentences: string[] = []
         for (const sentence of sentences) {
           const sentencePrompt = `Translate this sentence to ${langName} literally.
@@ -581,11 +585,18 @@ Return ONLY valid JSON (no markdown, no extra text):
 
     const targetLang = assertSupportedTargetLanguage(context.targetLanguage)
 
-    return `Translate this text to ${toEnglishLanguageName(targetLang)}, maintaining the tone and style:
+    const langName = toEnglishLanguageName(targetLang)
+
+    return `Translate this COMPLETE text to ${langName}:
 
 "${context.currentDraft}"
 
-Provide 3 versions of the translation with different nuances.
+Provide 3 translation versions:
+1. Literal — preserve exact meaning, sentence structure, and length
+2. Natural — slightly adapted for fluency in ${langName}
+3. Concise — same meaning, tighter phrasing
+
+IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version must translate the COMPLETE text faithfully.
 
 Return ONLY valid JSON (no markdown, no extra text):
 {

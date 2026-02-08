@@ -55,6 +55,15 @@ function getReferenceDate(cast: SerializedCast): Date {
   return new Date(cast.publishedAt || cast.scheduledAt)
 }
 
+function getStatusDotClass(status: string) {
+  if (status === 'published') return 'bg-emerald-400'
+  if (status === 'scheduled') return 'bg-blue-400'
+  if (status === 'draft') return 'bg-amber-400'
+  if (status === 'retrying') return 'bg-orange-400'
+  if (status === 'failed') return 'bg-red-400'
+  return 'bg-muted-foreground'
+}
+
 export function DailyQueuePanel({
   casts,
   onSelectCast,
@@ -127,12 +136,12 @@ export function DailyQueuePanel({
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
-        <p className="text-sm text-muted-foreground">No casts yet</p>
-        <p className="text-xs text-muted-foreground/70">Create your first cast from the composer</p>
+        <p className="text-[12px] text-muted-foreground">No casts yet</p>
+        <p className="text-[12px] text-muted-foreground/70">Create your first cast from the composer</p>
         <button
           type="button"
           onClick={onStartCast}
-          className="mt-2 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          className="mt-2 rounded-md border px-3 py-1.5 text-[12px] font-medium hover:bg-muted"
         >
           Start new cast
         </button>
@@ -141,7 +150,7 @@ export function DailyQueuePanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 text-[12px]">
       {dayGroups.map((group) => {
         const isToday = group.key === todayKey
         const isPastDay = group.key < todayKey
@@ -161,7 +170,7 @@ export function DailyQueuePanel({
                 isToday ? 'bg-[#B89C7A]/20 border-[#B89C7A]/50' : 'bg-muted/80 border-border/60'
               }`}
             >
-              <div className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
+              <div className="text-[12px] font-bold uppercase text-foreground">
                 {formatStudioDate(group.date, {
                   locale,
                   timeZone,
@@ -174,7 +183,7 @@ export function DailyQueuePanel({
 
               <div className="flex items-center gap-1.5">
                 {isToday && (
-                  <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#B89C7A] text-[#1F1A14]">
+                  <span className="text-[12px] font-bold uppercase px-1.5 py-0.5 rounded bg-[#B89C7A] text-[#1F1A14]">
                     Today
                   </span>
                 )}
@@ -198,6 +207,13 @@ export function DailyQueuePanel({
             <div className="p-2 space-y-2">
               {group.casts.map((cast) => {
                 const isPublished = cast.status === 'published'
+                const castTime = formatStudioTime(getReferenceDate(cast), {
+                  locale,
+                  timeZone,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+                const accountLabel = cast.account?.username ? `@${cast.account.username}` : 'Account'
 
                 return (
                   <div
@@ -213,37 +229,6 @@ export function DailyQueuePanel({
                     }}
                     className="group w-full text-left p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 text-primary px-2 py-1">
-                        <span className="text-[11px] font-semibold tabular-nums">
-                          {formatStudioTime(getReferenceDate(cast), {
-                            locale,
-                            timeZone,
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {cast.status === 'draft' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">Draft</span>
-                        )}
-                        {cast.status === 'scheduled' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">Scheduled</span>
-                        )}
-                        {cast.status === 'retrying' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 font-medium">Retrying</span>
-                        )}
-                        {cast.status === 'failed' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 font-medium">Failed</span>
-                        )}
-                        {isPublished && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 font-medium">Published</span>
-                        )}
-                      </div>
-                    </div>
-
                     <div className="flex items-start gap-3">
                       {cast.account?.pfpUrl ? (
                         <img src={cast.account.pfpUrl} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
@@ -252,10 +237,17 @@ export function DailyQueuePanel({
                       )}
 
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-3 text-pretty">{cast.content || 'Empty cast'}</p>
-                        {cast.account?.username && (
-                          <p className="text-[11px] text-muted-foreground mt-1">@{cast.account.username}</p>
-                        )}
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className={`size-2 rounded-full shrink-0 ${getStatusDotClass(cast.status)}`}
+                              aria-label={cast.status}
+                            />
+                            <p className="text-[12px] text-muted-foreground truncate">{accountLabel}</p>
+                          </div>
+                          <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">{castTime}</span>
+                        </div>
+                        <p className="text-[12px] line-clamp-3 text-pretty">{cast.content || 'Empty cast'}</p>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -310,7 +302,7 @@ export function DailyQueuePanel({
           type="button"
           disabled={isLoadingMore}
           onClick={onLoadMore}
-          className="w-full rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-60"
+          className="w-full rounded-md border px-3 py-2 text-[12px] font-medium hover:bg-muted disabled:opacity-60"
         >
           {isLoadingMore ? 'Loading...' : 'Load more'}
         </button>

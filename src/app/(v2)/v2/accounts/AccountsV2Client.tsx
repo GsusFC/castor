@@ -61,13 +61,15 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
 
   return (
     <>
-      <AppHeader
-        user={{
-          username: user.username,
-          displayName: user.displayName,
-          pfpUrl: user.pfpUrl,
-        }}
-      />
+      <div className="hidden sm:block">
+        <AppHeader
+          user={{
+            username: user.username,
+            displayName: user.displayName,
+            pfpUrl: user.pfpUrl,
+          }}
+        />
+      </div>
 
       <main className="max-w-4xl xl:max-w-6xl mx-auto px-4 py-8">
         <PageHeader

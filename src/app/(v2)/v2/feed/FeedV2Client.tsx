@@ -319,7 +319,9 @@ function FeedV2Inner({ user }: FeedV2ClientProps) {
 
   return (
     <>
-      <AppHeader user={user} />
+      <div className="hidden sm:block">
+        <AppHeader user={user} />
+      </div>
 
       <main className="max-w-2xl mx-auto px-4">
         {/* Overlays: Conversation / Profile */}

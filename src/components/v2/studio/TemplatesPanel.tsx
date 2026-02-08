@@ -38,48 +38,56 @@ export function TemplatesPanel({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <p className="text-xs text-muted-foreground px-1">{templates.length} templates</p>
 
-      {templates.map(template => (
-        <div
-          key={template.id}
-          className="group flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{template.name}</p>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 text-pretty">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5">
+        {templates.map(template => (
+          <div
+            key={template.id}
+            className="group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="text-sm font-semibold truncate">{template.name}</p>
+              <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  title="Load in composer"
+                  onClick={() => onLoadTemplate(template)}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  disabled={deletingId === template.id}
+                >
+                  <Pen className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Delete template"
+                  onClick={() => setDeleteTarget(template.id)}
+                  className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  disabled={deletingId === template.id}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground line-clamp-3 text-pretty">
               {template.content || 'Empty template'}
             </p>
-            {template.channelId && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium mt-1 inline-block">
-                /{template.channelId}
-              </span>
-            )}
-          </div>
 
-          <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              title="Load in composer"
-              onClick={() => onLoadTemplate(template)}
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50"
-              disabled={deletingId === template.id}
-            >
-              <Pen className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Delete template"
-              onClick={() => setDeleteTarget(template.id)}
-              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50"
-              disabled={deletingId === template.id}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="mt-2 flex items-center gap-2">
+              {template.channelId && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                  /{template.channelId}
+                </span>
+              )}
+              {template.accountId && (
+                <span className="text-[10px] text-muted-foreground">acct {template.accountId.slice(0, 6)}</span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-sm">

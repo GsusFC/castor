@@ -48,75 +48,87 @@ export function ActivityPanel({
   }
 
   return (
-    <div className="space-y-2">
-      {casts.map(cast => (
-        <div
-          key={cast.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => onSelectCast(cast.id)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              onSelectCast(cast.id)
-            }
-          }}
-          className="group w-full text-left flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-        >
-          {cast.account?.pfpUrl ? (
-            <img src={cast.account.pfpUrl} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-muted shrink-0 mt-0.5" />
-          )}
-
-          <div className="flex-1 min-w-0">
-            <p className="text-sm line-clamp-2 text-pretty">{cast.content || 'Empty cast'}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs tabular-nums text-muted-foreground">
-                Published {formatStudioDate(cast.publishedAt || cast.scheduledAt, {
-                  locale,
-                  timeZone,
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </span>
-              {cast.castHash && (
-                <a
-                  href={`https://warpcast.com/~/conversations/${cast.castHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View on Warpcast
-                </a>
-              )}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            title="Duplicate as draft"
-            disabled={duplicatingId === cast.id}
-            onClick={async (e) => {
-              e.stopPropagation()
-              try {
-                setDuplicatingId(cast.id)
-                await onDuplicateCast(cast.id)
-              } finally {
-                setDuplicatingId(null)
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
+        {casts.map(cast => (
+          <div
+            key={cast.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelectCast(cast.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onSelectCast(cast.id)
               }
             }}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity disabled:opacity-50"
+            className="group w-full text-left p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
           >
-            {duplicatingId === cast.id ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </div>
-      ))}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 text-emerald-700 px-2 py-1">
+                <span className="text-[11px] font-semibold">Published</span>
+                <span className="text-[11px] font-semibold tabular-nums">
+                  {formatStudioDate(cast.publishedAt || cast.scheduledAt, {
+                    locale,
+                    timeZone,
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </span>
+              </div>
+              <button
+                type="button"
+                title="Duplicate as draft"
+                disabled={duplicatingId === cast.id}
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  try {
+                    setDuplicatingId(cast.id)
+                    await onDuplicateCast(cast.id)
+                  } finally {
+                    setDuplicatingId(null)
+                  }
+                }}
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity disabled:opacity-50"
+              >
+                {duplicatingId === cast.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-start gap-3">
+              {cast.account?.pfpUrl ? (
+                <img src={cast.account.pfpUrl} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-muted shrink-0 mt-0.5" />
+              )}
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium line-clamp-3 text-pretty">{cast.content || 'Empty cast'}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {cast.account?.username && (
+                    <span className="text-[11px] text-muted-foreground">@{cast.account.username}</span>
+                  )}
+                  {cast.castHash && (
+                    <a
+                      href={`https://warpcast.com/~/conversations/${cast.castHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View on Warpcast
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {hasMore && (
         <button

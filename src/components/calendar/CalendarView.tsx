@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Clock, Copy, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Trash2 } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -89,14 +89,6 @@ const STATUS_LABEL: Record<string, string> = {
   failed: 'Failed',
   draft: 'Draft',
   retrying: 'Retrying',
-}
-
-const STATUS_TONE: Record<string, string> = {
-  scheduled: 'border-blue-500/50 bg-blue-500/15 text-blue-200',
-  published: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200',
-  draft: 'border-amber-500/50 bg-amber-500/15 text-amber-200',
-  retrying: 'border-orange-500/50 bg-orange-500/15 text-orange-200',
-  failed: 'border-red-500/50 bg-red-500/15 text-red-200',
 }
 
 export function CalendarView({
@@ -297,9 +289,9 @@ export function CalendarView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="bg-card rounded-xl border font-sans">
+      <div className="bg-card rounded-xl border font-sans text-[12px]">
         <div className="hidden md:flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-lg">
+          <h2 className="font-semibold text-[12px] uppercase tracking-wide">
             {formatStudioDate(currentDate, {
               locale: resolvedLocale,
               timeZone: resolvedTimeZone,
@@ -319,7 +311,7 @@ export function CalendarView({
             <button
               type="button"
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1.5 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
+              className="px-3 py-1.5 text-[12px] font-medium hover:bg-muted rounded-lg transition-colors"
             >
               Today
             </button>
@@ -337,7 +329,7 @@ export function CalendarView({
         {/* Mobile: Week strip + Agenda (replaces dense month grid) */}
         <div className="md:hidden border-b px-3 py-2 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium">
+            <div className="text-[12px] font-medium">
               {formatStudioDate(mobileWeekDays[0], { locale: resolvedLocale, timeZone: resolvedTimeZone, month: 'short', day: 'numeric' })}
               {' - '}
               {formatStudioDate(mobileWeekDays[6], { locale: resolvedLocale, timeZone: resolvedTimeZone, month: 'short', day: 'numeric' })}
@@ -358,7 +350,7 @@ export function CalendarView({
                   setMobileSelectedDate(now)
                   setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))
                 }}
-                className="px-2 py-1 text-xs font-medium hover:bg-muted rounded-md transition-colors"
+                className="px-2 py-1 text-[12px] font-medium hover:bg-muted rounded-md transition-colors"
               >
                 Today
               </button>
@@ -389,11 +381,13 @@ export function CalendarView({
                     selected ? 'bg-primary/10 border-primary/40 text-primary' : 'hover:bg-muted border-border'
                   }`}
                 >
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[12px] text-muted-foreground">
                     {formatStudioDate(date, { locale: resolvedLocale, timeZone: resolvedTimeZone, weekday: 'short' })}
                   </div>
-                  <div className="text-sm font-semibold tabular-nums">{date.getDate()}</div>
-                  <div className="text-[10px] text-muted-foreground">{dayCount > 0 ? dayCount : '·'}</div>
+                  <div className="text-[12px] font-semibold tabular-nums">{date.getDate()}</div>
+                  <div className="h-3 flex items-center justify-center">
+                    {dayCount > 0 ? <span className="size-1.5 rounded-full bg-muted-foreground/70" /> : null}
+                  </div>
                 </button>
               )
             })}
@@ -401,7 +395,7 @@ export function CalendarView({
 
           <div className="pt-1 space-y-1.5">
             {mobileAgendaCasts.length === 0 ? (
-              <div className="text-[10px] text-muted-foreground px-1 py-2">No casts for this day</div>
+              <div className="text-[12px] text-muted-foreground px-1 py-2">No casts for this day</div>
             ) : (
               mobileAgendaCasts.map((cast) => (
                 <div
@@ -417,7 +411,7 @@ export function CalendarView({
                   }}
                   className="flex items-start gap-2 rounded-md border p-2 bg-card hover:bg-muted/40"
                 >
-                  <div className="text-[10px] tabular-nums text-muted-foreground min-w-[44px]">
+                  <div className="text-[12px] tabular-nums text-muted-foreground min-w-[52px]">
                     {formatStudioTime(cast.scheduledAt, {
                       locale: resolvedLocale,
                       timeZone: resolvedTimeZone,
@@ -426,16 +420,8 @@ export function CalendarView({
                     })}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] line-clamp-2">{cast.content || 'Empty cast'}</p>
+                    <p className="text-[12px] line-clamp-2">{cast.content || 'Empty cast'}</p>
                   </div>
-                  <span
-                    className={cn(
-                      'shrink-0 text-[10px] px-1 py-0.5 rounded border',
-                      STATUS_TONE[cast.status] ?? 'border-border/60 bg-muted/50 text-foreground/90'
-                    )}
-                  >
-                    {STATUS_LABEL[cast.status] ?? cast.status}
-                  </span>
                 </div>
               ))
             )}
@@ -446,7 +432,7 @@ export function CalendarView({
           {WEEKDAY_LABELS[weekStartsOn].map((day) => (
             <div
               key={day}
-              className="py-2 text-center text-sm font-medium text-muted-foreground"
+              className="py-2 text-center text-[12px] font-medium text-muted-foreground"
             >
               {day}
             </div>
@@ -535,8 +521,8 @@ export function CalendarView({
                   })
                 : 'Day details'}
             </SheetTitle>
-            <SheetDescription className="text-sm text-muted-foreground">
-              {detailDayCasts.length} cast{detailDayCasts.length === 1 ? '' : 's'} scheduled
+            <SheetDescription className="text-[12px] text-muted-foreground">
+              Scheduled casts
             </SheetDescription>
           </SheetHeader>
 
@@ -545,7 +531,7 @@ export function CalendarView({
             isMobile ? 'h-[calc(70dvh-5.5rem)]' : 'h-[calc(100dvh-5.5rem)]'
           )}>
             {detailDayCasts.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No casts for this day.</div>
+              <div className="text-[12px] text-muted-foreground">No casts for this day.</div>
             ) : (
               detailDayCasts.map((cast) => {
                 const canDelete = ['draft', 'scheduled', 'retrying', 'failed'].includes(cast.status)
@@ -565,7 +551,7 @@ export function CalendarView({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-[10px] text-muted-foreground tabular-nums mb-1">
+                        <div className="text-[12px] text-muted-foreground tabular-nums mb-1">
                           {formatStudioTime(cast.scheduledAt, {
                             locale: resolvedLocale,
                             timeZone: resolvedTimeZone,
@@ -574,7 +560,7 @@ export function CalendarView({
                           })}
                           {cast.account?.username ? ` · @${cast.account.username}` : ''}
                         </div>
-                        <p className="text-[10px] line-clamp-3">{cast.content || 'Empty cast'}</p>
+                        <p className="text-[12px] line-clamp-3">{cast.content || 'Empty cast'}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {onDuplicateCast && (
@@ -681,7 +667,7 @@ function CalendarDay({
             day: 'numeric',
             year: 'numeric',
           })}`}
-          className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors hover:bg-primary/10 hover:text-primary ${isToday
+          className={`text-[12px] font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors hover:bg-primary/10 hover:text-primary ${isToday
             ? 'bg-castor-black text-white hover:bg-castor-black hover:text-white'
             : !isCurrentMonth
               ? 'text-muted-foreground'
@@ -695,21 +681,23 @@ function CalendarDay({
             {statusIndicators.slice(0, 3).map((indicator) => (
               <span
                 key={indicator.key}
-                title={`${indicator.key}: ${indicator.count}`}
+                title={STATUS_LABEL[indicator.key] ?? indicator.key}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] border',
-                  STATUS_TONE[indicator.key] ?? 'border-border/60 bg-muted/50 text-foreground/90'
+                  'size-2 rounded-full',
+                  indicator.key === 'published'
+                    ? 'bg-emerald-400'
+                    : indicator.key === 'scheduled'
+                      ? 'bg-blue-400'
+                      : indicator.key === 'draft'
+                        ? 'bg-amber-400'
+                        : indicator.key === 'retrying'
+                          ? 'bg-orange-400'
+                          : indicator.key === 'failed'
+                            ? 'bg-red-400'
+                            : 'bg-muted-foreground'
                 )}
-              >
-                <span className="truncate max-w-[52px]">{STATUS_LABEL[indicator.key] ?? indicator.key}</span>
-                <span className="tabular-nums">{indicator.count}</span>
-              </span>
+              />
             ))}
-            {statusIndicators.length > 3 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{statusIndicators.length - 3}
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -730,9 +718,9 @@ function CalendarDay({
           <button
             type="button"
             onClick={() => onOpenDayDetail?.(dateKey)}
-            className="text-xs text-muted-foreground pl-1 hover:text-foreground"
+            className="text-[12px] text-muted-foreground pl-1 hover:text-foreground"
           >
-            +{casts.length - 2} more
+            View all
           </button>
         )}
       </div>
@@ -826,7 +814,7 @@ function CastCard({
 
   return (
     <div
-      className={`p-1.5 rounded border text-[10px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
+      className={`p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
         } relative group pr-12`}
     >
       <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -860,34 +848,17 @@ function CastCard({
         )}
       </div>
       <div className="flex items-center justify-between gap-1 mb-0.5">
-        <div className="flex items-center gap-1 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
           {cast.account?.pfpUrl ? (
             <img src={cast.account.pfpUrl} alt="" className="size-3.5 rounded-full shrink-0" />
           ) : (
             <div className="size-3.5 rounded-full bg-muted shrink-0" />
           )}
+          <span className="truncate text-muted-foreground">
+            {cast.account?.username ? `@${cast.account.username}` : 'Account'}
+          </span>
         </div>
-        <span
-          className={cn(
-            'size-2 rounded-full shrink-0',
-            cast.status === 'published'
-              ? 'bg-emerald-400'
-              : cast.status === 'scheduled'
-                ? 'bg-blue-400'
-                : cast.status === 'draft'
-                  ? 'bg-amber-400'
-                  : cast.status === 'retrying'
-                    ? 'bg-orange-400'
-                    : cast.status === 'failed'
-                      ? 'bg-red-400'
-                      : 'bg-muted-foreground'
-          )}
-          aria-label={STATUS_LABEL[cast.status] ?? cast.status}
-        />
-      </div>
-      <div className="flex items-center gap-1 mb-0.5">
-        <Clock className="w-3 h-3 text-muted-foreground" />
-        <span className="text-muted-foreground">{time}</span>
+        <span className="text-muted-foreground tabular-nums shrink-0">{time}</span>
       </div>
       <p className="line-clamp-2 text-foreground">{cast.content}</p>
     </div>

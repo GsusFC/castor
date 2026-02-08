@@ -170,34 +170,27 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           />
         }
         rightPanelControls={(
-          <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm px-3 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold leading-none">Studio</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Daily agenda</p>
+          <>
+            <div className="sm:hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold leading-none">Studio</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Daily agenda</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent(SCROLL_TO_TODAY_EVENT))
+                    }
+                  }}
+                  className="h-8 rounded-md border border-[#B89C7A]/60 bg-[#B89C7A]/15 px-2.5 text-xs font-semibold text-foreground hover:bg-[#B89C7A]/25 transition-colors inline-flex items-center gap-1.5"
+                >
+                  Today
+                  <span className="text-[11px] text-foreground/80">{todayLabel}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent(SCROLL_TO_TODAY_EVENT))
-                  }
-                }}
-                className="h-8 rounded-md border border-[#B89C7A]/60 bg-[#B89C7A]/15 px-2.5 text-xs font-semibold text-foreground hover:bg-[#B89C7A]/25 transition-colors inline-flex items-center gap-1.5"
-              >
-                Today
-                <span className="text-[11px] text-foreground/80">{todayLabel}</span>
-              </button>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-2">
-              <div className="hidden sm:block">
-                <AccountFilterControl
-                  accountFilter={accountFilter}
-                  onChange={setAccountFilter}
-                  accounts={filterAccounts}
-                />
-              </div>
-              <div className="sm:hidden">
+              <div className="flex items-center justify-end gap-2 mt-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -223,7 +216,15 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
                 </DropdownMenu>
               </div>
             </div>
-          </div>
+
+            <div className="hidden sm:flex items-center justify-end gap-2">
+              <AccountFilterControl
+                accountFilter={accountFilter}
+                onChange={setAccountFilter}
+                accounts={filterAccounts}
+              />
+            </div>
+          </>
         )}
         rightPanel={
           <DailyQueuePanel

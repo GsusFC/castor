@@ -9,11 +9,13 @@ import { SelectedAccountV2Provider } from '@/context/SelectedAccountV2Context'
 import { QueuePanel } from '@/components/v2/studio/QueuePanel'
 import { ActivityPanel } from '@/components/v2/studio/ActivityPanel'
 import { TemplatesPanel } from '@/components/v2/studio/TemplatesPanel'
+import { AccountFilterControl } from '@/components/v2/studio/AccountFilterControl'
 import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
 import type {
   SerializedAccount,
+  SerializedCast,
   SerializedTemplate,
   SessionUser,
 } from '@/types'
@@ -100,22 +102,11 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           />
         }
         rightPanelControls={
-          <label className="text-xs text-muted-foreground flex items-center gap-2">
-            Account
-            <select
-              aria-label="Filter studio panels by account"
-              className="h-8 rounded-md border bg-background px-2 text-xs text-foreground"
-              value={accountFilter}
-              onChange={(e) => setAccountFilter(e.target.value)}
-            >
-              <option value="all">All accounts</option>
-              {approvedAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  @{account.username}
-                </option>
-              ))}
-            </select>
-          </label>
+          <AccountFilterControl
+            accountFilter={accountFilter}
+            onChange={setAccountFilter}
+            accounts={approvedAccounts.map((a) => ({ id: a.id, username: a.username }))}
+          />
         }
         calendarPanel={
           <CalendarView

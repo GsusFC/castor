@@ -102,11 +102,11 @@ export function MobileNavV2() {
   return (
     <>
       {/* Floating quick actions */}
-      <div className="fixed bottom-[4.75rem] right-4 z-50 lg:hidden flex items-center gap-2">
+      <div className="fixed bottom-[4.75rem] left-4 right-4 z-50 lg:hidden pointer-events-none">
         <button
           type="button"
           onClick={() => search.open()}
-          className="w-11 h-11 rounded-full border border-border bg-background/95 backdrop-blur-md shadow-sm flex items-center justify-center text-foreground"
+          className="pointer-events-auto absolute left-0 bottom-0 w-11 h-11 rounded-full border border-border bg-background/95 backdrop-blur-md shadow-sm flex items-center justify-center text-foreground"
           aria-label="Open search"
         >
           <Search className="w-5 h-5" />
@@ -115,7 +115,7 @@ export function MobileNavV2() {
         <button
           type="button"
           onClick={() => setComposeOpen(true)}
-          className="w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center"
+          className="pointer-events-auto absolute right-0 bottom-0 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center"
           aria-label="Create cast"
         >
           <Plus className="w-5 h-5" />

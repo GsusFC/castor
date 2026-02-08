@@ -393,7 +393,7 @@ export function CalendarView({
 
           <div className="pt-1 space-y-1.5">
             {mobileAgendaCasts.length === 0 ? (
-              <div className="text-xs text-muted-foreground px-1 py-2">No casts for this day</div>
+              <div className="text-[10px] text-muted-foreground px-1 py-2">No casts for this day</div>
             ) : (
               mobileAgendaCasts.map((cast) => (
                 <div
@@ -409,7 +409,7 @@ export function CalendarView({
                   }}
                   className="flex items-start gap-2 rounded-md border p-2 bg-card hover:bg-muted/40"
                 >
-                  <div className="text-xs tabular-nums text-muted-foreground min-w-[44px]">
+                  <div className="text-[10px] tabular-nums text-muted-foreground min-w-[44px]">
                     {formatStudioTime(cast.scheduledAt, {
                       locale: resolvedLocale,
                       timeZone: resolvedTimeZone,
@@ -418,7 +418,7 @@ export function CalendarView({
                     })}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs line-clamp-2">{cast.content || 'Empty cast'}</p>
+                    <p className="text-[10px] line-clamp-2">{cast.content || 'Empty cast'}</p>
                   </div>
                 </div>
               ))
@@ -549,7 +549,7 @@ export function CalendarView({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-xs text-muted-foreground tabular-nums mb-1">
+                        <div className="text-[10px] text-muted-foreground tabular-nums mb-1">
                           {formatStudioTime(cast.scheduledAt, {
                             locale: resolvedLocale,
                             timeZone: resolvedTimeZone,
@@ -558,7 +558,7 @@ export function CalendarView({
                           })}
                           {cast.account?.username ? ` · @${cast.account.username}` : ''}
                         </div>
-                        <p className="text-sm line-clamp-3">{cast.content || 'Empty cast'}</p>
+                        <p className="text-[10px] line-clamp-3">{cast.content || 'Empty cast'}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {onDuplicateCast && (
@@ -812,7 +812,7 @@ function CastCard({
 
   return (
     <div
-      className={`p-1.5 rounded border text-xs cursor-grab active:cursor-grabbing ${statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
+      className={`p-1.5 rounded border text-[10px] cursor-grab active:cursor-grabbing ${statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
         } ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
         } relative group pr-12`}
     >

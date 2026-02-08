@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useCallback } from 'react'
+import { useMemo, useRef } from 'react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
 import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
@@ -11,9 +11,9 @@ import { ActivityPanel } from '@/components/v2/studio/ActivityPanel'
 import { TemplatesPanel } from '@/components/v2/studio/TemplatesPanel'
 import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
+import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
 import type {
   SerializedAccount,
-  SerializedCast,
   SerializedTemplate,
   SessionUser,
 } from '@/types'
@@ -63,39 +63,15 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     const userAccount = approvedAccounts.find(a => a.fid === user.fid)
     return userAccount?.id || approvedAccounts[0]?.id || null
   }, [approvedAccounts, user.fid])
-
-  const handleSelectDate = useCallback((date: Date) => {
-    composerRef.current?.setScheduleDate(date)
-  }, [])
-
-  const handleSelectCast = useCallback((castId: string) => {
-    const cast = allKnownCasts.find(c => c.id === castId)
-    if (cast) {
-      composerRef.current?.loadCast(cast)
-    }
-  }, [allKnownCasts])
-
-  const handleStartCast = useCallback(() => {
-    composerRef.current?.startNewCast()
-  }, [])
-
-  const handleLoadTemplateFromPanel = useCallback((template: SerializedTemplate) => {
-    composerRef.current?.loadCast({
-      id: '',
-      accountId: template.accountId,
-      content: template.content,
-      status: 'draft',
-      scheduledAt: new Date().toISOString(),
-      publishedAt: null,
-      castHash: null,
-      channelId: template.channelId,
-      errorMessage: null,
-      retryCount: 0,
-      media: [],
-      account: null,
-      createdBy: null,
-    })
-  }, [])
+  const {
+    handleSelectDate,
+    handleSelectCast,
+    handleStartCast,
+    handleLoadTemplateFromPanel,
+  } = useStudioComposerBridge({
+    composerRef,
+    allKnownCasts,
+  })
 
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>

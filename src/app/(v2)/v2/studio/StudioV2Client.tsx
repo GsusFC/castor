@@ -5,9 +5,12 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
 import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
+import { CalendarView } from '@/components/calendar/CalendarView'
 import { SelectedAccountV2Provider } from '@/context/SelectedAccountV2Context'
 import { AccountFilterControl } from '@/components/v2/studio/AccountFilterControl'
 import { DailyQueuePanel } from '@/components/v2/studio/DailyQueuePanel'
+import { QueuePanel } from '@/components/v2/studio/QueuePanel'
+import { ActivityPanel } from '@/components/v2/studio/ActivityPanel'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +21,7 @@ import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
 import { useStudioAccounts } from '@/hooks/useStudioAccounts'
+import { useStudioCalendarCasts } from '@/hooks/useStudioCalendarCasts'
 import type {
   SerializedAccount,
   SerializedCast,
@@ -51,6 +55,9 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
   const {
     accountFilter,
     setAccountFilter,
+    filteredCasts,
+    upcomingCasts,
+    recentActivity,
     queueHasMore,
     activityHasMore,
     isLoadingMoreQueue,
@@ -58,6 +65,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     allKnownCasts,
     loadMoreQueue,
     loadMoreActivity,
+    handleMoveCast,
     handleDeleteCast,
     handleDuplicateCast,
     handleCastCreated,
@@ -75,6 +83,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     composerRef,
     allKnownCasts,
   })
+  const calendarCasts = useStudioCalendarCasts({ casts: filteredCasts })
 
   const combinedCasts = useMemo(() => {
     return [...allKnownCasts]
@@ -175,10 +184,50 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             timeZone={timeZone}
           />
         }
+        calendarPanel={
+          <CalendarView
+            casts={calendarCasts}
+            onMoveCast={handleMoveCast}
+            onSelectDate={handleSelectDate}
+            onSelectCast={handleSelectCast}
+            onDuplicateCast={handleDuplicateCast}
+            onDeleteCast={handleDeleteCast}
+            locale={locale}
+            timeZone={timeZone}
+            weekStartsOn={1}
+          />
+        }
+        queuePanel={
+          <QueuePanel
+            casts={upcomingCasts}
+            onSelectCast={handleSelectCast}
+            onStartCast={handleStartCast}
+            onDeleteCast={handleDeleteCast}
+            onDuplicateCast={handleDuplicateCast}
+            onLoadMore={loadMoreQueue}
+            isLoadingMore={isLoadingMoreQueue}
+            hasMore={queueHasMore}
+            locale={locale}
+            timeZone={timeZone}
+          />
+        }
+        activityPanel={
+          <ActivityPanel
+            casts={recentActivity}
+            onSelectCast={handleSelectCast}
+            onStartCast={handleStartCast}
+            onDuplicateCast={handleDuplicateCast}
+            onLoadMore={loadMoreActivity}
+            isLoadingMore={isLoadingMoreActivity}
+            hasMore={activityHasMore}
+            locale={locale}
+            timeZone={timeZone}
+          />
+        }
       />
     </SelectedAccountV2Provider>
   )
 }
 
-export { QueuePanel } from "@/components/v2/studio/QueuePanel"
-export { ActivityPanel } from "@/components/v2/studio/ActivityPanel"
+export { QueuePanel } from '@/components/v2/studio/QueuePanel'
+export { ActivityPanel } from '@/components/v2/studio/ActivityPanel'

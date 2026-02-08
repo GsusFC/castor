@@ -32,7 +32,8 @@ export function StudioLayout({
   queuePanel,
   activityPanel,
 }: StudioLayoutProps) {
-  const isLegacyTabbedMode = !rightPanel && (calendarPanel || queuePanel || activityPanel)
+  const hasLegacyPanels = Boolean(calendarPanel || queuePanel || activityPanel)
+  const isLegacyTabbedMode = !rightPanel && hasLegacyPanels
   const [activeTab, setActiveTab] = useState<RightPanelTab>('calendar')
 
   return (
@@ -45,6 +46,22 @@ export function StudioLayout({
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {hasLegacyPanels && rightPanel && (
+          <div className="lg:hidden flex flex-col min-h-0">
+            {rightPanelControls && (
+              <div className="px-3 sm:px-4 pt-3 pb-2 shrink-0">
+                {rightPanelControls}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-auto px-4 pb-4">
+              <ErrorBoundary fallbackTitle="Panel failed to load">
+                {rightPanel}
+              </ErrorBoundary>
+            </div>
+          </div>
+        )}
+
         {isLegacyTabbedMode ? (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">
@@ -95,6 +112,56 @@ export function StudioLayout({
               </ErrorBoundary>
             </div>
           </>
+        ) : hasLegacyPanels ? (
+          <div className="hidden lg:flex lg:flex-col min-h-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">
+              <div
+                className="flex items-center gap-1 overflow-x-auto no-scrollbar"
+                role="tablist"
+                aria-label="Studio right panel tabs"
+              >
+                {LEGACY_TABS.map((tab) => {
+                  const Icon = tab.icon
+                  const isActive = activeTab === tab.id
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      id={`studio-tab-${tab.id}`}
+                      aria-selected={isActive}
+                      aria-controls={`studio-panel-${tab.id}`}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {rightPanelControls && <div className="sm:ml-2">{rightPanelControls}</div>}
+            </div>
+
+            <div
+              className="flex-1 overflow-auto px-4 pb-4"
+              role="tabpanel"
+              id={`studio-panel-${activeTab}`}
+              aria-labelledby={`studio-tab-${activeTab}`}
+            >
+              <ErrorBoundary fallbackTitle="Panel failed to load">
+                {activeTab === 'calendar' && calendarPanel}
+                {activeTab === 'queue' && queuePanel}
+                {activeTab === 'activity' && activityPanel}
+              </ErrorBoundary>
+            </div>
+          </div>
         ) : (
           <>
             {rightPanelControls && (

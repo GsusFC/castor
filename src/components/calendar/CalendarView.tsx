@@ -257,7 +257,7 @@ export function CalendarView({
       onDragEnd={handleDragEnd}
     >
       <div className="bg-card rounded-xl border">
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="hidden md:flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold text-lg">
             {formatStudioDate(currentDate, {
               locale: resolvedLocale,

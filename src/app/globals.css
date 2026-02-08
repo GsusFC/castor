@@ -159,6 +159,9 @@
 
 /* Mobile optimizations */
 @layer utilities {
+  .font-display {
+    font-weight: 900;
+  }
 
   /* Safe areas for notch and home indicator */
   .safe-top {

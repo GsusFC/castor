@@ -176,6 +176,18 @@ export function CastEditorInline({
     onUpdate({ ...cast, links: cast.links.filter(l => l.url !== url) })
   }
 
+  const retryLinkMetadata = (url: string) => {
+    const normalizedUrl = normalizeHttpUrl(url)
+    const currentCast = castRef.current
+    onUpdate({
+      ...currentCast,
+      links: currentCast.links.map((l: LinkEmbed) =>
+        l.url === normalizedUrl ? { ...l, loading: true, error: false } : l
+      ),
+    })
+    fetchLinkMetadata(normalizedUrl)
+  }
+
   const attachments = [
     ...cast.media.map((media) => ({ kind: 'media' as const, key: `m:${media.preview}`, media })),
     ...cast.links.map((link) => ({ kind: 'link' as const, key: `l:${link.url}`, link })),
@@ -244,7 +256,14 @@ export function CastEditorInline({
 
       {/* Previews compactas - scroll horizontal en móvil */}
       {attachments.length > 0 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-thin">
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-2 px-0.5">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Attachments</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+              Media {cast.media.length}/2
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
           {attachments.map((attachment) =>
             attachment.kind === 'media' ? (
               <MediaPreviewItem
@@ -257,10 +276,12 @@ export function CastEditorInline({
                 key={attachment.key}
                 link={attachment.link}
                 onRemove={() => removeLink(attachment.link.url)}
+                onRetry={() => retryLinkMetadata(attachment.link.url)}
                 compact
               />
             )
           )}
+          </div>
         </div>
       )}
 

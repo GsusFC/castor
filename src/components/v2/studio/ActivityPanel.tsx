@@ -7,6 +7,7 @@ import type { SerializedCast } from '@/types'
 
 type ActivityPanelProps = {
   casts: SerializedCast[]
+  viewMode?: 'list' | 'grid'
   onSelectCast: (castId: string) => void
   onStartCast: () => void
   onDuplicateCast: (castId: string) => void | Promise<void>
@@ -19,6 +20,7 @@ type ActivityPanelProps = {
 
 export function ActivityPanel({
   casts,
+  viewMode = 'grid',
   onSelectCast,
   onStartCast,
   onDuplicateCast,
@@ -49,7 +51,7 @@ export function ActivityPanel({
 
   return (
     <div className="space-y-2.5">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-2.5' : 'space-y-2.5'}>
         {casts.map(cast => (
           <div
             key={cast.id}

@@ -16,6 +16,7 @@ import type { SerializedCast } from '@/types'
 
 type QueuePanelProps = {
   casts: SerializedCast[]
+  viewMode?: 'list' | 'grid'
   onSelectCast: (castId: string) => void
   onStartCast: () => void
   onDeleteCast: (castId: string) => void | Promise<void>
@@ -29,6 +30,7 @@ type QueuePanelProps = {
 
 export function QueuePanel({
   casts,
+  viewMode = 'grid',
   onSelectCast,
   onStartCast,
   onDeleteCast,
@@ -71,7 +73,7 @@ export function QueuePanel({
         {draftCount > 0 && <span>{draftCount} drafts</span>}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-2.5' : 'space-y-2.5'}>
         {casts.map(cast => (
           <div
             key={cast.id}

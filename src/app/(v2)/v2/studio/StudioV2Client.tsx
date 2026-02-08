@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { LayoutGrid, List } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
 import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
@@ -29,8 +30,18 @@ interface StudioV2ClientProps {
   templates: SerializedTemplate[]
 }
 
+type ViewMode = 'list' | 'grid'
+type ViewModeTab = 'queue' | 'activity' | 'templates'
+
+const DEFAULT_VIEW_MODES: Record<ViewModeTab, ViewMode> = {
+  queue: 'grid',
+  activity: 'grid',
+  templates: 'grid',
+}
+
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
+  const [viewModes, setViewModes] = useState<Record<ViewModeTab, ViewMode>>(DEFAULT_VIEW_MODES)
   const {
     approvedAccounts,
     defaultAccountId,
@@ -79,6 +90,29 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
   })
   const calendarCasts = useStudioCalendarCasts({ casts: filteredCasts })
 
+  useEffect(() => {
+    try {
+      const queue = localStorage.getItem('studio-v2-view-mode-queue')
+      const activity = localStorage.getItem('studio-v2-view-mode-activity')
+      const templatesMode = localStorage.getItem('studio-v2-view-mode-templates')
+
+      setViewModes({
+        queue: queue === 'list' || queue === 'grid' ? queue : DEFAULT_VIEW_MODES.queue,
+        activity: activity === 'list' || activity === 'grid' ? activity : DEFAULT_VIEW_MODES.activity,
+        templates: templatesMode === 'list' || templatesMode === 'grid' ? templatesMode : DEFAULT_VIEW_MODES.templates,
+      })
+    } catch {
+      setViewModes(DEFAULT_VIEW_MODES)
+    }
+  }, [])
+
+  const setViewMode = (tab: ViewModeTab, mode: ViewMode) => {
+    setViewModes((prev) => ({ ...prev, [tab]: mode }))
+    try {
+      localStorage.setItem(`studio-v2-view-mode-${tab}`, mode)
+    } catch {}
+  }
+
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
       <AppHeader
@@ -101,13 +135,43 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             onCastCreated={handleCastCreated}
           />
         }
-        rightPanelControls={
-          <AccountFilterControl
-            accountFilter={accountFilter}
-            onChange={setAccountFilter}
-            accounts={filterAccounts}
-          />
-        }
+        rightPanelControls={(activeTab) => (
+          <div className="flex items-center gap-2">
+            {(activeTab === 'queue' || activeTab === 'activity' || activeTab === 'templates') && (
+              <div className="flex items-center rounded-md border p-0.5">
+                <button
+                  type="button"
+                  aria-label="List view"
+                  onClick={() => setViewMode(activeTab, 'list')}
+                  className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
+                    viewModes[activeTab] === 'list'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Grid view"
+                  onClick={() => setViewMode(activeTab, 'grid')}
+                  className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
+                    viewModes[activeTab] === 'grid'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <AccountFilterControl
+              accountFilter={accountFilter}
+              onChange={setAccountFilter}
+              accounts={filterAccounts}
+            />
+          </div>
+        )}
         calendarPanel={
           <CalendarView
             casts={calendarCasts}
@@ -124,6 +188,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         queuePanel={
           <QueuePanel
             casts={upcomingCasts}
+            viewMode={viewModes.queue}
             onSelectCast={handleSelectCast}
             onStartCast={handleStartCast}
             onDeleteCast={handleDeleteCast}
@@ -138,6 +203,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         activityPanel={
           <ActivityPanel
             casts={recentActivity}
+            viewMode={viewModes.activity}
             onSelectCast={handleSelectCast}
             onStartCast={handleStartCast}
             onDuplicateCast={handleDuplicateCast}
@@ -151,6 +217,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         templatesPanel={
           <TemplatesPanel
             templates={studioTemplates}
+            viewMode={viewModes.templates}
             onLoadTemplate={handleLoadTemplateFromPanel}
             onDeleteTemplate={handleDeleteTemplate}
           />

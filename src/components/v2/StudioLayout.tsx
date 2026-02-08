@@ -20,7 +20,8 @@ interface StudioLayoutProps {
   queuePanel: React.ReactNode
   activityPanel: React.ReactNode
   templatesPanel?: React.ReactNode
-  rightPanelControls?: React.ReactNode
+  rightPanelControls?: React.ReactNode | ((activeTab: RightPanelTab) => React.ReactNode)
+  onActiveTabChange?: (tab: RightPanelTab) => void
 }
 
 export function StudioLayout({
@@ -30,8 +31,14 @@ export function StudioLayout({
   activityPanel,
   templatesPanel,
   rightPanelControls,
+  onActiveTabChange,
 }: StudioLayoutProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('calendar')
+
+  const handleTabChange = (tab: RightPanelTab) => {
+    setActiveTab(tab)
+    onActiveTabChange?.(tab)
+  }
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] overflow-hidden">
@@ -58,7 +65,7 @@ export function StudioLayout({
                 id={`studio-tab-${tab.id}`}
                 aria-selected={isActive}
                 aria-controls={`studio-panel-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                   isActive
@@ -72,7 +79,9 @@ export function StudioLayout({
             )
           })}
           </div>
-          {rightPanelControls}
+          {typeof rightPanelControls === 'function'
+            ? rightPanelControls(activeTab)
+            : rightPanelControls}
         </div>
 
         {/* Tab Content */}

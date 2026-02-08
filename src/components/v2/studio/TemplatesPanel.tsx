@@ -15,12 +15,14 @@ import type { SerializedTemplate } from '@/types'
 
 type TemplatesPanelProps = {
   templates: SerializedTemplate[]
+  viewMode?: 'list' | 'grid'
   onLoadTemplate: (template: SerializedTemplate) => void
   onDeleteTemplate: (id: string) => void | Promise<void>
 }
 
 export function TemplatesPanel({
   templates,
+  viewMode = 'grid',
   onLoadTemplate,
   onDeleteTemplate,
 }: TemplatesPanelProps) {
@@ -41,7 +43,7 @@ export function TemplatesPanel({
     <div className="space-y-2.5">
       <p className="text-xs text-muted-foreground px-1">{templates.length} templates</p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5">
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5' : 'space-y-2.5'}>
         {templates.map(template => (
           <div
             key={template.id}

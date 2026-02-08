@@ -13,6 +13,7 @@ import { AccountFilterControl } from '@/components/v2/studio/AccountFilterContro
 import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
+import { useStudioAccounts } from '@/hooks/useStudioAccounts'
 import type {
   SerializedAccount,
   SerializedCast,
@@ -29,10 +30,15 @@ interface StudioV2ClientProps {
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
-  const approvedAccounts = useMemo(
-    () => accounts.filter(a => a.signerStatus === 'approved'),
-    [accounts]
-  )
+  const {
+    approvedAccounts,
+    defaultAccountId,
+    headerAccounts,
+    filterAccounts,
+  } = useStudioAccounts({
+    accounts,
+    userFid: user.fid,
+  })
 
   const locale = useMemo(() => getStudioLocale(), [])
   const timeZone = useMemo(() => getStudioTimeZone(), [])
@@ -61,10 +67,6 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     approvedAccountIds: approvedAccounts.map((a) => a.id),
   })
 
-  const defaultAccountId = useMemo(() => {
-    const userAccount = approvedAccounts.find(a => a.fid === user.fid)
-    return userAccount?.id || approvedAccounts[0]?.id || null
-  }, [approvedAccounts, user.fid])
   const {
     handleSelectDate,
     handleSelectCast,
@@ -83,11 +85,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           displayName: user.displayName,
           pfpUrl: user.pfpUrl,
         }}
-        accounts={approvedAccounts.map(a => ({
-          id: a.id,
-          username: a.username,
-          pfpUrl: a.pfpUrl,
-        }))}
+        accounts={headerAccounts}
       />
 
       <StudioLayout
@@ -105,7 +103,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           <AccountFilterControl
             accountFilter={accountFilter}
             onChange={setAccountFilter}
-            accounts={approvedAccounts.map((a) => ({ id: a.id, username: a.username }))}
+            accounts={filterAccounts}
           />
         }
         calendarPanel={

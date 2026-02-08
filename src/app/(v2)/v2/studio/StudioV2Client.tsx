@@ -22,6 +22,7 @@ import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
 import { useStudioAccounts } from '@/hooks/useStudioAccounts'
 import { useStudioCalendarCasts } from '@/hooks/useStudioCalendarCasts'
+import { toast } from 'sonner'
 import type {
   SerializedAccount,
   SerializedCast,
@@ -89,6 +90,17 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
   const calendarCasts = useStudioCalendarCasts({ casts: filteredCasts })
 
   const handleCreateOnDate = (date: Date) => {
+    const selected = new Date(date)
+    selected.setHours(0, 0, 0, 0)
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (selected < today) {
+      toast.error('You cannot schedule casts in past days')
+      return
+    }
+
     handleSelectDate(date)
 
     if (typeof window !== 'undefined') {

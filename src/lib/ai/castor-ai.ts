@@ -364,30 +364,192 @@ Respond ONLY with valid JSON (no markdown):
   async translate(text: string, targetLanguage: string): Promise<string> {
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
+    const sanitize = (value: string) => value.trim().replace(/^["']|["']$/g, '')
+    const wordCount = (value: string) => value.trim().split(/\s+/).filter(Boolean).length
+    const sentenceCount = (value: string) =>
+      value
+        .split(/(?<=[.!?。！？])\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean).length
 
-    // Generous token budget — single call, no retries
+    const endsWithSentencePunctuation = (value: string) => /[.!?。！？]$/.test(value.trim())
+    const looksAbruptlyCut = (source: string, translated: string) => {
+      const cleaned = translated.trim()
+      if (!cleaned) return true
+      if (cleaned.endsWith('...') || cleaned.endsWith('…')) return true
+
+      const sourceWords = Math.max(1, wordCount(source))
+      const translatedWords = wordCount(cleaned)
+      if (translatedWords < Math.ceil(sourceWords * 0.65)) return true
+
+      const sourceSentences = sentenceCount(source)
+      if (sourceSentences >= 2) {
+        const translatedSentences = sentenceCount(cleaned)
+        if (translatedSentences < Math.ceil(sourceSentences * 0.6)) return true
+      }
+
+      if (source.length > 280 && !endsWithSentencePunctuation(cleaned) && endsWithSentencePunctuation(source)) {
+        return true
+      }
+
+      return false
+    }
+
+    const splitSentences = (value: string): string[] =>
+      value
+        .split(/(?<=[.!?。！？])(\s+)/)
+        .reduce<string[]>((acc, part) => {
+          if (!part) return acc
+          if (/^\s+$/.test(part) && acc.length > 0) {
+            acc[acc.length - 1] += part
+            return acc
+          }
+          acc.push(part)
+          return acc
+        }, [])
+        .filter((part) => part.trim().length > 0)
+
+    const translateChunk = async (chunk: string, maxOutputTokens: number): Promise<string> => {
+      const prompt = `Translate all content inside <SOURCE_TEXT> to ${langName}.
+Do NOT summarize, shorten, omit, or reorder information.
+Preserve formatting, punctuation, line breaks, URLs, hashtags, cashtags, and mentions exactly as in the source.
+
+<SOURCE_TEXT>
+${chunk}
+</SOURCE_TEXT>`
+
+      const result = await generateGeminiText({
+        modelId: AI_CONFIG.translationModel,
+        fallbackModelId: GEMINI_MODELS.fallback,
+        prompt,
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          maxOutputTokens,
+          responseMimeType: 'text/plain',
+        },
+        systemInstruction:
+          'You are a professional translator engine. Return only the full translation of the provided source text.',
+      })
+
+      return sanitize(result)
+    }
+
+    const translateSentence = async (sentence: string): Promise<string> => {
+      const prompt = `Translate this text to ${langName} exactly as written.
+Do NOT summarize, shorten, omit, or reorder.
+
+<SOURCE_TEXT>
+${sentence}
+</SOURCE_TEXT>`
+
+      const result = await generateGeminiText({
+        modelId: AI_CONFIG.translationModel,
+        fallbackModelId: GEMINI_MODELS.fallback,
+        prompt,
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          maxOutputTokens: 1024,
+          responseMimeType: 'text/plain',
+        },
+        systemInstruction:
+          'You are a professional translator engine. Return only the full translation of the provided source text.',
+      })
+
+      return sanitize(result)
+    }
+
+    const splitIntoChunks = (source: string, maxChars = 1200): string[] => {
+      const paragraphs = source.split('\n')
+      const chunks: string[] = []
+      let current = ''
+
+      const pushCurrent = () => {
+        if (current.trim()) chunks.push(current.trim())
+        current = ''
+      }
+
+      for (const paragraph of paragraphs) {
+        const line = paragraph.trim()
+        if (!line) {
+          if (current.length + 1 > maxChars) pushCurrent()
+          current += '\n'
+          continue
+        }
+
+        if (line.length > maxChars) {
+          pushCurrent()
+          const sentences = line.split(/(?<=[.!?。！？])\s+/).filter(Boolean)
+          let sentenceBucket = ''
+          for (const sentence of sentences) {
+            if ((sentenceBucket + ' ' + sentence).trim().length > maxChars) {
+              if (sentenceBucket.trim()) chunks.push(sentenceBucket.trim())
+              sentenceBucket = sentence
+            } else {
+              sentenceBucket = sentenceBucket ? `${sentenceBucket} ${sentence}` : sentence
+            }
+          }
+          if (sentenceBucket.trim()) chunks.push(sentenceBucket.trim())
+          continue
+        }
+
+        const candidate = current ? `${current}\n${line}` : line
+        if (candidate.length > maxChars) {
+          pushCurrent()
+          current = line
+        } else {
+          current = candidate
+        }
+      }
+
+      pushCurrent()
+      return chunks.length > 0 ? chunks : [source]
+    }
+
     const estimatedTokens = Math.ceil(text.length / 4)
-    const maxOutputTokens = Math.min(4096, Math.max(512, Math.ceil(estimatedTokens * 1.5)))
+    const maxOutputTokens = Math.min(8192, Math.max(1024, Math.ceil(estimatedTokens * 2.2)))
 
-    const prompt = `Translate this text to ${langName}. Translate EVERY sentence completely — do NOT summarize, shorten, or omit anything. Preserve formatting, punctuation, and line breaks.
+    const firstPass = await translateChunk(text, maxOutputTokens)
+    if (!looksAbruptlyCut(text, firstPass)) {
+      return firstPass
+    }
 
-"${text}"`
-
-    const result = await generateGeminiText({
-      modelId: AI_CONFIG.translationModel,
-      fallbackModelId: GEMINI_MODELS.fallback,
-      prompt,
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.9,
-        maxOutputTokens,
-        responseMimeType: 'text/plain',
-      },
-      systemInstruction:
-        'You are a professional translator engine. Return ONLY the translated text. No explanations, no intro, no markdown. Preserve the original length and structure.',
+    console.warn('[AI Translate] First pass looked truncated, retrying with chunk strategy', {
+      sourceLength: text.length,
+      firstPassLength: firstPass.length,
+      language: lang,
     })
 
-    return result.trim().replace(/^["']|["']$/g, '')
+    const chunks = splitIntoChunks(text)
+    if (chunks.length <= 1) {
+      return firstPass
+    }
+
+    const translatedChunks: string[] = []
+    for (const chunk of chunks) {
+      const chunkTokens = Math.ceil(chunk.length / 4)
+      const chunkMaxOutputTokens = Math.min(4096, Math.max(768, Math.ceil(chunkTokens * 2.2)))
+      let translatedChunk = await translateChunk(chunk, chunkMaxOutputTokens)
+
+      if (looksAbruptlyCut(chunk, translatedChunk)) {
+        const sentences = splitSentences(chunk)
+        const translatedSentences: string[] = []
+
+        for (const sentence of sentences) {
+          const translatedSentence = await translateSentence(sentence)
+          translatedSentences.push(
+            looksAbruptlyCut(sentence, translatedSentence) ? sentence : translatedSentence
+          )
+        }
+
+        translatedChunk = translatedSentences.join('')
+      }
+
+      translatedChunks.push(looksAbruptlyCut(chunk, translatedChunk) ? chunk : translatedChunk)
+    }
+
+    return translatedChunks.join('\n')
   }
 
   // === Private helpers ===

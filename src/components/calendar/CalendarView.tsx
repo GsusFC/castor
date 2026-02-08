@@ -94,6 +94,7 @@ export function CalendarView({
   const [activeCast, setActiveCast] = useState<Cast | null>(null)
   const [optimisticCasts, setOptimisticCasts] = useState<Cast[]>(casts)
   const [deleteTarget, setDeleteTarget] = useState<Cast | null>(null)
+  const [detailDayKey, setDetailDayKey] = useState<string | null>(null)
 
   useEffect(() => {
     setOptimisticCasts(casts)
@@ -171,6 +172,21 @@ export function CalendarView({
       (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     )
   }, [castsByDay, mobileSelectedDate])
+
+  const detailDayDate = useMemo(() => {
+    if (!detailDayKey) return null
+    const parsed = fromDayKey(detailDayKey)
+    if (!parsed) return null
+    return new Date(parsed.year, parsed.month - 1, parsed.day)
+  }, [detailDayKey])
+
+  const detailDayCasts = useMemo(() => {
+    if (!detailDayKey) return []
+    const dayCasts = castsByDay.get(detailDayKey) || []
+    return [...dayCasts].sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    )
+  }, [castsByDay, detailDayKey])
 
   const handleDragStart = (event: DragStartEvent) => {
     const cast = optimisticCasts.find((c) => c.id === event.active.id)
@@ -422,6 +438,7 @@ export function CalendarView({
                 onDuplicateCast={onDuplicateCast}
                 onDeleteCast={onDeleteCast}
                 onRequestDelete={setDeleteTarget}
+                onOpenDayDetail={setDetailDayKey}
                 locale={resolvedLocale}
                 timeZone={resolvedTimeZone}
               />
@@ -461,6 +478,98 @@ export function CalendarView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!detailDayKey} onOpenChange={(open) => !open && setDetailDayKey(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {detailDayDate
+                ? formatStudioDate(detailDayDate, {
+                    locale: resolvedLocale,
+                    timeZone: resolvedTimeZone,
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : 'Day details'}
+            </DialogTitle>
+            <DialogDescription>
+              {detailDayCasts.length} cast{detailDayCasts.length === 1 ? '' : 's'} scheduled
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            {detailDayCasts.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No casts for this day.</div>
+            ) : (
+              detailDayCasts.map((cast) => {
+                const canDelete = ['draft', 'scheduled', 'retrying', 'failed'].includes(cast.status)
+                return (
+                  <div
+                    key={`detail-${cast.id}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectCast?.(cast.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onSelectCast?.(cast.id)
+                      }
+                    }}
+                    className="rounded-md border p-3 hover:bg-muted/40 cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs text-muted-foreground tabular-nums mb-1">
+                          {formatStudioTime(cast.scheduledAt, {
+                            locale: resolvedLocale,
+                            timeZone: resolvedTimeZone,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                          {cast.account?.username ? ` · @${cast.account.username}` : ''}
+                        </div>
+                        <p className="text-sm line-clamp-3">{cast.content || 'Empty cast'}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {onDuplicateCast && (
+                          <button
+                            type="button"
+                            title="Duplicate as draft"
+                            aria-label="Duplicate as draft"
+                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onDuplicateCast(cast.id)
+                            }}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && onRequestDelete && (
+                          <button
+                            type="button"
+                            title="Delete cast"
+                            aria-label="Delete cast"
+                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onRequestDelete(cast)
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   )
 }
@@ -476,6 +585,7 @@ function CalendarDay({
   onDuplicateCast,
   onDeleteCast,
   onRequestDelete,
+  onOpenDayDetail,
   locale,
   timeZone,
 }: {
@@ -489,6 +599,7 @@ function CalendarDay({
   onDuplicateCast?: (castId: string) => void
   onDeleteCast?: (castId: string) => void
   onRequestDelete?: (cast: Cast) => void
+  onOpenDayDetail?: (dateKey: string) => void
   locale: string
   timeZone: string
 }) {
@@ -521,7 +632,7 @@ function CalendarDay({
         {date.getDate()}
       </button>
       <div className="space-y-1">
-        {casts.slice(0, 3).map((cast) => (
+        {casts.slice(0, 2).map((cast) => (
           <DraggableCast
             key={cast.id}
             cast={cast}
@@ -533,10 +644,14 @@ function CalendarDay({
             timeZone={timeZone}
           />
         ))}
-        {casts.length > 3 && (
-          <div className="text-xs text-muted-foreground pl-1">
-            +{casts.length - 3} more
-          </div>
+        {casts.length > 2 && (
+          <button
+            type="button"
+            onClick={() => onOpenDayDetail?.(dateKey)}
+            className="text-xs text-muted-foreground pl-1 hover:text-foreground"
+          >
+            +{casts.length - 2} more
+          </button>
         )}
       </div>
     </div>

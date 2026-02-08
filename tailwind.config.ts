@@ -63,14 +63,20 @@ const config: Config = {
 			},
 			fontFamily: {
 				sans: [
-					'var(--font-inter)',
+					'var(--font-geist-sans)',
 					'system-ui',
 					'sans-serif'
 				],
 				display: [
-					'var(--font-special-gothic)',
+					'var(--font-geist-sans)',
 					'system-ui',
 					'sans-serif'
+				],
+				mono: [
+					'var(--font-geist-mono)',
+					'ui-monospace',
+					'SFMono-Regular',
+					'monospace'
 				]
 			},
 			borderRadius: {

@@ -1,16 +1,11 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import localFont from 'next/font/local'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { WebVitalsProvider } from '@/components/providers/WebVitalsProvider'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const specialGothic = localFont({
-  src: '../../public/Special_Gothic_Expanded_One/SpecialGothicExpandedOne-Regular.ttf',
-  variable: '--font-special-gothic',
-  display: 'swap',
-})
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://castorapp.xyz'),
@@ -77,7 +72,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://imagedelivery.net" />
         <link rel="dns-prefetch" href="https://videodelivery.net" />
       </head>
-      <body className={`${inter.variable} ${specialGothic.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider>
           <WebVitalsProvider>
             {children}

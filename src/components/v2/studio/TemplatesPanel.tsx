@@ -16,7 +16,7 @@ import type { SerializedTemplate } from '@/types'
 type TemplatesPanelProps = {
   templates: SerializedTemplate[]
   onLoadTemplate: (template: SerializedTemplate) => void
-  onDeleteTemplate: (id: string) => void
+  onDeleteTemplate: (id: string) => void | Promise<void>
 }
 
 export function TemplatesPanel({
@@ -25,6 +25,7 @@ export function TemplatesPanel({
   onDeleteTemplate,
 }: TemplatesPanelProps) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   if (templates.length === 0) {
     return (
@@ -57,12 +58,13 @@ export function TemplatesPanel({
             )}
           </div>
 
-          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               title="Load in composer"
               onClick={() => onLoadTemplate(template)}
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50"
+              disabled={deletingId === template.id}
             >
               <Pen className="w-3.5 h-3.5" />
             </button>
@@ -70,7 +72,8 @@ export function TemplatesPanel({
               type="button"
               title="Delete template"
               onClick={() => setDeleteTarget(template.id)}
-              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50"
+              disabled={deletingId === template.id}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -93,14 +96,19 @@ export function TemplatesPanel({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (deleteTarget) {
-                  onDeleteTemplate(deleteTarget)
+              disabled={!deleteTarget || deletingId === deleteTarget}
+              onClick={async () => {
+                if (!deleteTarget) return
+                try {
+                  setDeletingId(deleteTarget)
+                  await onDeleteTemplate(deleteTarget)
                   setDeleteTarget(null)
+                } finally {
+                  setDeletingId(null)
                 }
               }}
             >
-              Delete
+              {deleteTarget && deletingId === deleteTarget ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

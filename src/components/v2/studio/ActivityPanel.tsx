@@ -1,6 +1,7 @@
 'use client'
 
-import { Copy, FileText } from 'lucide-react'
+import { useState } from 'react'
+import { Copy, FileText, Loader2 } from 'lucide-react'
 import { formatStudioDate } from '@/lib/studio-datetime'
 import type { SerializedCast } from '@/types'
 
@@ -8,7 +9,7 @@ type ActivityPanelProps = {
   casts: SerializedCast[]
   onSelectCast: (castId: string) => void
   onStartCast: () => void
-  onDuplicateCast: (castId: string) => void
+  onDuplicateCast: (castId: string) => void | Promise<void>
   onLoadMore: () => void
   isLoadingMore: boolean
   hasMore: boolean
@@ -27,6 +28,8 @@ export function ActivityPanel({
   locale,
   timeZone,
 }: ActivityPanelProps) {
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
@@ -94,10 +97,23 @@ export function ActivityPanel({
           <button
             type="button"
             title="Duplicate as draft"
-            onClick={(e) => { e.stopPropagation(); onDuplicateCast(cast.id) }}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            disabled={duplicatingId === cast.id}
+            onClick={async (e) => {
+              e.stopPropagation()
+              try {
+                setDuplicatingId(cast.id)
+                await onDuplicateCast(cast.id)
+              } finally {
+                setDuplicatingId(null)
+              }
+            }}
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity disabled:opacity-50"
           >
-            <Copy className="w-3.5 h-3.5" />
+            {duplicatingId === cast.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
           </button>
         </div>
       ))}

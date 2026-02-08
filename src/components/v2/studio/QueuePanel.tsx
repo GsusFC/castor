@@ -18,8 +18,8 @@ type QueuePanelProps = {
   casts: SerializedCast[]
   onSelectCast: (castId: string) => void
   onStartCast: () => void
-  onDeleteCast: (castId: string) => void
-  onDuplicateCast: (castId: string) => void
+  onDeleteCast: (castId: string) => void | Promise<void>
+  onDuplicateCast: (castId: string) => void | Promise<void>
   onLoadMore: () => void
   isLoadingMore: boolean
   hasMore: boolean
@@ -40,6 +40,8 @@ export function QueuePanel({
   timeZone,
 }: QueuePanelProps) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const draftCount = casts.filter(c => c.status === 'draft').length
   const scheduledCount = casts.filter(c => c.status === 'scheduled').length
@@ -127,11 +129,20 @@ export function QueuePanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               title="Duplicate as draft"
-              onClick={(e) => { e.stopPropagation(); onDuplicateCast(cast.id) }}
+              disabled={duplicatingId === cast.id || deletingId === cast.id}
+              onClick={async (e) => {
+                e.stopPropagation()
+                setDuplicatingId(cast.id)
+                try {
+                  await Promise.resolve(onDuplicateCast(cast.id))
+                } finally {
+                  setDuplicatingId(null)
+                }
+              }}
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
             >
               <Copy className="w-3.5 h-3.5" />
@@ -139,6 +150,7 @@ export function QueuePanel({
             <button
               type="button"
               title="Delete cast"
+              disabled={duplicatingId === cast.id || deletingId === cast.id}
               onClick={(e) => { e.stopPropagation(); setDeleteTarget(cast.id) }}
               className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
             >
@@ -174,14 +186,20 @@ export function QueuePanel({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
+              disabled={!deleteTarget || deletingId === deleteTarget}
+              onClick={async () => {
                 if (deleteTarget) {
-                  onDeleteCast(deleteTarget)
-                  setDeleteTarget(null)
+                  setDeletingId(deleteTarget)
+                  try {
+                    await Promise.resolve(onDeleteCast(deleteTarget))
+                    setDeleteTarget(null)
+                  } finally {
+                    setDeletingId(null)
+                  }
                 }
               }}
             >
-              Delete
+              {deleteTarget && deletingId === deleteTarget ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

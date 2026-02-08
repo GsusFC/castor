@@ -859,15 +859,31 @@ function CastCard({
           </button>
         )}
       </div>
-      <div className="flex items-center justify-end gap-1 mb-0.5">
+      <div className="flex items-center justify-between gap-1 mb-0.5">
+        <div className="flex items-center gap-1 min-w-0">
+          {cast.account?.pfpUrl ? (
+            <img src={cast.account.pfpUrl} alt="" className="size-3.5 rounded-full shrink-0" />
+          ) : (
+            <div className="size-3.5 rounded-full bg-muted shrink-0" />
+          )}
+        </div>
         <span
           className={cn(
-            'text-[10px] px-1 py-0.5 rounded border shrink-0',
-            STATUS_TONE[cast.status] ?? 'border-border/60 bg-muted/50 text-foreground/90'
+            'size-2 rounded-full shrink-0',
+            cast.status === 'published'
+              ? 'bg-emerald-400'
+              : cast.status === 'scheduled'
+                ? 'bg-blue-400'
+                : cast.status === 'draft'
+                  ? 'bg-amber-400'
+                  : cast.status === 'retrying'
+                    ? 'bg-orange-400'
+                    : cast.status === 'failed'
+                      ? 'bg-red-400'
+                      : 'bg-muted-foreground'
           )}
-        >
-          {STATUS_LABEL[cast.status] ?? cast.status}
-        </span>
+          aria-label={STATUS_LABEL[cast.status] ?? cast.status}
+        />
       </div>
       <div className="flex items-center gap-1 mb-0.5">
         <Clock className="w-3 h-3 text-muted-foreground" />

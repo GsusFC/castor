@@ -815,9 +815,9 @@ function CastCard({
   return (
     <div
       className={`p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
-        } relative group pr-12`}
+        } relative group`}
     >
-      <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-background/85 border border-border/70 rounded-md p-0.5">
         {onDuplicate && (
           <button
             type="button"

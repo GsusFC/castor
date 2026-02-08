@@ -50,11 +50,34 @@ export interface OgMetadata {
 }
 
 /**
+ * Verifica si una URL apunta a imagen por extensión
+ */
+export function isImageUrl(url: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url)
+}
+
+/**
+ * Verifica si una URL apunta a video por extensión
+ */
+export function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|webm|m3u8)(\?.*)?$/i.test(url)
+}
+
+/**
+ * Verifica si una URL es apta para renderizar como imagen en preview
+ */
+export function isRenderableImageUrl(url: string): boolean {
+  if (!url) return false
+  if (url.startsWith('blob:') || url.startsWith('data:')) return true
+  if (url.includes('imagedelivery.net') || url.includes('cloudflare')) return true
+  return isImageUrl(url)
+}
+
+/**
  * Verifica si una URL es de media (imagen/video)
  */
 export function isMediaUrl(url: string): boolean {
-  const mediaExtensions = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|svg)(\?.*)?$/i
-  return mediaExtensions.test(url)
+  return isImageUrl(url) || isVideoUrl(url)
 }
 
 /**

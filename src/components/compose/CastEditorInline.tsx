@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, ImageOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -9,7 +9,7 @@ import { CastItem, MediaFile, LinkEmbed } from './types'
 import { LinkPreview } from './LinkPreview'
 import { MentionAutocomplete } from './MentionAutocomplete'
 import { VideoValidation } from './VideoValidation'
-import { extractUrls, isMediaUrl, calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
+import { extractUrls, isMediaUrl, isRenderableImageUrl, calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
 import { renderCastText } from '@/lib/cast-text'
 
 interface CastEditorInlineProps {
@@ -176,6 +176,11 @@ export function CastEditorInline({
     onUpdate({ ...cast, links: cast.links.filter(l => l.url !== url) })
   }
 
+  const attachments = [
+    ...cast.media.map((media) => ({ kind: 'media' as const, key: `m:${media.preview}`, media })),
+    ...cast.links.map((link) => ({ kind: 'link' as const, key: `l:${link.url}`, link })),
+  ]
+
   return (
     <div ref={containerRef} className="relative p-4 flex flex-col flex-1">
       {/* Thread indicator */}
@@ -238,21 +243,24 @@ export function CastEditorInline({
       </div>
 
       {/* Previews compactas - scroll horizontal en móvil */}
-      {(cast.links.length > 0 || cast.media.length > 0) && (
+      {attachments.length > 0 && (
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-thin">
-          {/* Media Previews */}
-          {cast.media.map((m) => (
-            <MediaPreviewItem
-              key={m.preview}
-              media={m}
-              onRemove={() => removeMedia(m.preview)}
-            />
-          ))}
-          
-          {/* Link Previews compactas */}
-          {cast.links.map((link) => (
-            <LinkPreview key={link.url} link={link} onRemove={() => removeLink(link.url)} compact />
-          ))}
+          {attachments.map((attachment) =>
+            attachment.kind === 'media' ? (
+              <MediaPreviewItem
+                key={attachment.key}
+                media={attachment.media}
+                onRemove={() => removeMedia(attachment.media.preview)}
+              />
+            ) : (
+              <LinkPreview
+                key={attachment.key}
+                link={attachment.link}
+                onRemove={() => removeLink(attachment.link.url)}
+                compact
+              />
+            )
+          )}
         </div>
       )}
 
@@ -279,14 +287,23 @@ function MediaPreviewItem({
   media: MediaFile
   onRemove: () => void
 }) {
+  const [imageErrored, setImageErrored] = useState(false)
+  const canRenderImage = media.type === 'image' && isRenderableImageUrl(media.preview) && !imageErrored
+
   return (
     <div className="relative group/media">
-      {media.type === 'image' ? (
+      {canRenderImage ? (
         <img
           src={media.preview}
           alt="Preview"
           className="w-16 h-16 object-cover rounded-lg border"
+          onError={() => setImageErrored(true)}
         />
+      ) : media.type === 'image' ? (
+        <div className="w-16 h-16 rounded-lg border bg-muted/40 flex flex-col items-center justify-center text-muted-foreground gap-0.5">
+          <ImageOff className="w-4 h-4" />
+          <span className="text-[9px] font-medium">Image</span>
+        </div>
       ) : (
         <div className="flex flex-col gap-1">
           <video

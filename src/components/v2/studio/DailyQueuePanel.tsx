@@ -139,8 +139,8 @@ export function DailyQueuePanel({
           }}
           className="rounded-xl border border-border/60 bg-card/30"
         >
-          <div className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm px-3 py-2.5 flex items-center justify-between gap-2 shadow-sm">
-            <div className="text-sm font-semibold text-foreground">
+          <div className="sticky top-0 z-20 border-b border-border/60 bg-muted/80 backdrop-blur-sm px-3 py-2.5 flex items-center justify-between gap-2 shadow-sm">
+            <div className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
               {formatStudioDate(group.date, {
                 locale,
                 timeZone,
@@ -153,7 +153,7 @@ export function DailyQueuePanel({
             <button
               type="button"
               onClick={() => onCreateOnDate(group.date)}
-              className="h-8 w-8 rounded-md border inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="h-8 w-8 rounded-md border border-[#B89C7A] bg-[#B89C7A] text-[#1F1A14] inline-flex items-center justify-center hover:bg-[#C7AD8E] transition-colors"
               aria-label="Create cast on this day"
               title="Create cast on this day"
             >

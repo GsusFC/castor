@@ -54,6 +54,14 @@ const WEEKDAY_LABELS = {
 } as const
 
 const DEFAULT_WEEK_STARTS_ON: 0 | 1 = 1
+const ACCOUNT_COLOR_TOKENS = [
+  'bg-blue-500/80',
+  'bg-emerald-500/80',
+  'bg-amber-500/80',
+  'bg-violet-500/80',
+  'bg-rose-500/80',
+  'bg-cyan-500/80',
+] as const
 
 function toDayKey(date: Date): string {
   const year = date.getFullYear()
@@ -73,6 +81,19 @@ function fromDayKey(key: string): { year: number; month: number; day: number } |
   }
 
   return { year, month, day }
+}
+
+function hashString(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function accountColorClass(accountKey: string): string {
+  return ACCOUNT_COLOR_TOKENS[hashString(accountKey) % ACCOUNT_COLOR_TOKENS.length]
 }
 
 export function CalendarView({
@@ -607,6 +628,21 @@ function CalendarDay({
     id: dateKey,
   })
 
+  const accountIndicators = useMemo(() => {
+    const buckets = new Map<string, { key: string; label: string; count: number }>()
+    for (const cast of casts) {
+      const key = cast.account?.username || 'unknown'
+      const label = cast.account?.username ? `@${cast.account.username}` : 'Unknown account'
+      const existing = buckets.get(key)
+      if (existing) {
+        existing.count += 1
+      } else {
+        buckets.set(key, { key, label, count: 1 })
+      }
+    }
+    return Array.from(buckets.values()).sort((a, b) => b.count - a.count)
+  }, [casts])
+
   return (
     <div
       ref={setNodeRef}
@@ -631,6 +667,24 @@ function CalendarDay({
       >
         {date.getDate()}
       </button>
+      {accountIndicators.length > 0 && (
+        <div className="mb-1 flex items-center gap-1 pl-1 overflow-hidden">
+          {accountIndicators.slice(0, 3).map((indicator) => (
+            <span
+              key={indicator.key}
+              title={`${indicator.label}: ${indicator.count}`}
+              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${accountColorClass(indicator.key)}`}
+            >
+              <span className="tabular-nums">{indicator.count}</span>
+            </span>
+          ))}
+          {accountIndicators.length > 3 && (
+            <span className="text-[10px] text-muted-foreground">
+              +{accountIndicators.length - 3}
+            </span>
+          )}
+        </div>
+      )}
       <div className="space-y-1">
         {casts.slice(0, 2).map((cast) => (
           <DraggableCast

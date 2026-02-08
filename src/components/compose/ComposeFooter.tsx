@@ -355,7 +355,7 @@ export function ComposeFooter({
           aria-label="Save as draft"
         >
           <Save className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-          <span className="hidden sm:inline text-xs">
+          <span className="hidden lg:inline text-xs">
             {isSavingDraft ? 'Saving...' : 'Draft'}
           </span>
         </Button>
@@ -378,7 +378,7 @@ export function ComposeFooter({
           aria-label="Save as template"
         >
           <LayoutTemplate className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-          <span className="hidden sm:inline text-xs">
+          <span className="hidden lg:inline text-xs">
             {isSavingTemplate ? 'Saving...' : 'Save'}
           </span>
         </Button>

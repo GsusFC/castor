@@ -42,7 +42,7 @@ export function TemplateDropdown({
           aria-label="Select template"
         >
           <LayoutTemplate className="w-3 h-3" />
-          <span className="hidden sm:inline">Templates</span>
+          <span className="hidden lg:inline">Templates</span>
           <ChevronDown className="w-3 h-3 opacity-50" />
         </Button>
       </PopoverTrigger>

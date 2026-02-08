@@ -14,6 +14,7 @@ import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
 import { useStudioAccounts } from '@/hooks/useStudioAccounts'
+import { useStudioCalendarCasts } from '@/hooks/useStudioCalendarCasts'
 import type {
   SerializedAccount,
   SerializedCast,
@@ -76,6 +77,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     composerRef,
     allKnownCasts,
   })
+  const calendarCasts = useStudioCalendarCasts({ casts: filteredCasts })
 
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
@@ -108,13 +110,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         }
         calendarPanel={
           <CalendarView
-            casts={filteredCasts.map(c => ({
-              id: c.id,
-              content: c.content || '',
-              status: c.status,
-              scheduledAt: new Date(c.scheduledAt),
-              account: c.account ? { username: c.account.username, pfpUrl: c.account.pfpUrl } : null,
-            }))}
+            casts={calendarCasts}
             onMoveCast={handleMoveCast}
             onSelectDate={handleSelectDate}
             onSelectCast={handleSelectCast}

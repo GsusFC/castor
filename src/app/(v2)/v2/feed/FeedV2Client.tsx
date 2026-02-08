@@ -365,7 +365,7 @@ function FeedV2Inner({ user }: FeedV2ClientProps) {
         ) : (
           <div className="flex flex-col">
             {/* ── Tab Bar ── */}
-            <div className="sticky top-14 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 py-3 -mx-4 px-4">
+            <div className="sticky top-0 sm:top-14 z-50 bg-background border-b border-border py-3 -mx-4 px-4 shadow-sm">
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {/* User avatar */}
                 <button

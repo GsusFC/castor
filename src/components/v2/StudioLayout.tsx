@@ -49,7 +49,7 @@ export function StudioLayout({
         {hasLegacyPanels && rightPanel && (
           <div className="lg:hidden flex flex-col min-h-0">
             {rightPanelControls && (
-              <div className="px-3 sm:px-4 pt-3 pb-2 shrink-0">
+              <div className="sticky top-0 z-30 px-3 sm:px-4 pt-3 pb-2 shrink-0 bg-background/95 backdrop-blur-sm border-b border-border/60">
                 {rightPanelControls}
               </div>
             )}
@@ -114,7 +114,7 @@ export function StudioLayout({
           </>
         ) : hasLegacyPanels ? (
           <div className="hidden lg:flex lg:flex-col min-h-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">
+            <div className="sticky top-0 z-30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0 bg-background/95 backdrop-blur-sm border-b border-border/60">
               <div
                 className="flex items-center gap-1 overflow-x-auto no-scrollbar"
                 role="tablist"
@@ -165,7 +165,7 @@ export function StudioLayout({
         ) : (
           <>
             {rightPanelControls && (
-              <div className="px-3 sm:px-4 pt-3 pb-2 shrink-0">
+              <div className="sticky top-0 z-30 px-3 sm:px-4 pt-3 pb-2 shrink-0 bg-background/95 backdrop-blur-sm border-b border-border/60">
                 {rightPanelControls}
               </div>
             )}

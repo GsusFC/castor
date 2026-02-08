@@ -166,10 +166,10 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
                   window.dispatchEvent(new CustomEvent(SCROLL_TO_TODAY_EVENT))
                 }
               }}
-              className="h-8 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1.5"
+              className="h-8 rounded-md border border-[#B89C7A]/60 bg-[#B89C7A]/15 px-2.5 text-xs font-semibold text-foreground hover:bg-[#B89C7A]/25 transition-colors inline-flex items-center gap-1.5"
             >
               Today
-              <span className="text-[11px] text-muted-foreground/80">{todayLabel}</span>
+              <span className="text-[11px] text-foreground/80">{todayLabel}</span>
             </button>
             <div className="hidden sm:block">
               <AccountFilterControl

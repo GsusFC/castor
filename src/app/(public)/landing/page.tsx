@@ -55,8 +55,8 @@ export default async function HomePage() {
               <VersionChooser />
             </div>
           ) : (
-            <div className="pt-4">
-              <div className="scale-110 transition-transform hover:scale-115">
+            <div className="pt-4 flex justify-center">
+              <div className="landing-signin scale-110 transition-transform hover:scale-115">
                 <SignInButton />
               </div>
             </div>

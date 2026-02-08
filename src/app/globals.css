@@ -291,3 +291,21 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
 }
+
+/* Landing: keep auth-kit logic, align visuals to Castor brand */
+.landing-signin {
+  display: flex;
+  justify-content: center;
+}
+
+.landing-signin button {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: 1px solid hsl(var(--primary) / 0.65) !important;
+  border-radius: 0.75rem !important;
+  font-family: inherit !important;
+}
+
+.landing-signin button:hover {
+  opacity: 0.92;
+}

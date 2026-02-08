@@ -182,14 +182,16 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
 
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
-      <AppHeader
-        user={{
-          username: user.username,
-          displayName: user.displayName,
-          pfpUrl: user.pfpUrl,
-        }}
-        accounts={headerAccounts}
-      />
+      <div className="hidden sm:block">
+        <AppHeader
+          user={{
+            username: user.username,
+            displayName: user.displayName,
+            pfpUrl: user.pfpUrl,
+          }}
+          accounts={headerAccounts}
+        />
+      </div>
 
       <StudioLayout
         composerPanel={

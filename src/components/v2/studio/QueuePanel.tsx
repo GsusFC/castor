@@ -1,0 +1,191 @@
+'use client'
+
+import { useState } from 'react'
+import { Clock, Copy, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { formatStudioDate, formatStudioTime } from '@/lib/studio-datetime'
+import type { SerializedCast } from '@/types'
+
+type QueuePanelProps = {
+  casts: SerializedCast[]
+  onSelectCast: (castId: string) => void
+  onStartCast: () => void
+  onDeleteCast: (castId: string) => void
+  onDuplicateCast: (castId: string) => void
+  onLoadMore: () => void
+  isLoadingMore: boolean
+  hasMore: boolean
+  locale: string
+  timeZone: string
+}
+
+export function QueuePanel({
+  casts,
+  onSelectCast,
+  onStartCast,
+  onDeleteCast,
+  onDuplicateCast,
+  onLoadMore,
+  isLoadingMore,
+  hasMore,
+  locale,
+  timeZone,
+}: QueuePanelProps) {
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  const draftCount = casts.filter(c => c.status === 'draft').length
+  const scheduledCount = casts.filter(c => c.status === 'scheduled').length
+
+  if (casts.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
+        <Clock className="w-8 h-8 text-muted-foreground/50" />
+        <p className="text-sm text-muted-foreground">No scheduled casts</p>
+        <p className="text-xs text-muted-foreground/70">Create your next cast from the composer panel</p>
+        <button
+          type="button"
+          onClick={onStartCast}
+          className="mt-2 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+        >
+          Start new cast
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+        {scheduledCount > 0 && <span>{scheduledCount} scheduled</span>}
+        {scheduledCount > 0 && draftCount > 0 && <span>&middot;</span>}
+        {draftCount > 0 && <span>{draftCount} drafts</span>}
+      </div>
+
+      {casts.map(cast => (
+        <div
+          key={cast.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => onSelectCast(cast.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onSelectCast(cast.id)
+            }
+          }}
+          className="group w-full text-left flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          {cast.account?.pfpUrl ? (
+            <img src={cast.account.pfpUrl} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-muted shrink-0 mt-0.5" />
+          )}
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm line-clamp-2 text-pretty">{cast.content || 'Empty cast'}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatStudioDate(cast.scheduledAt, {
+                  locale,
+                  timeZone,
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatStudioTime(cast.scheduledAt, {
+                  locale,
+                  timeZone,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+              {cast.status === 'draft' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                  Draft
+                </span>
+              )}
+              {cast.status === 'retrying' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 font-medium">
+                  Retrying
+                </span>
+              )}
+              {cast.status === 'failed' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 font-medium">
+                  Failed
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              title="Duplicate as draft"
+              onClick={(e) => { e.stopPropagation(); onDuplicateCast(cast.id) }}
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              title="Delete cast"
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(cast.id) }}
+              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {hasMore && (
+        <button
+          type="button"
+          disabled={isLoadingMore}
+          onClick={onLoadMore}
+          className="w-full rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-60"
+        >
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete cast</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the cast. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (deleteTarget) {
+                  onDeleteCast(deleteTarget)
+                  setDeleteTarget(null)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

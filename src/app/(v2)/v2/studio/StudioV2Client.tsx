@@ -37,6 +37,7 @@ interface StudioV2ClientProps {
 }
 
 const OPEN_COMPOSE_ON_DATE_EVENT = 'castor:studio-open-compose-on-date'
+const SCROLL_TO_TODAY_EVENT = 'castor:studio-scroll-to-today'
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
@@ -127,6 +128,10 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
 
   const hasMoreCombined = queueHasMore || activityHasMore
   const isLoadingMoreCombined = isLoadingMoreQueue || isLoadingMoreActivity
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone }),
+    [locale, timeZone]
+  )
 
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
@@ -153,7 +158,19 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           />
         }
         rightPanelControls={(
-          <div className="flex items-center justify-end gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent(SCROLL_TO_TODAY_EVENT))
+                }
+              }}
+              className="h-8 rounded-md border px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1.5"
+            >
+              Today
+              <span className="text-[11px] text-muted-foreground/80">{todayLabel}</span>
+            </button>
             <div className="hidden sm:block">
               <AccountFilterControl
                 accountFilter={accountFilter}

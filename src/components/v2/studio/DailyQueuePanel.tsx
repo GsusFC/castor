@@ -14,6 +14,8 @@ import {
 import { formatStudioDate, formatStudioTime } from '@/lib/studio-datetime'
 import type { SerializedCast } from '@/types'
 
+const SCROLL_TO_TODAY_EVENT = 'castor:studio-scroll-to-today'
+
 type DailyQueuePanelProps = {
   casts: SerializedCast[]
   onSelectCast: (castId: string) => void
@@ -96,8 +98,8 @@ export function DailyQueuePanel({
 
   const todayKey = useMemo(() => toDayKey(new Date(), locale, timeZone), [locale, timeZone])
 
-  useEffect(() => {
-    if (didInitialScrollToToday.current || dayGroups.length === 0) return
+  const scrollToToday = (behavior: ScrollBehavior) => {
+    if (dayGroups.length === 0) return
 
     const targetGroup =
       dayGroups.find((group) => group.key === todayKey) ||
@@ -108,8 +110,25 @@ export function DailyQueuePanel({
 
     const targetEl = dayRefs.current[targetGroup.key]
     if (targetEl) {
-      targetEl.scrollIntoView({ behavior: 'auto', block: 'start' })
-      didInitialScrollToToday.current = true
+      targetEl.scrollIntoView({ behavior, block: 'start' })
+    }
+  }
+
+  useEffect(() => {
+    if (didInitialScrollToToday.current || dayGroups.length === 0) return
+
+    scrollToToday('auto')
+    didInitialScrollToToday.current = true
+  }, [dayGroups, todayKey])
+
+  useEffect(() => {
+    const handleScrollToToday = () => {
+      scrollToToday('smooth')
+    }
+
+    window.addEventListener(SCROLL_TO_TODAY_EVENT, handleScrollToToday)
+    return () => {
+      window.removeEventListener(SCROLL_TO_TODAY_EVENT, handleScrollToToday)
     }
   }, [dayGroups, todayKey])
 
@@ -131,15 +150,26 @@ export function DailyQueuePanel({
 
   return (
     <div className="space-y-3">
-      {dayGroups.map((group) => (
+      {dayGroups.map((group) => {
+        const isToday = group.key === todayKey
+
+        return (
         <section
           key={group.key}
           ref={(el) => {
             dayRefs.current[group.key] = el
           }}
-          className="rounded-xl border border-border/60 bg-card/30"
+          className={`rounded-xl border bg-card/30 ${
+            isToday ? 'border-[#B89C7A]/70 shadow-[0_0_0_1px_rgba(184,156,122,0.25)]' : 'border-border/60'
+          }`}
         >
-          <div className="sticky top-0 z-20 border-b border-border/60 bg-muted/80 backdrop-blur-sm px-3 py-2.5 flex items-center justify-between gap-2 shadow-sm">
+          <div
+            className={`sticky top-0 z-20 border-b backdrop-blur-sm px-3 py-2.5 flex items-center justify-between gap-2 shadow-sm ${
+              isToday
+                ? 'bg-[#B89C7A]/20 border-[#B89C7A]/50'
+                : 'bg-muted/80 border-border/60'
+            }`}
+          >
             <div className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
               {formatStudioDate(group.date, {
                 locale,
@@ -150,6 +180,12 @@ export function DailyQueuePanel({
                 year: 'numeric',
               })}
             </div>
+            <div className="flex items-center gap-1.5">
+              {isToday && (
+                <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#B89C7A] text-[#1F1A14]">
+                  Today
+                </span>
+              )}
             <button
               type="button"
               onClick={() => onCreateOnDate(group.date)}
@@ -159,6 +195,7 @@ export function DailyQueuePanel({
             >
               <Plus className="w-4.5 h-4.5" />
             </button>
+            </div>
           </div>
 
           <div className="p-2 space-y-2">
@@ -268,7 +305,8 @@ export function DailyQueuePanel({
             })}
           </div>
         </section>
-      ))}
+        )
+      })}
 
       {hasMore && onLoadMore && (
         <button

@@ -38,8 +38,8 @@ export function StudioLayout({
 
   return (
     <div className="flex h-[100dvh] sm:h-[calc(100dvh-3.5rem)] overflow-hidden">
-      {/* Left Panel — Composer (~45%) — hidden on mobile, compose via MobileNavV2 */}
-      <div className="hidden lg:flex w-[45%] min-w-[380px] max-w-[600px] border-r flex-col overflow-hidden">
+      {/* Left Panel — Composer (~38%) — hidden on mobile, compose via MobileNavV2 */}
+      <div className="hidden lg:flex w-[38%] min-w-[340px] max-w-[520px] border-r flex-col overflow-hidden">
         <ErrorBoundary fallbackTitle="Composer failed to load">
           {composerPanel}
         </ErrorBoundary>

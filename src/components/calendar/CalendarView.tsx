@@ -568,7 +568,7 @@ export function CalendarView({
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {canDelete && onRequestDelete && (
+                        {canDelete && onDeleteCast && (
                           <button
                             type="button"
                             title="Delete cast"
@@ -576,7 +576,7 @@ export function CalendarView({
                             className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                             onClick={(event) => {
                               event.stopPropagation()
-                              onRequestDelete(cast)
+                              setDeleteTarget(cast)
                             }}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

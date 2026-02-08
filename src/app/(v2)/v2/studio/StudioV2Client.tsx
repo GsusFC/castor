@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutGrid, List } from 'lucide-react'
+import { ChevronDown, LayoutGrid, List } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
 import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
@@ -11,6 +11,12 @@ import { QueuePanel } from '@/components/v2/studio/QueuePanel'
 import { ActivityPanel } from '@/components/v2/studio/ActivityPanel'
 import { TemplatesPanel } from '@/components/v2/studio/TemplatesPanel'
 import { AccountFilterControl } from '@/components/v2/studio/AccountFilterControl'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
 import { useStudioV2State } from '@/hooks/useStudioV2State'
 import { useStudioComposerBridge } from '@/hooks/useStudioComposerBridge'
@@ -44,6 +50,13 @@ const DEFAULT_SORT_MODES: Record<ViewModeTab, SortMode> = {
   queue: 'newest',
   activity: 'newest',
   templates: 'newest',
+}
+
+function getSortLabel(tab: ViewModeTab, mode: SortMode): string {
+  if (tab === 'templates') {
+    return mode === 'newest' ? 'Name Z-A' : 'Name A-Z'
+  }
+  return mode === 'newest' ? 'Date: Newest' : 'Date: Oldest'
 }
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
@@ -212,14 +225,38 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
                     <LayoutGrid className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSortMode(activeTab, sortModes[activeTab] === 'newest' ? 'oldest' : 'newest')}
-                  className="h-7 rounded-md border px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title={sortModes[activeTab] === 'newest' ? 'Showing newest first' : 'Showing oldest first'}
-                >
-                  {sortModes[activeTab] === 'newest' ? 'Newest' : 'Oldest'}
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-7 rounded-md border px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1"
+                    >
+                      {getSortLabel(activeTab, sortModes[activeTab])}
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {activeTab === 'templates' ? (
+                      <>
+                        <DropdownMenuItem onClick={() => setSortMode(activeTab, 'oldest')}>
+                          Name A-Z
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSortMode(activeTab, 'newest')}>
+                          Name Z-A
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <>
+                        <DropdownMenuItem onClick={() => setSortMode(activeTab, 'newest')}>
+                          Date: Newest first
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSortMode(activeTab, 'oldest')}>
+                          Date: Oldest first
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
             <AccountFilterControl

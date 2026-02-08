@@ -23,6 +23,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 
 interface Cast {
@@ -500,10 +507,10 @@ export function CalendarView({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!detailDayKey} onOpenChange={(open) => !open && setDetailDayKey(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
+      <Sheet open={!!detailDayKey} onOpenChange={(open) => !open && setDetailDayKey(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-xl p-0">
+          <SheetHeader className="px-5 py-4 border-b">
+            <SheetTitle>
               {detailDayDate
                 ? formatStudioDate(detailDayDate, {
                     locale: resolvedLocale,
@@ -514,13 +521,13 @@ export function CalendarView({
                     year: 'numeric',
                   })
                 : 'Day details'}
-            </DialogTitle>
-            <DialogDescription>
+            </SheetTitle>
+            <SheetDescription>
               {detailDayCasts.length} cast{detailDayCasts.length === 1 ? '' : 's'} scheduled
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="space-y-2 h-[calc(100dvh-5.5rem)] overflow-y-auto px-5 py-4">
             {detailDayCasts.length === 0 ? (
               <div className="text-sm text-muted-foreground">No casts for this day.</div>
             ) : (
@@ -589,8 +596,8 @@ export function CalendarView({
               })
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </DndContext>
   )
 }
@@ -648,43 +655,45 @@ function CalendarDay({
       ref={setNodeRef}
       className={`min-h-[120px] border-b border-r p-1 ${!isCurrentMonth ? 'bg-muted' : ''} ${isOver ? 'bg-castor-light' : ''}`}
     >
-      <button
-        type="button"
-        onClick={() => onSelectDate?.(date)}
-        aria-label={`Select ${formatStudioDate(date, {
-          locale,
-          timeZone,
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        })}`}
-        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full transition-colors hover:bg-primary/10 hover:text-primary ${isToday
-          ? 'bg-castor-black text-white hover:bg-castor-black hover:text-white'
-          : !isCurrentMonth
-            ? 'text-muted-foreground'
-            : 'text-foreground'
-          }`}
-      >
-        {date.getDate()}
-      </button>
-      {accountIndicators.length > 0 && (
-        <div className="mb-1 flex items-center gap-1 pl-1 overflow-hidden">
-          {accountIndicators.slice(0, 3).map((indicator) => (
-            <span
-              key={indicator.key}
-              title={`${indicator.label}: ${indicator.count}`}
-              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${accountColorClass(indicator.key)}`}
-            >
-              <span className="tabular-nums">{indicator.count}</span>
-            </span>
-          ))}
-          {accountIndicators.length > 3 && (
-            <span className="text-[10px] text-muted-foreground">
-              +{accountIndicators.length - 3}
-            </span>
-          )}
-        </div>
-      )}
+      <div className="mb-1 flex items-center justify-between gap-1">
+        <button
+          type="button"
+          onClick={() => onSelectDate?.(date)}
+          aria-label={`Select ${formatStudioDate(date, {
+            locale,
+            timeZone,
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })}`}
+          className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors hover:bg-primary/10 hover:text-primary ${isToday
+            ? 'bg-castor-black text-white hover:bg-castor-black hover:text-white'
+            : !isCurrentMonth
+              ? 'text-muted-foreground'
+              : 'text-foreground'
+            }`}
+        >
+          {date.getDate()}
+        </button>
+        {accountIndicators.length > 0 && (
+          <div className="flex items-center justify-end gap-1 overflow-hidden">
+            {accountIndicators.slice(0, 3).map((indicator) => (
+              <span
+                key={indicator.key}
+                title={`${indicator.label}: ${indicator.count}`}
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${accountColorClass(indicator.key)}`}
+              >
+                <span className="tabular-nums">{indicator.count}</span>
+              </span>
+            ))}
+            {accountIndicators.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">
+                +{accountIndicators.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
       <div className="space-y-1">
         {casts.slice(0, 2).map((cast) => (
           <DraggableCast

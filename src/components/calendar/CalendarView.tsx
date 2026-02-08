@@ -90,6 +90,7 @@ export function CalendarView({
   const resolvedTimeZone = timeZone || getStudioTimeZone()
 
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [mobileSelectedDate, setMobileSelectedDate] = useState(new Date())
   const [activeCast, setActiveCast] = useState<Cast | null>(null)
   const [optimisticCasts, setOptimisticCasts] = useState<Cast[]>(casts)
   const [deleteTarget, setDeleteTarget] = useState<Cast | null>(null)
@@ -149,6 +150,27 @@ export function CalendarView({
 
     return map
   }, [optimisticCasts])
+
+  const mobileWeekDays = useMemo(() => {
+    const base = new Date(mobileSelectedDate)
+    const dayOfWeek = base.getDay()
+    const normalized = weekStartsOn === 1 ? (dayOfWeek + 6) % 7 : dayOfWeek
+    const start = new Date(base)
+    start.setDate(base.getDate() - normalized)
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      return d
+    })
+  }, [mobileSelectedDate, weekStartsOn])
+
+  const mobileAgendaCasts = useMemo(() => {
+    const key = toDayKey(mobileSelectedDate)
+    return [...(castsByDay.get(key) || [])].sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    )
+  }, [castsByDay, mobileSelectedDate])
 
   const handleDragStart = (event: DragStartEvent) => {
     const cast = optimisticCasts.find((c) => c.id === event.active.id)
@@ -214,6 +236,20 @@ export function CalendarView({
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear()
 
+  const prevWeek = () => {
+    const next = new Date(mobileSelectedDate)
+    next.setDate(next.getDate() - 7)
+    setMobileSelectedDate(next)
+    setCurrentDate(new Date(next.getFullYear(), next.getMonth(), 1))
+  }
+
+  const nextWeek = () => {
+    const next = new Date(mobileSelectedDate)
+    next.setDate(next.getDate() + 7)
+    setMobileSelectedDate(next)
+    setCurrentDate(new Date(next.getFullYear(), next.getMonth(), 1))
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -257,7 +293,107 @@ export function CalendarView({
           </div>
         </div>
 
-        <div className="grid grid-cols-7 border-b">
+        {/* Mobile: Week strip + Agenda (replaces dense month grid) */}
+        <div className="md:hidden border-b px-3 py-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">
+              {formatStudioDate(mobileWeekDays[0], { locale: resolvedLocale, timeZone: resolvedTimeZone, month: 'short', day: 'numeric' })}
+              {' - '}
+              {formatStudioDate(mobileWeekDays[6], { locale: resolvedLocale, timeZone: resolvedTimeZone, month: 'short', day: 'numeric' })}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={prevWeek}
+                aria-label="Previous week"
+                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date()
+                  setMobileSelectedDate(now)
+                  setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))
+                }}
+                className="px-2 py-1 text-xs font-medium hover:bg-muted rounded-md transition-colors"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={nextWeek}
+                aria-label="Next week"
+                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {mobileWeekDays.map((date) => {
+              const selected = toDayKey(date) === toDayKey(mobileSelectedDate)
+              const dayCount = (castsByDay.get(toDayKey(date)) || []).length
+              return (
+                <button
+                  key={toDayKey(date)}
+                  type="button"
+                  onClick={() => {
+                    setMobileSelectedDate(date)
+                    onSelectDate?.(date)
+                  }}
+                  className={`rounded-md border px-1 py-1 text-center transition-colors ${
+                    selected ? 'bg-primary/10 border-primary/40 text-primary' : 'hover:bg-muted border-border'
+                  }`}
+                >
+                  <div className="text-[10px] text-muted-foreground">
+                    {formatStudioDate(date, { locale: resolvedLocale, timeZone: resolvedTimeZone, weekday: 'short' })}
+                  </div>
+                  <div className="text-sm font-semibold tabular-nums">{date.getDate()}</div>
+                  <div className="text-[10px] text-muted-foreground">{dayCount > 0 ? dayCount : '·'}</div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="pt-1 space-y-1.5">
+            {mobileAgendaCasts.length === 0 ? (
+              <div className="text-xs text-muted-foreground px-1 py-2">No casts for this day</div>
+            ) : (
+              mobileAgendaCasts.map((cast) => (
+                <div
+                  key={`agenda-${cast.id}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectCast?.(cast.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelectCast?.(cast.id)
+                    }
+                  }}
+                  className="flex items-start gap-2 rounded-md border p-2 bg-card hover:bg-muted/40"
+                >
+                  <div className="text-xs tabular-nums text-muted-foreground min-w-[44px]">
+                    {formatStudioTime(cast.scheduledAt, {
+                      locale: resolvedLocale,
+                      timeZone: resolvedTimeZone,
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs line-clamp-2">{cast.content || 'Empty cast'}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="hidden md:grid grid-cols-7 border-b">
           {WEEKDAY_LABELS[weekStartsOn].map((day) => (
             <div
               key={day}
@@ -268,7 +404,7 @@ export function CalendarView({
           ))}
         </div>
 
-        <div className="grid grid-cols-7">
+        <div className="hidden md:grid grid-cols-7">
           {calendarDays.map((date) => {
             const dateKey = toDayKey(date)
             const dayCasts = castsByDay.get(dateKey) || []

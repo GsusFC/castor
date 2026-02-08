@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, LayoutGrid, List } from 'lucide-react'
+import { ChevronDown, LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
 import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
@@ -180,6 +180,12 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     [studioTemplates, sortModes.templates]
   )
 
+  const selectedAccountLabel = useMemo(() => {
+    if (accountFilter === 'all') return 'All'
+    const account = filterAccounts.find((a) => a.id === accountFilter)
+    return account ? `@${account.username}` : 'Account'
+  }, [accountFilter, filterAccounts])
+
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
       <div className="hidden sm:block">
@@ -269,11 +275,37 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
                 </DropdownMenu>
               </div>
             )}
-            <AccountFilterControl
-              accountFilter={accountFilter}
-              onChange={setAccountFilter}
-              accounts={filterAccounts}
-            />
+            <div className="hidden sm:block">
+              <AccountFilterControl
+                accountFilter={accountFilter}
+                onChange={setAccountFilter}
+                accounts={filterAccounts}
+              />
+            </div>
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-7 rounded-md border px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1"
+                    aria-label="Filter account"
+                  >
+                    <SlidersHorizontal className="w-3 h-3" />
+                    {selectedAccountLabel}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setAccountFilter('all')}>
+                    All accounts
+                  </DropdownMenuItem>
+                  {filterAccounts.map((account) => (
+                    <DropdownMenuItem key={account.id} onClick={() => setAccountFilter(account.id)}>
+                      @{account.username}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         )}
         calendarPanel={

@@ -817,36 +817,6 @@ function CastCard({
       className={`p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
         } relative group`}
     >
-      <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-background/85 border border-border/70 rounded-md p-0.5">
-        {onDuplicate && (
-          <button
-            type="button"
-            title="Duplicate as draft"
-            aria-label="Duplicate as draft"
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDuplicate()
-            }}
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-        )}
-        {onDelete && (
-          <button
-            type="button"
-            title="Delete cast"
-            aria-label="Delete cast"
-            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        )}
-      </div>
       <div className="flex items-center justify-between gap-1 mb-0.5">
         <div className="flex items-center gap-1.5 min-w-0">
           {cast.account?.pfpUrl ? (
@@ -861,6 +831,38 @@ function CastCard({
         <span className="text-muted-foreground tabular-nums shrink-0">{time}</span>
       </div>
       <p className="line-clamp-2 text-foreground">{cast.content}</p>
+      {(onDuplicate || onDelete) && (
+        <div className="mt-1 flex items-center justify-end gap-0.5">
+          {onDuplicate && (
+            <button
+              type="button"
+              title="Duplicate as draft"
+              aria-label="Duplicate as draft"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDuplicate()
+              }}
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              title="Delete cast"
+              aria-label="Delete cast"
+              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -5,6 +5,19 @@ import type { ReactNode } from 'react'
 
 let dragEndHandler: ((event: { active: { id: string }; over: { id: string } | null }) => Promise<void> | void) | null = null
 
+const matchMediaMock = (query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+})
+
+vi.stubGlobal('matchMedia', (query: string) => matchMediaMock(query))
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),

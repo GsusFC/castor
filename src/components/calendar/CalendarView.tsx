@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { formatStudioDate, formatStudioTime, getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { useMediaQueryBelow } from '@/hooks/useMediaQuery'
 
 interface Cast {
   id: string
@@ -61,15 +63,6 @@ const WEEKDAY_LABELS = {
 } as const
 
 const DEFAULT_WEEK_STARTS_ON: 0 | 1 = 1
-const ACCOUNT_COLOR_TOKENS = [
-  'bg-blue-500/80',
-  'bg-emerald-500/80',
-  'bg-amber-500/80',
-  'bg-violet-500/80',
-  'bg-rose-500/80',
-  'bg-cyan-500/80',
-] as const
-
 function toDayKey(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -90,17 +83,12 @@ function fromDayKey(key: string): { year: number; month: number; day: number } |
   return { year, month, day }
 }
 
-function hashString(input: string): number {
-  let hash = 0
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(i)
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
-
-function accountColorClass(accountKey: string): string {
-  return ACCOUNT_COLOR_TOKENS[hashString(accountKey) % ACCOUNT_COLOR_TOKENS.length]
+const STATUS_COLOR: Record<string, string> = {
+  scheduled: 'bg-blue-500/80',
+  published: 'bg-emerald-500/80',
+  failed: 'bg-red-500/80',
+  draft: 'bg-amber-500/80',
+  retrying: 'bg-orange-500/80',
 }
 
 export function CalendarView({
@@ -116,6 +104,7 @@ export function CalendarView({
 }: CalendarViewProps) {
   const resolvedLocale = locale || getStudioLocale()
   const resolvedTimeZone = timeZone || getStudioTimeZone()
+  const isMobile = useMediaQueryBelow('sm')
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [mobileSelectedDate, setMobileSelectedDate] = useState(new Date())
@@ -508,9 +497,17 @@ export function CalendarView({
       </Dialog>
 
       <Sheet open={!!detailDayKey} onOpenChange={(open) => !open && setDetailDayKey(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-xl p-0">
-          <SheetHeader className="px-5 py-4 border-b">
-            <SheetTitle>
+        <SheetContent
+          side={isMobile ? 'bottom' : 'right'}
+          className={cn(
+            'p-0 overflow-hidden transition-all duration-300 ease-out border-none',
+            isMobile
+              ? 'w-full h-[70dvh] rounded-t-xl bg-background text-foreground'
+              : 'w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[520px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground'
+          )}
+        >
+          <SheetHeader className="px-6 py-4 border-b border-border/10">
+            <SheetTitle className="text-lg font-bold tracking-tight text-foreground/90 text-balance">
               {detailDayDate
                 ? formatStudioDate(detailDayDate, {
                     locale: resolvedLocale,
@@ -522,12 +519,15 @@ export function CalendarView({
                   })
                 : 'Day details'}
             </SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="text-sm text-muted-foreground">
               {detailDayCasts.length} cast{detailDayCasts.length === 1 ? '' : 's'} scheduled
             </SheetDescription>
           </SheetHeader>
 
-          <div className="space-y-2 h-[calc(100dvh-5.5rem)] overflow-y-auto px-5 py-4">
+          <div className={cn(
+            'space-y-2 overflow-y-auto px-5 py-4',
+            isMobile ? 'h-[calc(70dvh-5.5rem)]' : 'h-[calc(100dvh-5.5rem)]'
+          )}>
             {detailDayCasts.length === 0 ? (
               <div className="text-sm text-muted-foreground">No casts for this day.</div>
             ) : (
@@ -635,16 +635,15 @@ function CalendarDay({
     id: dateKey,
   })
 
-  const accountIndicators = useMemo(() => {
-    const buckets = new Map<string, { key: string; label: string; count: number }>()
+  const statusIndicators = useMemo(() => {
+    const buckets = new Map<string, { key: string; count: number }>()
     for (const cast of casts) {
-      const key = cast.account?.username || 'unknown'
-      const label = cast.account?.username ? `@${cast.account.username}` : 'Unknown account'
+      const key = cast.status
       const existing = buckets.get(key)
       if (existing) {
         existing.count += 1
       } else {
-        buckets.set(key, { key, label, count: 1 })
+        buckets.set(key, { key, count: 1 })
       }
     }
     return Array.from(buckets.values()).sort((a, b) => b.count - a.count)
@@ -675,20 +674,20 @@ function CalendarDay({
         >
           {date.getDate()}
         </button>
-        {accountIndicators.length > 0 && (
+        {statusIndicators.length > 0 && (
           <div className="flex items-center justify-end gap-1 overflow-hidden">
-            {accountIndicators.slice(0, 3).map((indicator) => (
+            {statusIndicators.slice(0, 3).map((indicator) => (
               <span
                 key={indicator.key}
-                title={`${indicator.label}: ${indicator.count}`}
-                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${accountColorClass(indicator.key)}`}
+                title={`${indicator.key}: ${indicator.count}`}
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${STATUS_COLOR[indicator.key] || 'bg-muted'}`}
               >
                 <span className="tabular-nums">{indicator.count}</span>
               </span>
             ))}
-            {accountIndicators.length > 3 && (
+            {statusIndicators.length > 3 && (
               <span className="text-[10px] text-muted-foreground">
-                +{accountIndicators.length - 3}
+                +{statusIndicators.length - 3}
               </span>
             )}
           </div>

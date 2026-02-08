@@ -3,6 +3,19 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CalendarView } from './CalendarView'
 
+const matchMediaMock = (query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+})
+
+vi.stubGlobal('matchMedia', (query: string) => matchMediaMock(query))
+
 describe('CalendarView', () => {
   const baseProps = {
     casts: [],

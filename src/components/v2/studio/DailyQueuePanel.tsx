@@ -248,45 +248,44 @@ export function DailyQueuePanel({
                           <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">{castTime}</span>
                         </div>
                         <p className="text-[12px] line-clamp-3 text-pretty">{cast.content || 'Empty cast'}</p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          title="Duplicate as draft"
-                          disabled={duplicatingId === cast.id || deletingId === cast.id}
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            setDuplicatingId(cast.id)
-                            try {
-                              await Promise.resolve(onDuplicateCast(cast.id))
-                            } finally {
-                              setDuplicatingId(null)
-                            }
-                          }}
-                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                        >
-                          {duplicatingId === cast.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-
-                        {!isPublished && (
+                        <div className="mt-1 flex items-center justify-end gap-1 shrink-0">
                           <button
                             type="button"
-                            title="Delete cast"
+                            title="Duplicate as draft"
                             disabled={duplicatingId === cast.id || deletingId === cast.id}
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation()
-                              setDeleteTarget(cast.id)
+                              setDuplicatingId(cast.id)
+                              try {
+                                await Promise.resolve(onDuplicateCast(cast.id))
+                              } finally {
+                                setDuplicatingId(null)
+                              }
                             }}
-                            className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {duplicatingId === cast.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
                           </button>
-                        )}
+
+                          {!isPublished && (
+                            <button
+                              type="button"
+                              title="Delete cast"
+                              disabled={duplicatingId === cast.id || deletingId === cast.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeleteTarget(cast.id)
+                              }}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

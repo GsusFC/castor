@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
@@ -53,8 +53,14 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     userFid: user.fid,
   })
 
-  const locale = useMemo(() => getStudioLocale(), [])
-  const timeZone = useMemo(() => getStudioTimeZone(), [])
+  // Keep server/client first render consistent to avoid hydration text mismatches.
+  const [locale, setLocale] = useState('en-US')
+  const [timeZone, setTimeZone] = useState('UTC')
+
+  useEffect(() => {
+    setLocale(getStudioLocale())
+    setTimeZone(getStudioTimeZone())
+  }, [])
 
   const {
     accountFilter,

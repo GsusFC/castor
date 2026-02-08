@@ -222,7 +222,14 @@ export function useStudioV2State({
 
     try {
       const res = await fetch(`/api/casts/${castId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete')
+      if (!res.ok) {
+        // If the cast was already removed server-side, keep optimistic removal.
+        if (res.status === 404) {
+          toast.success('Cast was already deleted')
+          return
+        }
+        throw new Error('Failed to delete')
+      }
       toast.success('Cast deleted')
     } catch {
       setStudioCasts(prevStudio)

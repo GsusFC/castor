@@ -21,7 +21,7 @@ interface UseComposeSubmitOptions {
   scheduleToISO: () => string | null
   isEditMode: boolean
   editCastId: string | null
-  onSuccess: () => void
+  onSuccess: (data?: { castId?: string; status?: string }) => void
 }
 
 interface UseComposeSubmitReturn {
@@ -67,9 +67,9 @@ export function useComposeSubmit({
     draftKeyRef.current = null
   }, [])
 
-  const handleSuccess = useCallback(() => {
+  const handleSuccess = useCallback((data?: { castId?: string; status?: string }) => {
     resetKeys()
-    onSuccess()
+    onSuccess(data)
     router.refresh()
   }, [onSuccess, router, resetKeys])
 
@@ -132,10 +132,12 @@ export function useComposeSubmit({
           }),
         })
 
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Error scheduling thread')
+        const threadData = await res.json()
+        if (!res.ok) throw new Error(threadData.error || 'Error scheduling thread')
 
         toast.success('Thread scheduled successfully')
+        handleSuccess({ castId: threadData.data?.threadId, status: 'scheduled' })
+        return
       } else {
         // Schedule single cast
         const cast = casts[0]
@@ -165,13 +167,13 @@ export function useComposeSubmit({
           body: JSON.stringify(body),
         })
 
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Error scheduling cast')
+        const scheduleData = await res.json()
+        if (!res.ok) throw new Error(scheduleData.error || 'Error scheduling cast')
 
         toast.success(isEditMode ? 'Cast updated successfully' : 'Cast scheduled successfully')
+        handleSuccess({ castId: scheduleData.data?.castId || editCastId, status: isEditMode ? 'scheduled' : 'scheduled' })
+        return
       }
-
-      handleSuccess()
     } catch (err) {
       handleError(err)
     } finally {
@@ -221,7 +223,7 @@ export function useComposeSubmit({
 
       const embeds = buildEmbedsFromCast(cast, { includeMetadata: false })
 
-      await fetchApiData<{ hash: string; cast: unknown }>('/api/casts/publish', {
+      const publishResult = await fetchApiData<{ hash: string; cast: unknown }>('/api/casts/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,7 +237,7 @@ export function useComposeSubmit({
       })
 
       toast.success('Cast published!')
-      handleSuccess()
+      handleSuccess({ castId: publishResult.hash, status: 'published' })
     } catch (err) {
       handleError(err)
     } finally {
@@ -287,11 +289,11 @@ export function useComposeSubmit({
         }),
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error saving draft')
+      const draftData = await res.json()
+      if (!res.ok) throw new Error(draftData.error || 'Error saving draft')
 
       toast.success('Draft saved')
-      handleSuccess()
+      handleSuccess({ castId: draftData.data?.castId, status: 'draft' })
     } catch (err) {
       handleError(err)
     } finally {

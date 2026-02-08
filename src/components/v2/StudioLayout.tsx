@@ -2,15 +2,16 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Calendar, List, Activity } from 'lucide-react'
+import { Calendar, List, Activity, FileText } from 'lucide-react'
 import { ErrorBoundary } from '@/components/v2/ErrorBoundary'
 
-type RightPanelTab = 'calendar' | 'queue' | 'activity'
+type RightPanelTab = 'calendar' | 'queue' | 'activity' | 'templates'
 
 const TABS = [
   { id: 'calendar' as const, label: 'Calendar', icon: Calendar },
   { id: 'queue' as const, label: 'Queue', icon: List },
   { id: 'activity' as const, label: 'Activity', icon: Activity },
+  { id: 'templates' as const, label: 'Templates', icon: FileText },
 ] as const
 
 interface StudioLayoutProps {
@@ -18,6 +19,7 @@ interface StudioLayoutProps {
   calendarPanel: React.ReactNode
   queuePanel: React.ReactNode
   activityPanel: React.ReactNode
+  templatesPanel?: React.ReactNode
   rightPanelControls?: React.ReactNode
 }
 
@@ -26,6 +28,7 @@ export function StudioLayout({
   calendarPanel,
   queuePanel,
   activityPanel,
+  templatesPanel,
   rightPanelControls,
 }: StudioLayoutProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('calendar')
@@ -83,6 +86,7 @@ export function StudioLayout({
             {activeTab === 'calendar' && calendarPanel}
             {activeTab === 'queue' && queuePanel}
             {activeTab === 'activity' && activityPanel}
+            {activeTab === 'templates' && templatesPanel}
           </ErrorBoundary>
         </div>
       </div>

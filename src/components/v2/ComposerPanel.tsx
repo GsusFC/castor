@@ -27,6 +27,8 @@ interface ComposerPanelProps {
   defaultAccountId?: string | null
   /** Templates from the server */
   templates?: Template[]
+  /** Called when a cast is created/submitted — for optimistic UI updates */
+  onCastCreated?: (cast: SerializedCast) => void
 }
 
 /** Methods exposed to parent via ref */
@@ -51,7 +53,7 @@ export interface ComposerPanelRef {
  * - Imperative ref for external interactions (calendar click, queue click)
  */
 export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
-  function ComposerPanel({ accounts: serverAccounts, userFid, defaultAccountId }, ref) {
+  function ComposerPanel({ accounts: serverAccounts, userFid, defaultAccountId, onCastCreated }, ref) {
     // Map SerializedAccount to compose Account type
     const composeAccounts: Account[] = serverAccounts.map(a => ({
       id: a.id,
@@ -165,7 +167,44 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
       },
     }), [thread, schedule, setSelectedAccountId, resetForm])
 
-    // Submit hook
+    // Submit hook — with optimistic cast creation
+    const handleSubmitSuccess = useCallback((data?: { castId?: string; status?: string }) => {
+      if (onCastCreated && data?.castId && !isEditMode) {
+        const cast = thread.casts[0]
+        const account = accounts.find(a => a.id === selectedAccountId)
+        const accountInfo = account ? {
+          id: account.id,
+          username: account.username,
+          displayName: account.displayName,
+          pfpUrl: account.pfpUrl,
+        } : null
+        const optimisticCast: SerializedCast = {
+          id: data.castId,
+          accountId: selectedAccountId || '',
+          content: cast?.content || '',
+          status: data.status || 'scheduled',
+          scheduledAt: schedule.toISO() || new Date().toISOString(),
+          publishedAt: data.status === 'published' ? new Date().toISOString() : null,
+          castHash: null,
+          channelId: selectedChannel?.id || null,
+          errorMessage: null,
+          retryCount: 0,
+          media: cast?.media
+            ?.filter(m => m.url)
+            .map((m, i) => ({
+              id: `temp-${i}`,
+              url: m.url!,
+              type: (m.type || 'image') as 'image' | 'video',
+              thumbnailUrl: null,
+            })) || [],
+          account: accountInfo,
+          createdBy: accountInfo,
+        }
+        onCastCreated(optimisticCast)
+      }
+      resetForm()
+    }, [onCastCreated, isEditMode, thread.casts, accounts, selectedAccountId, schedule, selectedChannel, resetForm])
+
     const submit = useComposeSubmit({
       casts: thread.casts,
       selectedAccountId,
@@ -176,7 +215,7 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
       scheduleToISO: schedule.toISO,
       isEditMode,
       editCastId,
-      onSuccess: resetForm,
+      onSuccess: handleSubmitSuccess,
     })
 
     // Derived state

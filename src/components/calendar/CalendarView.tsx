@@ -91,6 +91,14 @@ const STATUS_LABEL: Record<string, string> = {
   retrying: 'Retrying',
 }
 
+const STATUS_TONE: Record<string, string> = {
+  scheduled: 'border-blue-500/50 bg-blue-500/15 text-blue-200',
+  published: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200',
+  draft: 'border-amber-500/50 bg-amber-500/15 text-amber-200',
+  retrying: 'border-orange-500/50 bg-orange-500/15 text-orange-200',
+  failed: 'border-red-500/50 bg-red-500/15 text-red-200',
+}
+
 export function CalendarView({
   casts,
   onMoveCast,
@@ -420,6 +428,14 @@ export function CalendarView({
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] line-clamp-2">{cast.content || 'Empty cast'}</p>
                   </div>
+                  <span
+                    className={cn(
+                      'shrink-0 text-[10px] px-1 py-0.5 rounded border',
+                      STATUS_TONE[cast.status] ?? 'border-border/60 bg-muted/50 text-foreground/90'
+                    )}
+                  >
+                    {STATUS_LABEL[cast.status] ?? cast.status}
+                  </span>
                 </div>
               ))
             )}
@@ -680,7 +696,10 @@ function CalendarDay({
               <span
                 key={indicator.key}
                 title={`${indicator.key}: ${indicator.count}`}
-                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 bg-muted/50"
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] border',
+                  STATUS_TONE[indicator.key] ?? 'border-border/60 bg-muted/50 text-foreground/90'
+                )}
               >
                 <span className="truncate max-w-[52px]">{STATUS_LABEL[indicator.key] ?? indicator.key}</span>
                 <span className="tabular-nums">{indicator.count}</span>
@@ -851,7 +870,12 @@ function CastCard({
             {cast.account?.username ? `@${cast.account.username}` : 'Account'}
           </span>
         </div>
-        <span className="text-[10px] px-1 py-0.5 rounded border bg-muted/50 text-foreground/90 shrink-0">
+        <span
+          className={cn(
+            'text-[10px] px-1 py-0.5 rounded border shrink-0',
+            STATUS_TONE[cast.status] ?? 'border-border/60 bg-muted/50 text-foreground/90'
+          )}
+        >
           {STATUS_LABEL[cast.status] ?? cast.status}
         </span>
       </div>

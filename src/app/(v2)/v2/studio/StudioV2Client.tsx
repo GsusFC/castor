@@ -31,6 +31,7 @@ interface StudioV2ClientProps {
 }
 
 type ViewMode = 'list' | 'grid'
+type SortMode = 'newest' | 'oldest'
 type ViewModeTab = 'queue' | 'activity' | 'templates'
 
 const DEFAULT_VIEW_MODES: Record<ViewModeTab, ViewMode> = {
@@ -39,9 +40,16 @@ const DEFAULT_VIEW_MODES: Record<ViewModeTab, ViewMode> = {
   templates: 'grid',
 }
 
+const DEFAULT_SORT_MODES: Record<ViewModeTab, SortMode> = {
+  queue: 'newest',
+  activity: 'newest',
+  templates: 'newest',
+}
+
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
   const [viewModes, setViewModes] = useState<Record<ViewModeTab, ViewMode>>(DEFAULT_VIEW_MODES)
+  const [sortModes, setSortModes] = useState<Record<ViewModeTab, SortMode>>(DEFAULT_SORT_MODES)
   const {
     approvedAccounts,
     defaultAccountId,
@@ -95,14 +103,23 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
       const queue = localStorage.getItem('studio-v2-view-mode-queue')
       const activity = localStorage.getItem('studio-v2-view-mode-activity')
       const templatesMode = localStorage.getItem('studio-v2-view-mode-templates')
+      const queueSort = localStorage.getItem('studio-v2-sort-mode-queue')
+      const activitySort = localStorage.getItem('studio-v2-sort-mode-activity')
+      const templatesSort = localStorage.getItem('studio-v2-sort-mode-templates')
 
       setViewModes({
         queue: queue === 'list' || queue === 'grid' ? queue : DEFAULT_VIEW_MODES.queue,
         activity: activity === 'list' || activity === 'grid' ? activity : DEFAULT_VIEW_MODES.activity,
         templates: templatesMode === 'list' || templatesMode === 'grid' ? templatesMode : DEFAULT_VIEW_MODES.templates,
       })
+      setSortModes({
+        queue: queueSort === 'oldest' || queueSort === 'newest' ? queueSort : DEFAULT_SORT_MODES.queue,
+        activity: activitySort === 'oldest' || activitySort === 'newest' ? activitySort : DEFAULT_SORT_MODES.activity,
+        templates: templatesSort === 'oldest' || templatesSort === 'newest' ? templatesSort : DEFAULT_SORT_MODES.templates,
+      })
     } catch {
       setViewModes(DEFAULT_VIEW_MODES)
+      setSortModes(DEFAULT_SORT_MODES)
     }
   }, [])
 
@@ -112,6 +129,36 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
       localStorage.setItem(`studio-v2-view-mode-${tab}`, mode)
     } catch {}
   }
+
+  const setSortMode = (tab: ViewModeTab, mode: SortMode) => {
+    setSortModes((prev) => ({ ...prev, [tab]: mode }))
+    try {
+      localStorage.setItem(`studio-v2-sort-mode-${tab}`, mode)
+    } catch {}
+  }
+
+  const queueItems = useMemo(
+    () => [...upcomingCasts].sort((a, b) => sortModes.queue === 'newest'
+      ? new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
+      : new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+    [upcomingCasts, sortModes.queue]
+  )
+
+  const activityItems = useMemo(
+    () => [...recentActivity].sort((a, b) => {
+      const aTime = new Date(a.publishedAt || a.scheduledAt).getTime()
+      const bTime = new Date(b.publishedAt || b.scheduledAt).getTime()
+      return sortModes.activity === 'newest' ? bTime - aTime : aTime - bTime
+    }),
+    [recentActivity, sortModes.activity]
+  )
+
+  const templateItems = useMemo(
+    () => [...studioTemplates].sort((a, b) => sortModes.templates === 'newest'
+      ? b.name.localeCompare(a.name)
+      : a.name.localeCompare(b.name)),
+    [studioTemplates, sortModes.templates]
+  )
 
   return (
     <SelectedAccountV2Provider defaultAccountId={defaultAccountId}>
@@ -138,30 +185,40 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         rightPanelControls={(activeTab) => (
           <div className="flex items-center gap-2">
             {(activeTab === 'queue' || activeTab === 'activity' || activeTab === 'templates') && (
-              <div className="flex items-center rounded-md border p-0.5">
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center rounded-md border p-0.5">
+                  <button
+                    type="button"
+                    aria-label="List view"
+                    onClick={() => setViewMode(activeTab, 'list')}
+                    className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
+                      viewModes[activeTab] === 'list'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Grid view"
+                    onClick={() => setViewMode(activeTab, 'grid')}
+                    className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
+                      viewModes[activeTab] === 'grid'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <button
                   type="button"
-                  aria-label="List view"
-                  onClick={() => setViewMode(activeTab, 'list')}
-                  className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
-                    viewModes[activeTab] === 'list'
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
+                  onClick={() => setSortMode(activeTab, sortModes[activeTab] === 'newest' ? 'oldest' : 'newest')}
+                  className="h-7 rounded-md border px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title={sortModes[activeTab] === 'newest' ? 'Showing newest first' : 'Showing oldest first'}
                 >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Grid view"
-                  onClick={() => setViewMode(activeTab, 'grid')}
-                  className={`h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors ${
-                    viewModes[activeTab] === 'grid'
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
+                  {sortModes[activeTab] === 'newest' ? 'Newest' : 'Oldest'}
                 </button>
               </div>
             )}
@@ -187,7 +244,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         }
         queuePanel={
           <QueuePanel
-            casts={upcomingCasts}
+            casts={queueItems}
             viewMode={viewModes.queue}
             onSelectCast={handleSelectCast}
             onStartCast={handleStartCast}
@@ -202,7 +259,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         }
         activityPanel={
           <ActivityPanel
-            casts={recentActivity}
+            casts={activityItems}
             viewMode={viewModes.activity}
             onSelectCast={handleSelectCast}
             onStartCast={handleStartCast}
@@ -216,7 +273,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
         }
         templatesPanel={
           <TemplatesPanel
-            templates={studioTemplates}
+            templates={templateItems}
             viewMode={viewModes.templates}
             onLoadTemplate={handleLoadTemplateFromPanel}
             onDeleteTemplate={handleDeleteTemplate}

@@ -83,12 +83,12 @@ function fromDayKey(key: string): { year: number; month: number; day: number } |
   return { year, month, day }
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  scheduled: 'bg-blue-500/80',
-  published: 'bg-emerald-500/80',
-  failed: 'bg-red-500/80',
-  draft: 'bg-amber-500/80',
-  retrying: 'bg-orange-500/80',
+const STATUS_LABEL: Record<string, string> = {
+  scheduled: 'Scheduled',
+  published: 'Published',
+  failed: 'Failed',
+  draft: 'Draft',
+  retrying: 'Retrying',
 }
 
 export function CalendarView({
@@ -289,7 +289,7 @@ export function CalendarView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="bg-card rounded-xl border font-mono">
+      <div className="bg-card rounded-xl border font-sans">
         <div className="hidden md:flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold text-lg">
             {formatStudioDate(currentDate, {
@@ -680,8 +680,9 @@ function CalendarDay({
               <span
                 key={indicator.key}
                 title={`${indicator.key}: ${indicator.count}`}
-                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 ${STATUS_COLOR[indicator.key] || 'bg-muted'}`}
+                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-foreground/90 border border-border/60 bg-muted/50"
               >
+                <span className="truncate max-w-[52px]">{STATUS_LABEL[indicator.key] ?? indicator.key}</span>
                 <span className="tabular-nums">{indicator.count}</span>
               </span>
             ))}
@@ -797,12 +798,6 @@ function CastCard({
   onDuplicate?: () => void
   onDelete?: () => void
 }) {
-  const statusColors = {
-    scheduled: 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/20 dark:border-blue-500/30',
-    published: 'bg-green-500/10 border-green-500/20 dark:bg-green-500/20 dark:border-green-500/30',
-    failed: 'bg-red-500/10 border-red-500/20 dark:bg-red-500/20 dark:border-red-500/30',
-  }
-
   const time = formatStudioTime(cast.scheduledAt, {
     locale,
     timeZone,
@@ -812,8 +807,7 @@ function CastCard({
 
   return (
     <div
-      className={`p-1.5 rounded border text-[10px] cursor-grab active:cursor-grabbing ${statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
-        } ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
+      className={`p-1.5 rounded border text-[10px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
         } relative group pr-12`}
     >
       <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -845,6 +839,21 @@ function CastCard({
             <Trash2 className="w-3 h-3" />
           </button>
         )}
+      </div>
+      <div className="flex items-center justify-between gap-1 mb-0.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {cast.account?.pfpUrl ? (
+            <img src={cast.account.pfpUrl} alt="" className="size-3.5 rounded-full shrink-0" />
+          ) : (
+            <div className="size-3.5 rounded-full bg-muted shrink-0" />
+          )}
+          <span className="text-muted-foreground truncate">
+            {cast.account?.username ? `@${cast.account.username}` : 'Account'}
+          </span>
+        </div>
+        <span className="text-[10px] px-1 py-0.5 rounded border bg-muted/50 text-foreground/90 shrink-0">
+          {STATUS_LABEL[cast.status] ?? cast.status}
+        </span>
       </div>
       <div className="flex items-center gap-1 mb-0.5">
         <Clock className="w-3 h-3 text-muted-foreground" />

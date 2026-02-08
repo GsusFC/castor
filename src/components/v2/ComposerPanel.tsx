@@ -41,6 +41,14 @@ export interface ComposerPanelRef {
   startNewCast: () => void
 }
 
+function isRenderableMedia(url: string, type: 'image' | 'video'): boolean {
+  if (!url) return false
+  if (type === 'video') return true
+  if (url.startsWith('blob:') || url.startsWith('data:')) return true
+  if (url.includes('imagedelivery.net') || url.includes('cloudflare')) return true
+  return /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url)
+}
+
 /**
  * V2 ComposerPanel — persistent side panel replacing the modal composer.
  *
@@ -101,16 +109,20 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
     // Expose imperative methods to parent
     useImperativeHandle(ref, () => ({
       loadCast: (cast: SerializedCast) => {
-        // Set content
-        thread.setCasts([{
-          id: nanoid(),
-          content: cast.content || '',
-          media: cast.media?.map(m => ({
+        const safeMedia = (cast.media || [])
+          .filter((m) => isRenderableMedia(m.url, m.type as 'image' | 'video'))
+          .map((m) => ({
             preview: m.url,
             url: m.url,
             type: m.type as 'image' | 'video',
             uploading: false,
-          })) || [],
+          }))
+
+        // Set content
+        thread.setCasts([{
+          id: nanoid(),
+          content: cast.content || '',
+          media: safeMedia,
           links: [],
         }])
 

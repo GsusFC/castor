@@ -234,8 +234,7 @@ export async function POST(request: NextRequest) {
               url.includes('lp-playback')
             const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
             const isExplicitVideo = embed.type === 'video'
-            const isRegularLink = /^https?:\/\//i.test(url)
-            return isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo || isRegularLink
+            return Boolean(isCloudflare || isLivepeer || hasMediaExtension || isExplicitVideo)
           })
           
           if (mediaEmbeds.length > 0) {

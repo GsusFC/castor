@@ -859,17 +859,7 @@ function CastCard({
           </button>
         )}
       </div>
-      <div className="flex items-center justify-between gap-1 mb-0.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {cast.account?.pfpUrl ? (
-            <img src={cast.account.pfpUrl} alt="" className="size-3.5 rounded-full shrink-0" />
-          ) : (
-            <div className="size-3.5 rounded-full bg-muted shrink-0" />
-          )}
-          <span className="text-muted-foreground truncate">
-            {cast.account?.username ? `@${cast.account.username}` : 'Account'}
-          </span>
-        </div>
+      <div className="flex items-center justify-end gap-1 mb-0.5">
         <span
           className={cn(
             'text-[10px] px-1 py-0.5 rounded border shrink-0',

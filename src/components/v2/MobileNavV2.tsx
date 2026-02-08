@@ -32,12 +32,15 @@ type MePayload = {
   pfpUrl?: string
 }
 
+const OPEN_COMPOSE_ON_DATE_EVENT = 'castor:studio-open-compose-on-date'
+
 export function MobileNavV2() {
   const pathname = usePathname()
   const router = useRouter()
   const search = useSearch()
 
   const [composeOpen, setComposeOpen] = useState(false)
+  const [composeDefaultDate, setComposeDefaultDate] = useState<string | undefined>(undefined)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [me, setMe] = useState<MePayload | null>(null)
 
@@ -87,6 +90,21 @@ export function MobileNavV2() {
     }
   }, [])
 
+  useEffect(() => {
+    const handleOpenComposeOnDate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ date?: string }>
+      const rawDate = customEvent.detail?.date
+      if (!rawDate) return
+      setComposeDefaultDate(rawDate)
+      setComposeOpen(true)
+    }
+
+    window.addEventListener(OPEN_COMPOSE_ON_DATE_EVENT, handleOpenComposeOnDate as EventListener)
+    return () => {
+      window.removeEventListener(OPEN_COMPOSE_ON_DATE_EVENT, handleOpenComposeOnDate as EventListener)
+    }
+  }, [])
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
@@ -114,7 +132,10 @@ export function MobileNavV2() {
 
         <button
           type="button"
-          onClick={() => setComposeOpen(true)}
+          onClick={() => {
+            setComposeDefaultDate(undefined)
+            setComposeOpen(true)
+          }}
           className="pointer-events-auto absolute right-0 bottom-0 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center"
           aria-label="Create cast"
         >
@@ -199,7 +220,16 @@ export function MobileNavV2() {
         </div>
       </nav>
 
-      <ComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      <ComposeModal
+        open={composeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open)
+          if (!open) {
+            setComposeDefaultDate(undefined)
+          }
+        }}
+        defaultScheduleDate={composeDefaultDate}
+      />
     </>
   )
 }

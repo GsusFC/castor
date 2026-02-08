@@ -25,6 +25,7 @@ import {
 } from '@/hooks'
 
 interface ComposeModalProps {
+  defaultScheduleDate?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultAccountId?: string | null
@@ -44,6 +45,7 @@ export function ComposeModal({
   defaultEmbed,
   defaultChannelId,
   defaultReplyTo,
+  defaultScheduleDate,
 }: ComposeModalProps) {
   const router = useRouter()
 
@@ -108,7 +110,7 @@ export function ComposeModal({
     if (!open) {
       resetForm()
       submit.clearError()
-    } else if (!editCast && (defaultContent || defaultEmbed || defaultReplyTo)) {
+    } else if (!editCast && (defaultContent || defaultEmbed || defaultReplyTo || defaultScheduleDate)) {
       // Modal se abre - cargar contenido o embed con pequeño delay
       const timeoutId = setTimeout(() => {
         thread.setCasts([{
@@ -127,10 +129,14 @@ export function ComposeModal({
         setReplyTo(defaultReplyTo)
       }
 
+      if (defaultScheduleDate) {
+        schedule.setDate(defaultScheduleDate)
+      }
+
       return () => clearTimeout(timeoutId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultContent, defaultEmbed, defaultChannelId, defaultReplyTo])
+  }, [open, defaultContent, defaultEmbed, defaultChannelId, defaultReplyTo, defaultScheduleDate])
 
   // Cargar datos del cast en modo edición
   useEffect(() => {

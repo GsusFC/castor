@@ -36,6 +36,8 @@ interface StudioV2ClientProps {
   templates: SerializedTemplate[]
 }
 
+const OPEN_COMPOSE_ON_DATE_EVENT = 'castor:studio-open-compose-on-date'
+
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
 
@@ -84,6 +86,23 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
     allKnownCasts,
   })
   const calendarCasts = useStudioCalendarCasts({ casts: filteredCasts })
+
+  const handleCreateOnDate = (date: Date) => {
+    handleSelectDate(date)
+
+    if (typeof window !== 'undefined') {
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      const dateString = `${y}-${m}-${d}`
+
+      window.dispatchEvent(
+        new CustomEvent(OPEN_COMPOSE_ON_DATE_EVENT, {
+          detail: { date: dateString },
+        })
+      )
+    }
+  }
 
   const combinedCasts = useMemo(() => {
     return [...allKnownCasts]
@@ -174,7 +193,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             casts={combinedCasts}
             onSelectCast={handleSelectCast}
             onStartCast={handleStartCast}
-            onCreateOnDate={handleSelectDate}
+            onCreateOnDate={handleCreateOnDate}
             onDeleteCast={handleDeleteCast}
             onDuplicateCast={handleDuplicateCast}
             onLoadMore={hasMoreCombined ? handleLoadMoreCombined : undefined}

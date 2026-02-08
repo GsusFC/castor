@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -69,6 +69,8 @@ export function DailyQueuePanel({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  const dayRefs = useRef<Record<string, HTMLElement | null>>({})
+  const didInitialScrollToToday = useRef(false)
 
   const dayGroups = useMemo<DayGroup[]>(() => {
     const sorted = [...casts].sort(
@@ -92,6 +94,25 @@ export function DailyQueuePanel({
     return Array.from(byDay.values())
   }, [casts, locale, timeZone])
 
+  const todayKey = useMemo(() => toDayKey(new Date(), locale, timeZone), [locale, timeZone])
+
+  useEffect(() => {
+    if (didInitialScrollToToday.current || dayGroups.length === 0) return
+
+    const targetGroup =
+      dayGroups.find((group) => group.key === todayKey) ||
+      dayGroups.find((group) => group.key > todayKey) ||
+      dayGroups[dayGroups.length - 1]
+
+    if (!targetGroup) return
+
+    const targetEl = dayRefs.current[targetGroup.key]
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'auto', block: 'start' })
+      didInitialScrollToToday.current = true
+    }
+  }, [dayGroups, todayKey])
+
   if (casts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center gap-2">
@@ -111,9 +132,15 @@ export function DailyQueuePanel({
   return (
     <div className="space-y-3">
       {dayGroups.map((group) => (
-        <section key={group.key} className="rounded-xl border border-border/60 bg-card/30 overflow-hidden">
-          <div className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm px-3 py-2 flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold">
+        <section
+          key={group.key}
+          ref={(el) => {
+            dayRefs.current[group.key] = el
+          }}
+          className="rounded-xl border border-border/60 bg-card/30"
+        >
+          <div className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm px-3 py-2.5 flex items-center justify-between gap-2 shadow-sm">
+            <div className="text-sm font-semibold text-foreground">
               {formatStudioDate(group.date, {
                 locale,
                 timeZone,
@@ -126,11 +153,11 @@ export function DailyQueuePanel({
             <button
               type="button"
               onClick={() => onCreateOnDate(group.date)}
-              className="h-7 w-7 rounded-md border inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="h-8 w-8 rounded-md border inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
               aria-label="Create cast on this day"
               title="Create cast on this day"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4.5 h-4.5" />
             </button>
           </div>
 

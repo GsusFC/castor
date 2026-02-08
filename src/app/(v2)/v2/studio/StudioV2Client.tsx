@@ -59,6 +59,13 @@ function getSortLabel(tab: ViewModeTab, mode: SortMode): string {
   return mode === 'newest' ? 'Date: Newest' : 'Date: Oldest'
 }
 
+function getSortShortLabel(tab: ViewModeTab, mode: SortMode): string {
+  if (tab === 'templates') {
+    return mode === 'newest' ? 'Z-A' : 'A-Z'
+  }
+  return mode === 'newest' ? 'New' : 'Old'
+}
+
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
   const [viewModes, setViewModes] = useState<Record<ViewModeTab, ViewMode>>(DEFAULT_VIEW_MODES)
@@ -196,9 +203,9 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
           />
         }
         rightPanelControls={(activeTab) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
             {(activeTab === 'queue' || activeTab === 'activity' || activeTab === 'templates') && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="hidden sm:flex items-center rounded-md border p-0.5">
                   <button
                     type="button"
@@ -229,9 +236,10 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="h-7 rounded-md border px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1"
+                      className="h-7 rounded-md border px-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1"
                     >
-                      {getSortLabel(activeTab, sortModes[activeTab])}
+                      <span className="sm:hidden">{getSortShortLabel(activeTab, sortModes[activeTab])}</span>
+                      <span className="hidden sm:inline">{getSortLabel(activeTab, sortModes[activeTab])}</span>
                       <ChevronDown className="w-3 h-3" />
                     </button>
                   </DropdownMenuTrigger>

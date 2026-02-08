@@ -52,8 +52,12 @@ export function StudioLayout({
       {/* Right Panel — Calendar / Queue / Activity — full width on mobile */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Tab Bar */}
-        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 shrink-0">
-          <div className="flex items-center gap-1" role="tablist" aria-label="Studio right panel tabs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">
+          <div
+            className="flex items-center gap-1 overflow-x-auto no-scrollbar"
+            role="tablist"
+            aria-label="Studio right panel tabs"
+          >
           {TABS.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -67,7 +71,7 @@ export function StudioLayout({
                 aria-controls={`studio-panel-${tab.id}`}
                 onClick={() => handleTabChange(tab.id)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  'shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -79,9 +83,11 @@ export function StudioLayout({
             )
           })}
           </div>
-          {typeof rightPanelControls === 'function'
-            ? rightPanelControls(activeTab)
-            : rightPanelControls}
+          <div className="sm:ml-2">
+            {typeof rightPanelControls === 'function'
+              ? rightPanelControls(activeTab)
+              : rightPanelControls}
+          </div>
         </div>
 
         {/* Tab Content */}

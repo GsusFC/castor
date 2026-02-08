@@ -35,7 +35,7 @@ export function AppHeader({ user, accounts }: AppHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-      <div className="flex h-14 items-center px-4 lg:px-6 gap-6">
+      <div className="flex h-14 items-center px-3 sm:px-4 lg:px-6 gap-2 sm:gap-6">
         {/* Logo — click to go back to version chooser */}
         <button
           type="button"
@@ -59,7 +59,7 @@ export function AppHeader({ user, accounts }: AppHeaderProps) {
         </button>
 
         {/* Nav Tabs */}
-        <nav className="flex items-center gap-1">
+        <nav className="hidden sm:flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href)
             return (

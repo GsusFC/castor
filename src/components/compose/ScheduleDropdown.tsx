@@ -196,7 +196,6 @@ export function ScheduleDropdown({
             selected={selectedDate}
             onSelect={handleCalendarSelect}
             disabled={(day) => isBefore(day, today)}
-            animate
             weekStartsOn={1}
           />
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Copy, Trash2 } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -15,6 +15,15 @@ import {
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { formatStudioDate, formatStudioTime, getStudioLocale, getStudioTimeZone } from '@/lib/studio-datetime'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 interface Cast {
   id: string
@@ -32,6 +41,8 @@ interface CalendarViewProps {
   onMoveCast: (castId: string, newDate: Date) => Promise<void>
   onSelectDate?: (date: Date) => void
   onSelectCast?: (castId: string) => void
+  onDuplicateCast?: (castId: string) => void
+  onDeleteCast?: (castId: string) => void
   locale?: string
   timeZone?: string
   weekStartsOn?: 0 | 1
@@ -69,6 +80,8 @@ export function CalendarView({
   onMoveCast,
   onSelectDate,
   onSelectCast,
+  onDuplicateCast,
+  onDeleteCast,
   locale,
   timeZone,
   weekStartsOn = DEFAULT_WEEK_STARTS_ON,
@@ -79,6 +92,7 @@ export function CalendarView({
   const [currentDate, setCurrentDate] = useState(new Date())
   const [activeCast, setActiveCast] = useState<Cast | null>(null)
   const [optimisticCasts, setOptimisticCasts] = useState<Cast[]>(casts)
+  const [deleteTarget, setDeleteTarget] = useState<Cast | null>(null)
 
   useEffect(() => {
     setOptimisticCasts(casts)
@@ -269,6 +283,9 @@ export function CalendarView({
                 isToday={isToday(date)}
                 onSelectDate={onSelectDate}
                 onSelectCast={onSelectCast}
+                onDuplicateCast={onDuplicateCast}
+                onDeleteCast={onDeleteCast}
+                onRequestDelete={setDeleteTarget}
                 locale={resolvedLocale}
                 timeZone={resolvedTimeZone}
               />
@@ -280,6 +297,34 @@ export function CalendarView({
       <DragOverlay>
         {activeCast && <CastCard cast={activeCast} locale={resolvedLocale} timeZone={resolvedTimeZone} isDragging />}
       </DragOverlay>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete cast</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the cast. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (deleteTarget && onDeleteCast) {
+                  onDeleteCast(deleteTarget.id)
+                }
+                setDeleteTarget(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   )
 }
@@ -292,6 +337,9 @@ function CalendarDay({
   isToday,
   onSelectDate,
   onSelectCast,
+  onDuplicateCast,
+  onDeleteCast,
+  onRequestDelete,
   locale,
   timeZone,
 }: {
@@ -302,6 +350,9 @@ function CalendarDay({
   isToday: boolean
   onSelectDate?: (date: Date) => void
   onSelectCast?: (castId: string) => void
+  onDuplicateCast?: (castId: string) => void
+  onDeleteCast?: (castId: string) => void
+  onRequestDelete?: (cast: Cast) => void
   locale: string
   timeZone: string
 }) {
@@ -335,7 +386,16 @@ function CalendarDay({
       </button>
       <div className="space-y-1">
         {casts.slice(0, 3).map((cast) => (
-          <DraggableCast key={cast.id} cast={cast} onSelectCast={onSelectCast} locale={locale} timeZone={timeZone} />
+          <DraggableCast
+            key={cast.id}
+            cast={cast}
+            onSelectCast={onSelectCast}
+            onDuplicateCast={onDuplicateCast}
+            onDeleteCast={onDeleteCast}
+            onRequestDelete={onRequestDelete}
+            locale={locale}
+            timeZone={timeZone}
+          />
         ))}
         {casts.length > 3 && (
           <div className="text-xs text-muted-foreground pl-1">
@@ -350,11 +410,17 @@ function CalendarDay({
 function DraggableCast({
   cast,
   onSelectCast,
+  onDuplicateCast,
+  onDeleteCast,
+  onRequestDelete,
   locale,
   timeZone,
 }: {
   cast: Cast
   onSelectCast?: (castId: string) => void
+  onDuplicateCast?: (castId: string) => void
+  onDeleteCast?: (castId: string) => void
+  onRequestDelete?: (cast: Cast) => void
   locale: string
   timeZone: string
 }) {
@@ -363,12 +429,15 @@ function DraggableCast({
     disabled: cast.status !== 'scheduled',
   })
 
+  const canDelete = ['draft', 'scheduled', 'retrying', 'failed'].includes(cast.status)
+
   return (
-    <button
-      type="button"
+    <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      role="button"
+      tabIndex={0}
       aria-label={`Open cast scheduled at ${formatStudioTime(cast.scheduledAt, {
         locale,
         timeZone,
@@ -376,6 +445,12 @@ function DraggableCast({
         minute: '2-digit',
       })}`}
       className={`w-full text-left ${isDragging ? 'opacity-50' : ''}`}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !isDragging && onSelectCast) {
+          e.preventDefault()
+          onSelectCast(cast.id)
+        }
+      }}
       onClick={(e) => {
         if (!isDragging && onSelectCast) {
           e.stopPropagation()
@@ -383,8 +458,14 @@ function DraggableCast({
         }
       }}
     >
-      <CastCard cast={cast} locale={locale} timeZone={timeZone} />
-    </button>
+      <CastCard
+        cast={cast}
+        locale={locale}
+        timeZone={timeZone}
+        onDuplicate={() => onDuplicateCast?.(cast.id)}
+        onDelete={canDelete && onDeleteCast ? () => onRequestDelete?.(cast) : undefined}
+      />
+    </div>
   )
 }
 
@@ -393,11 +474,15 @@ function CastCard({
   locale,
   timeZone,
   isDragging,
+  onDuplicate,
+  onDelete,
 }: {
   cast: Cast
   locale: string
   timeZone: string
   isDragging?: boolean
+  onDuplicate?: () => void
+  onDelete?: () => void
 }) {
   const statusColors = {
     scheduled: 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/20 dark:border-blue-500/30',
@@ -416,8 +501,38 @@ function CastCard({
     <div
       className={`p-1.5 rounded border text-xs cursor-grab active:cursor-grabbing ${statusColors[cast.status as keyof typeof statusColors] || 'bg-muted border-border'
         } ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
-        }`}
+        } relative group pr-12`}
     >
+      <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onDuplicate && (
+          <button
+            type="button"
+            title="Duplicate as draft"
+            aria-label="Duplicate as draft"
+            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDuplicate()
+            }}
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            title="Delete cast"
+            aria-label="Delete cast"
+            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-1 mb-0.5">
         <Clock className="w-3 h-3 text-muted-foreground" />
         <span className="text-muted-foreground">{time}</span>

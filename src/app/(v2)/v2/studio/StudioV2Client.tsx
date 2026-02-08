@@ -389,6 +389,8 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             onMoveCast={handleMoveCast}
             onSelectDate={handleSelectDate}
             onSelectCast={handleSelectCast}
+            onDuplicateCast={handleDuplicateCast}
+            onDeleteCast={handleDeleteCast}
             locale={locale}
             timeZone={timeZone}
             weekStartsOn={1}

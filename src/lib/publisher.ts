@@ -6,6 +6,7 @@ import { retryExternalApi, withCircuitBreaker } from '@/lib/retry'
 import { fetchWithTimeout, DEFAULT_TIMEOUTS } from '@/lib/fetch'
 import { auditCast } from '@/lib/audit'
 import { env } from '@/lib/env'
+import { extractUrls, isMediaUrl, normalizeHttpUrl } from '@/lib/url-utils'
 
 // ============================================
 // Configuration
@@ -405,7 +406,7 @@ export async function publishDueCasts(
       // Preparar embeds de media
       // Para videos de Livepeer: usar HLS URL directamente (Warpcast lo soporta bien)
       // Para videos: Warpcast prefiere HLS (.m3u8) sobre MP4
-      const embeds = castWithMedia.media?.map(m => {
+      const mediaEmbeds = castWithMedia.media?.map(m => {
         if (m.type === 'video') {
           // Livepeer videos: usar HLS (playbackUrl) para Warpcast
           if (m.livepeerAssetId || m.livepeerPlaybackId) {
@@ -434,9 +435,23 @@ export async function publishDueCasts(
         return { url: m.url }
       }) || []
 
+      // Include non-media links found in content so scheduled posts preserve link embeds.
+      const contentLinkEmbeds = extractUrls(cast.content || '')
+        .map(normalizeHttpUrl)
+        .filter((url) => !isMediaUrl(url))
+        .map((url) => ({ url }))
+
+      const embedMap = new Map<string, { url: string }>()
+      for (const embed of [...mediaEmbeds, ...contentLinkEmbeds]) {
+        if (!embed?.url) continue
+        embedMap.set(normalizeHttpUrl(embed.url), { url: normalizeHttpUrl(embed.url) })
+      }
+      const embeds = Array.from(embedMap.values())
+
       publisherLogger.info({ 
         castId: cast.id,
         mediaCount: castWithMedia.media?.length || 0,
+        contentLinkCount: contentLinkEmbeds.length,
         embeds: embeds,
       }, 'Prepared embeds for cast')
 

@@ -91,6 +91,24 @@ const STATUS_LABEL: Record<string, string> = {
   retrying: 'Retrying',
 }
 
+function getStatusDotClass(status: string) {
+  if (status === 'published') return 'bg-emerald-400'
+  if (status === 'scheduled') return 'bg-blue-400'
+  if (status === 'draft') return 'bg-amber-400'
+  if (status === 'retrying') return 'bg-orange-400'
+  if (status === 'failed') return 'bg-red-400'
+  return 'bg-muted-foreground'
+}
+
+function getStatusCardTone(status: string) {
+  if (status === 'published') return 'border-emerald-500/45 bg-emerald-500/10'
+  if (status === 'scheduled') return 'border-blue-500/45 bg-blue-500/10'
+  if (status === 'draft') return 'border-amber-500/35 bg-amber-500/8'
+  if (status === 'retrying') return 'border-orange-500/35 bg-orange-500/8'
+  if (status === 'failed') return 'border-red-500/40 bg-red-500/8'
+  return 'border-border bg-card'
+}
+
 export function CalendarView({
   casts,
   onMoveCast,
@@ -682,20 +700,7 @@ function CalendarDay({
               <span
                 key={indicator.key}
                 title={STATUS_LABEL[indicator.key] ?? indicator.key}
-                className={cn(
-                  'size-2 rounded-full',
-                  indicator.key === 'published'
-                    ? 'bg-emerald-400'
-                    : indicator.key === 'scheduled'
-                      ? 'bg-blue-400'
-                      : indicator.key === 'draft'
-                        ? 'bg-amber-400'
-                        : indicator.key === 'retrying'
-                          ? 'bg-orange-400'
-                          : indicator.key === 'failed'
-                            ? 'bg-red-400'
-                            : 'bg-muted-foreground'
-                )}
+                className={cn('size-2 rounded-full', getStatusDotClass(indicator.key))}
               />
             ))}
           </div>
@@ -814,8 +819,12 @@ function CastCard({
 
   return (
     <div
-      className={`p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing bg-card border-border ${isDragging ? 'shadow-lg rotate-2' : ''} ${cast.status !== 'scheduled' ? 'cursor-default opacity-75' : ''
-        } relative group`}
+      className={cn(
+        'p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing relative group',
+        getStatusCardTone(cast.status),
+        isDragging && 'shadow-lg rotate-2',
+        cast.status !== 'scheduled' && 'cursor-default opacity-75'
+      )}
     >
       <div className="flex items-center justify-between gap-1 mb-0.5">
         <div className="flex items-center gap-1.5 min-w-0">

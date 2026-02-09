@@ -101,11 +101,11 @@ function getStatusDotClass(status: string) {
 }
 
 function getStatusCardTone(status: string) {
-  if (status === 'published') return 'border-emerald-500/45 bg-emerald-500/10'
-  if (status === 'scheduled') return 'border-blue-500/45 bg-blue-500/10'
-  if (status === 'draft') return 'border-amber-500/35 bg-amber-500/8'
-  if (status === 'retrying') return 'border-orange-500/35 bg-orange-500/8'
-  if (status === 'failed') return 'border-red-500/40 bg-red-500/8'
+  if (status === 'published') return 'border-emerald-400/75 bg-emerald-500/10'
+  if (status === 'scheduled') return 'border-blue-400/75 bg-blue-500/10'
+  if (status === 'draft') return 'border-amber-400/65 bg-amber-500/8'
+  if (status === 'retrying') return 'border-orange-400/65 bg-orange-500/8'
+  if (status === 'failed') return 'border-red-400/70 bg-red-500/8'
   return 'border-border bg-card'
 }
 

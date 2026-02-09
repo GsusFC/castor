@@ -223,6 +223,16 @@ export function CalendarView({
     )
   }, [castsByDay, detailDayKey])
 
+  const detailStatusSummary = useMemo(() => {
+    const summary = new Map<string, number>()
+    for (const cast of detailDayCasts) {
+      summary.set(cast.status, (summary.get(cast.status) || 0) + 1)
+    }
+    return Array.from(summary.entries())
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [detailDayCasts])
+
   const handleDragStart = (event: DragStartEvent) => {
     const cast = optimisticCasts.find((c) => c.id === event.active.id)
     if (cast) {
@@ -520,13 +530,13 @@ export function CalendarView({
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
           className={cn(
-            'p-0 overflow-hidden transition-all duration-300 ease-out border-none',
+            'p-0 overflow-hidden transition-all duration-300 ease-out border-none [&>button]:hidden',
             isMobile
               ? 'w-full h-[70dvh] rounded-t-xl bg-background text-foreground'
-              : 'w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[520px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground'
+              : 'w-full sm:w-[22vw] sm:min-w-[360px] sm:max-w-[480px] sm:top-4 sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-32px)] sm:rounded-xl sm:bg-background sm:shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:border sm:border-border/30 text-foreground'
           )}
         >
-          <SheetHeader className="px-6 py-4 border-b border-border/10">
+          <SheetHeader className="px-6 py-4 border-b border-border/10 bg-transparent">
             <SheetTitle className="text-lg font-bold tracking-tight text-foreground/90 text-balance">
               {detailDayDate
                 ? formatStudioDate(detailDayDate, {
@@ -539,9 +549,20 @@ export function CalendarView({
                   })
                 : 'Day details'}
             </SheetTitle>
-            <SheetDescription className="text-[12px] text-muted-foreground">
-              Scheduled casts
-            </SheetDescription>
+            <SheetDescription className="text-[12px] text-muted-foreground">Scheduled casts</SheetDescription>
+            {detailStatusSummary.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {detailStatusSummary.map((item) => (
+                  <span
+                    key={item.status}
+                    className="inline-flex items-center gap-1 rounded-md border border-border/40 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                  >
+                    <span className={cn('size-1.5 rounded-full', getStatusDotClass(item.status))} />
+                    {STATUS_LABEL[item.status] ?? item.status} {item.count}
+                  </span>
+                ))}
+              </div>
+            )}
           </SheetHeader>
 
           <div className={cn(
@@ -565,11 +586,15 @@ export function CalendarView({
                         onSelectCast?.(cast.id)
                       }
                     }}
-                    className="rounded-md border p-3 hover:bg-muted/40 cursor-pointer"
+                    className={cn(
+                      'rounded-md border p-3 hover:bg-muted/40 cursor-pointer',
+                      getStatusCardTone(cast.status)
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-[12px] text-muted-foreground tabular-nums mb-1">
+                        <div className="text-[12px] text-muted-foreground tabular-nums mb-1 flex items-center gap-1.5">
+                          <span className={cn('size-1.5 rounded-full', getStatusDotClass(cast.status))} />
                           {formatStudioTime(cast.scheduledAt, {
                             locale: resolvedLocale,
                             timeZone: resolvedTimeZone,

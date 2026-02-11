@@ -9,7 +9,7 @@ import {
   buildThreadEmbedsPayload,
   validateMediaReady,
 } from '@/lib/compose'
-import type { CastItem, Channel, ReplyToCast } from '@/components/compose/types'
+import type { CastItem, Channel, ReplyToCast, PublishNetwork } from '@/components/compose/types'
 
 interface UseComposeSubmitOptions {
   casts: CastItem[]
@@ -21,6 +21,8 @@ interface UseComposeSubmitOptions {
   scheduleToISO: () => string | null
   isEditMode: boolean
   editCastId: string | null
+  selectedNetworks: PublishNetwork[]
+  availableNetworks: Record<PublishNetwork, boolean>
   onSuccess: (data?: { castId?: string; status?: string }) => void
 }
 
@@ -45,6 +47,8 @@ export function useComposeSubmit({
   scheduleToISO,
   isEditMode,
   editCastId,
+  selectedNetworks,
+  availableNetworks,
   onSuccess,
 }: UseComposeSubmitOptions): UseComposeSubmitReturn {
   const router = useRouter()
@@ -84,6 +88,58 @@ export function useComposeSubmit({
     toast.error(msg)
   }, [])
 
+  const validateNetworkPreflight = useCallback(() => {
+    if (selectedNetworks.length === 0) {
+      return 'Select at least one destination network'
+    }
+
+    const wantsX = selectedNetworks.includes('x')
+    const wantsLinkedIn = selectedNetworks.includes('linkedin')
+
+    if (wantsX && !availableNetworks.x) return 'X is not connected for this account'
+    if (wantsLinkedIn && !availableNetworks.linkedin) return 'LinkedIn is not connected for this account'
+
+    if (!wantsX && !wantsLinkedIn) return null
+
+    const hasMedia = casts.some((cast) => cast.media.some((m) => m.url))
+    if (hasMedia) {
+      return 'Cross-post media to X/LinkedIn is not enabled yet. Publish text-only for those networks.'
+    }
+
+    const xOverLimit = wantsX && casts.some((cast) => cast.content.trim().length > 280)
+    if (xOverLimit) {
+      return 'X posts cannot exceed 280 characters'
+    }
+
+    const linkedinOverLimit = wantsLinkedIn && casts.some((cast) => cast.content.trim().length > 3000)
+    if (linkedinOverLimit) {
+      return 'LinkedIn posts cannot exceed 3000 characters'
+    }
+
+    return null
+  }, [selectedNetworks, availableNetworks, casts])
+
+  const publishViaTypefully = useCallback(async (publishAt?: string | 'now') => {
+    if (!selectedAccountId) return
+
+    const networks = selectedNetworks.filter(
+      (network): network is 'x' | 'linkedin' => network === 'x' || network === 'linkedin'
+    )
+    if (networks.length === 0) return
+
+    const posts = casts.map((cast) => ({ text: cast.content }))
+    await fetchApiData('/api/integrations/typefully/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountId: selectedAccountId,
+        networks,
+        posts,
+        ...(publishAt ? { publishAt } : {}),
+      }),
+    })
+  }, [casts, selectedAccountId, selectedNetworks])
+
   /**
    * Schedule cast(s) for later
    */
@@ -91,6 +147,13 @@ export function useComposeSubmit({
     setError(null)
 
     if (!selectedAccountId) return
+
+    const networkError = validateNetworkPreflight()
+    if (networkError) {
+      setError(networkError)
+      toast.error(networkError)
+      return
+    }
 
     const hasContent = casts.some((c) => c.content.trim().length > 0)
     if (!hasContent) return
@@ -117,8 +180,9 @@ export function useComposeSubmit({
       if (!scheduledAt) throw new Error('Invalid date')
 
       const isThread = casts.length > 1
+      const wantsFarcaster = selectedNetworks.includes('farcaster')
 
-      if (isThread) {
+      if (isThread && wantsFarcaster) {
         // Schedule thread
         const res = await fetch('/api/casts/schedule-thread', {
           method: 'POST',
@@ -135,10 +199,16 @@ export function useComposeSubmit({
         const threadData = await res.json()
         if (!res.ok) throw new Error(threadData.error || 'Error scheduling thread')
 
+        if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
+          await publishViaTypefully(scheduledAt)
+        }
+
         toast.success('Thread scheduled successfully')
         handleSuccess({ castId: threadData.data?.threadId, status: 'scheduled' })
         return
-      } else {
+      }
+
+      if (!isThread && wantsFarcaster) {
         // Schedule single cast
         const cast = casts[0]
         const embeds = buildEmbedsFromCast(cast, { includeMetadata: true })
@@ -170,8 +240,19 @@ export function useComposeSubmit({
         const scheduleData = await res.json()
         if (!res.ok) throw new Error(scheduleData.error || 'Error scheduling cast')
 
+        if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
+          await publishViaTypefully(scheduledAt)
+        }
+
         toast.success(isEditMode ? 'Cast updated successfully' : 'Cast scheduled successfully')
-        handleSuccess({ castId: scheduleData.data?.castId || editCastId, status: isEditMode ? 'scheduled' : 'scheduled' })
+        handleSuccess({ castId: scheduleData.data?.castId || editCastId, status: 'scheduled' })
+        return
+      }
+
+      if (!wantsFarcaster && (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin'))) {
+        await publishViaTypefully(scheduledAt)
+        toast.success('Post scheduled for selected networks')
+        handleSuccess({ status: 'scheduled' })
         return
       }
     } catch (err) {
@@ -189,8 +270,11 @@ export function useComposeSubmit({
     scheduleToISO,
     isEditMode,
     editCastId,
+    selectedNetworks,
     handleSuccess,
     handleError,
+    validateNetworkPreflight,
+    publishViaTypefully,
   ])
 
   /**
@@ -200,6 +284,13 @@ export function useComposeSubmit({
     setError(null)
 
     if (!selectedAccountId) return
+
+    const networkError = validateNetworkPreflight()
+    if (networkError) {
+      setError(networkError)
+      toast.error(networkError)
+      return
+    }
 
     const cast = casts[0]
     const hasEmbeds = cast?.media?.some((m) => m.url) || (cast?.links?.length ?? 0) > 0
@@ -221,29 +312,49 @@ export function useComposeSubmit({
         publishKeyRef.current = crypto.randomUUID()
       }
 
-      const embeds = buildEmbedsFromCast(cast, { includeMetadata: false })
+      const wantsFarcaster = selectedNetworks.includes('farcaster')
+      let farcasterHash: string | undefined
 
-      const publishResult = await fetchApiData<{ hash: string; cast: unknown }>('/api/casts/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: selectedAccountId,
-          content: cast.content,
-          channelId: selectedChannel?.id,
-          embeds: embeds.length > 0 ? embeds : undefined,
-          parentHash: replyTo?.hash,
-          idempotencyKey: publishKeyRef.current,
-        }),
-      })
+      if (wantsFarcaster) {
+        const embeds = buildEmbedsFromCast(cast, { includeMetadata: false })
 
-      toast.success('Cast published!')
-      handleSuccess({ castId: publishResult.hash, status: 'published' })
+        const publishResult = await fetchApiData<{ hash: string; cast: unknown }>('/api/casts/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: selectedAccountId,
+            content: cast.content,
+            channelId: selectedChannel?.id,
+            embeds: embeds.length > 0 ? embeds : undefined,
+            parentHash: replyTo?.hash,
+            idempotencyKey: publishKeyRef.current,
+          }),
+        })
+        farcasterHash = publishResult.hash
+      }
+
+      if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
+        await publishViaTypefully('now')
+      }
+
+      toast.success('Published to selected networks')
+      handleSuccess({ castId: farcasterHash, status: 'published' })
     } catch (err) {
       handleError(err)
     } finally {
       setIsPublishing(false)
     }
-  }, [casts, selectedAccountId, selectedChannel, replyTo, handleSuccess, handleError])
+  }, [
+    casts,
+    selectedAccountId,
+    selectedChannel,
+    replyTo,
+    selectedNetworks,
+    handleSuccess,
+    handleError,
+    validateNetworkPreflight,
+    publishViaTypefully,
+  ])
 
   /**
    * Save cast as draft
@@ -253,6 +364,11 @@ export function useComposeSubmit({
 
     if (!selectedAccountId) {
       toast.error('Please select an account')
+      return
+    }
+
+    if (!selectedNetworks.includes('farcaster')) {
+      toast.error('Drafts are currently only available for Farcaster')
       return
     }
 
@@ -299,7 +415,7 @@ export function useComposeSubmit({
     } finally {
       setIsSavingDraft(false)
     }
-  }, [casts, selectedAccountId, selectedChannel, scheduleToISO, handleSuccess, handleError])
+  }, [casts, selectedAccountId, selectedChannel, scheduleToISO, selectedNetworks, handleSuccess, handleError])
 
   return {
     handleSchedule,

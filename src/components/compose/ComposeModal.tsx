@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ComposeCard } from './ComposeCard'
-import { Channel, ReplyToCast } from './types'
+import { Channel, ReplyToCast, PublishNetwork } from './types'
 import { toast } from 'sonner'
 import { calculateTextLength, normalizeHttpUrl } from '@/lib/url-utils'
 import { getMaxChars, getMaxEmbeds, parseEditCastToCastItem } from '@/lib/compose'
@@ -65,6 +65,12 @@ export function ComposeModal({
   // Estado local
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
   const [replyTo, setReplyTo] = useState<ReplyToCast | null>(null)
+  const [selectedNetworks, setSelectedNetworks] = useState<PublishNetwork[]>(['farcaster'])
+  const [availableNetworks, setAvailableNetworks] = useState<Record<PublishNetwork, boolean>>({
+    farcaster: true,
+    x: false,
+    linkedin: false,
+  })
 
   // Modo edición
   const isEditMode = !!editCast
@@ -77,6 +83,7 @@ export function ComposeModal({
     setSelectedChannel(null)
     setReplyTo(null)
     setEditCastId(null)
+    setSelectedNetworks(['farcaster'])
   }
 
   // Hook de submit
@@ -90,6 +97,8 @@ export function ComposeModal({
     scheduleToISO: schedule.toISO,
     isEditMode,
     editCastId,
+    selectedNetworks,
+    availableNetworks,
     onSuccess: () => {
       resetForm()
       onOpenChange(false)
@@ -157,6 +166,54 @@ export function ComposeModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editCast])
 
+  useEffect(() => {
+    const loadAccountNetworks = async () => {
+      if (!open || !selectedAccountId) return
+
+      try {
+        const res = await fetch('/api/integrations/typefully/social-sets')
+        if (!res.ok) {
+          setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
+          setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
+          return
+        }
+
+        const data = await res.json().catch(() => ({}))
+        const socialSets = Array.isArray(data?.socialSets) ? data.socialSets : []
+        const linked = socialSets.find((set: any) => set?.linkedAccount?.id === selectedAccountId)
+        const connected = Array.isArray(linked?.connectedPlatforms) ? linked.connectedPlatforms : []
+
+        const nextAvailability = {
+          farcaster: true,
+          x: connected.includes('x'),
+          linkedin: connected.includes('linkedin'),
+        } satisfies Record<PublishNetwork, boolean>
+
+        setAvailableNetworks(nextAvailability)
+        setSelectedNetworks((prev) => {
+          const filtered = prev.filter((network) => nextAvailability[network])
+          return filtered.length > 0 ? filtered : ['farcaster']
+        })
+      } catch {
+        setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
+        setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
+      }
+    }
+
+    void loadAccountNetworks()
+  }, [open, selectedAccountId])
+
+  const handleToggleNetwork = (network: PublishNetwork) => {
+    if (!availableNetworks[network]) return
+    setSelectedNetworks((prev) => {
+      if (prev.includes(network)) {
+        const next = prev.filter((n) => n !== network)
+        return next.length > 0 ? next : prev
+      }
+      return [...prev, network]
+    })
+  }
+
   // Cargar template
   const handleLoadTemplate = (template: Template) => {
     thread.setCasts([{
@@ -196,7 +253,7 @@ export function ComposeModal({
           {isEditMode ? 'Edit Cast' : 'New Cast'}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          {isEditMode ? 'Edit your scheduled cast' : 'Create and schedule a new cast for Farcaster'}
+          {isEditMode ? 'Edit your scheduled post' : 'Create and schedule a new post'}
         </DialogDescription>
 
         {/* Header móvil */}
@@ -253,6 +310,9 @@ export function ComposeModal({
           onLoadTemplate={handleLoadTemplate}
           onSaveTemplate={handleSaveTemplate}
           isSavingTemplate={isSavingTemplate}
+          selectedNetworks={selectedNetworks}
+          availableNetworks={availableNetworks}
+          onToggleNetwork={handleToggleNetwork}
         />
       </DialogContent>
     </Dialog>

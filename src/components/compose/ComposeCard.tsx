@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { CastItem, Account, Channel, ReplyToCast } from './types'
+import { CastItem, Account, Channel, ReplyToCast, PublishNetwork } from './types'
 import { calculateTextLength } from '@/lib/url-utils'
 import { ScheduleDropdown } from './ScheduleDropdown'
 import { AccountDropdown } from './AccountDropdown'
@@ -56,6 +56,9 @@ interface ComposeCardProps {
   onLoadTemplate?: (template: Template) => void
   onSaveTemplate?: () => void
   isSavingTemplate?: boolean
+  selectedNetworks: PublishNetwork[]
+  availableNetworks: Record<PublishNetwork, boolean>
+  onToggleNetwork: (network: PublishNetwork) => void
 }
 
 export function ComposeCard({
@@ -90,6 +93,9 @@ export function ComposeCard({
   onLoadTemplate,
   onSaveTemplate,
   isSavingTemplate = false,
+  selectedNetworks,
+  availableNetworks,
+  onToggleNetwork,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
   const isThread = casts.length > 1
@@ -145,6 +151,46 @@ export function ComposeCard({
         </div>
 
         {/* Preview button - siempre visible */}
+      </div>
+
+      <div className="px-3 py-2 border-b border-border bg-background/60">
+        <div className="flex items-center gap-2 flex-wrap">
+          {([
+            { id: 'farcaster', label: 'Farcaster' },
+            { id: 'x', label: 'X' },
+            { id: 'linkedin', label: 'LinkedIn' },
+          ] as Array<{ id: PublishNetwork; label: string }>).map((network) => {
+            const isEnabled = availableNetworks[network.id]
+            const selected = selectedNetworks.includes(network.id)
+            return (
+              <button
+                key={network.id}
+                type="button"
+                title={
+                  isEnabled
+                    ? `Publish to ${network.label}`
+                    : network.id === 'farcaster'
+                      ? ''
+                      : `${network.label} is not connected for this account in Typefully`
+                }
+                disabled={!isEnabled}
+                onClick={() => onToggleNetwork(network.id)}
+                className={cn(
+                  'h-8 rounded-md border px-2.5 text-xs font-medium transition-colors',
+                  selected
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted',
+                  !isEnabled && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {network.label}
+              </button>
+            )
+          })}
+          <span className="text-xs text-muted-foreground">
+            Destinations: {selectedNetworks.length}
+          </span>
+        </div>
       </div>
 
       {/* AI Tabs */}

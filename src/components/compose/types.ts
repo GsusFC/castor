@@ -67,3 +67,5 @@ export interface ReplyToCast {
   }
   timestamp: string
 }
+
+export type PublishNetwork = 'farcaster' | 'x' | 'linkedin'

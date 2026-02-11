@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid'
 import { toast } from 'sonner'
 import { Pen, X } from 'lucide-react'
 import { ComposeCard } from '@/components/compose/ComposeCard'
-import { Channel, ReplyToCast } from '@/components/compose/types'
+import { Channel, ReplyToCast, PublishNetwork } from '@/components/compose/types'
 import type { Account } from '@/components/compose/types'
 import { calculateTextLength } from '@/lib/url-utils'
 import { getMaxChars, getMaxEmbeds } from '@/lib/compose'
@@ -95,6 +95,12 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
     const [replyTo, setReplyTo] = useState<ReplyToCast | null>(null)
     const [editCastId, setEditCastId] = useState<string | null>(null)
+    const selectedNetworks: PublishNetwork[] = ['farcaster']
+    const availableNetworks: Record<PublishNetwork, boolean> = {
+      farcaster: true,
+      x: false,
+      linkedin: false,
+    }
     const isEditMode = !!editCastId
 
     // Reset form
@@ -225,6 +231,8 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
       scheduleDate: schedule.date,
       scheduleTime: schedule.time,
       scheduleToISO: schedule.toISO,
+      selectedNetworks,
+      availableNetworks,
       isEditMode,
       editCastId,
       onSuccess: handleSubmitSuccess,
@@ -319,6 +327,9 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
           replyTo={replyTo}
           onSelectReplyTo={setReplyTo}
           maxChars={maxChars}
+          selectedNetworks={selectedNetworks}
+          availableNetworks={availableNetworks}
+          onToggleNetwork={() => undefined}
           isSubmitting={submit.isSubmitting}
           isPublishing={submit.isPublishing}
           isSavingDraft={submit.isSavingDraft}

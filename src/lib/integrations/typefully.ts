@@ -47,6 +47,28 @@ export interface TypefullySocialSetDetail extends TypefullySocialSet {
   }
 }
 
+interface TypefullyDraftPost {
+  text: string
+}
+
+interface TypefullyDraftPlatformConfig {
+  enabled: boolean
+  posts?: TypefullyDraftPost[]
+  settings?: Record<string, unknown>
+}
+
+export interface TypefullyCreateDraftRequest {
+  platforms: {
+    x?: TypefullyDraftPlatformConfig
+    linkedin?: TypefullyDraftPlatformConfig
+    mastodon?: TypefullyDraftPlatformConfig
+    threads?: TypefullyDraftPlatformConfig
+    bluesky?: TypefullyDraftPlatformConfig
+  }
+  publish_at?: string
+  draft_title?: string
+}
+
 interface TypefullyErrorDetail {
   message?: string
   field?: string
@@ -113,6 +135,13 @@ export class TypefullyClient {
 
   async getSocialSet(socialSetId: number): Promise<TypefullySocialSetDetail> {
     return this.request<TypefullySocialSetDetail>(`/v2/social-sets/${socialSetId}/`)
+  }
+
+  async createDraft(socialSetId: number, payload: TypefullyCreateDraftRequest) {
+    return this.request(`/v2/social-sets/${socialSetId}/drafts`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {

@@ -517,6 +517,91 @@ export const accountDocumentsRelations = relations(accountDocuments, ({ one }) =
 }))
 
 /**
+ * Integración Typefully por usuario
+ */
+export const typefullyConnections = sqliteTable(
+  'typefully_connections',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    encryptedApiKey: text('encrypted_api_key').notNull(),
+    apiKeyLabel: text('api_key_label'),
+    typefullyUserId: integer('typefully_user_id'),
+    typefullyUserName: text('typefully_user_name'),
+    typefullyUserEmail: text('typefully_user_email'),
+    lastValidatedAt: integer('last_validated_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    userIdx: index('typefully_connections_user_idx').on(table.userId),
+  })
+)
+
+export const typefullyConnectionsRelations = relations(typefullyConnections, ({ one }) => ({
+  user: one(users, {
+    fields: [typefullyConnections.userId],
+    references: [users.id],
+  }),
+}))
+
+/**
+ * Social sets de Typefully sincronizados y vinculables a cuentas Castor
+ */
+export const typefullySocialSets = sqliteTable(
+  'typefully_social_sets',
+  {
+    id: text('id').primaryKey(),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => typefullyConnections.id, { onDelete: 'cascade' }),
+    socialSetId: integer('social_set_id').notNull(),
+    username: text('username').notNull(),
+    name: text('name').notNull(),
+    profileImageUrl: text('profile_image_url').notNull(),
+    teamId: text('team_id'),
+    teamName: text('team_name'),
+    linkedAccountId: text('linked_account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    lastSyncedAt: integer('last_synced_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    connectionIdx: index('typefully_social_sets_connection_idx').on(table.connectionId),
+    socialSetIdx: index('typefully_social_sets_social_set_idx').on(table.socialSetId),
+    linkedAccountIdx: index('typefully_social_sets_linked_account_idx').on(table.linkedAccountId),
+    connectionSocialSetUnique: index('typefully_social_sets_connection_social_set_unique').on(
+      table.connectionId,
+      table.socialSetId
+    ),
+  })
+)
+
+export const typefullySocialSetsRelations = relations(typefullySocialSets, ({ one }) => ({
+  connection: one(typefullyConnections, {
+    fields: [typefullySocialSets.connectionId],
+    references: [typefullyConnections.id],
+  }),
+  linkedAccount: one(accounts, {
+    fields: [typefullySocialSets.linkedAccountId],
+    references: [accounts.id],
+  }),
+}))
+
+/**
  * Canales del usuario (favoritos y recientes)
  */
 export const userChannels = sqliteTable(
@@ -580,6 +665,10 @@ export type AccountKnowledgeBase = typeof accountKnowledgeBase.$inferSelect
 export type NewAccountKnowledgeBase = typeof accountKnowledgeBase.$inferInsert
 export type AccountDocument = typeof accountDocuments.$inferSelect
 export type NewAccountDocument = typeof accountDocuments.$inferInsert
+export type TypefullyConnection = typeof typefullyConnections.$inferSelect
+export type NewTypefullyConnection = typeof typefullyConnections.$inferInsert
+export type TypefullySocialSet = typeof typefullySocialSets.$inferSelect
+export type NewTypefullySocialSet = typeof typefullySocialSets.$inferInsert
 export type UserChannel = typeof userChannels.$inferSelect
 export type NewUserChannel = typeof userChannels.$inferInsert
 

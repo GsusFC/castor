@@ -32,6 +32,8 @@ const envSchema = z
     NEXT_PUBLIC_GIPHY_API_KEY: z.string().optional(),
     ALLOWED_FIDS: z.string().optional(),
     LOG_LEVEL: z.string().optional(),
+    TYPEFULLY_API_KEY: z.string().optional(),
+    TYPEFULLY_BASE_URL: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.NODE_ENV !== 'production') return
@@ -101,6 +103,21 @@ export function requireCloudflareEnv() {
   if (!parsed.success) {
     console.error('❌ Missing Cloudflare environment variables', parsed.error.flatten().fieldErrors)
     throw new Error('Cloudflare env vars are required')
+  }
+
+  return parsed.data
+}
+
+const typefullyEnvSchema = z.object({
+  TYPEFULLY_API_KEY: z.string().min(1, 'TYPEFULLY_API_KEY is required'),
+  TYPEFULLY_BASE_URL: z.string().optional(),
+})
+
+export function requireTypefullyEnv() {
+  const parsed = typefullyEnvSchema.safeParse(process.env)
+  if (!parsed.success) {
+    console.error('❌ Missing Typefully environment variables', parsed.error.flatten().fieldErrors)
+    throw new Error('TYPEFULLY_API_KEY is required')
   }
 
   return parsed.data

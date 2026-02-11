@@ -154,6 +154,7 @@ export async function GET() {
         teamId: set.teamId,
         teamName: set.teamName,
         connectedPlatforms: connectedPlatformsBySet.get(set.socialSetId) || [],
+        linkedAccountId: set.linkedAccountId,
         linkedAccount: set.linkedAccount,
         lastSyncedAt: set.lastSyncedAt,
       })),

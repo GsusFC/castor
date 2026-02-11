@@ -171,7 +171,9 @@ export function ComposeModal({
       if (!open || !selectedAccountId) return
 
       try {
-        const res = await fetch('/api/integrations/typefully/social-sets')
+        const res = await fetch('/api/integrations/typefully/social-sets', {
+          cache: 'no-store',
+        })
         if (!res.ok) {
           setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
           setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
@@ -180,7 +182,10 @@ export function ComposeModal({
 
         const data = await res.json().catch(() => ({}))
         const socialSets = Array.isArray(data?.socialSets) ? data.socialSets : []
-        const linked = socialSets.find((set: any) => set?.linkedAccount?.id === selectedAccountId)
+        const linked = socialSets.find(
+          (set: any) =>
+            set?.linkedAccountId === selectedAccountId || set?.linkedAccount?.id === selectedAccountId
+        )
         const connected = Array.isArray(linked?.connectedPlatforms) ? linked.connectedPlatforms : []
 
         const nextAvailability = {

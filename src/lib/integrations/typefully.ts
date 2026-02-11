@@ -31,6 +31,22 @@ export interface TypefullyPaginated<T> {
   previous: string | null
 }
 
+export interface TypefullyPlatformAccount {
+  platform: 'x' | 'linkedin' | 'mastodon' | 'threads' | 'bluesky'
+  username?: string | null
+  profile_url?: string | null
+}
+
+export interface TypefullySocialSetDetail extends TypefullySocialSet {
+  platforms: {
+    x: TypefullyPlatformAccount
+    linkedin: TypefullyPlatformAccount
+    mastodon: TypefullyPlatformAccount
+    threads: TypefullyPlatformAccount
+    bluesky: TypefullyPlatformAccount
+  }
+}
+
 interface TypefullyErrorDetail {
   message?: string
   field?: string
@@ -93,6 +109,10 @@ export class TypefullyClient {
       offset: String(offset),
     })
     return this.request<TypefullyPaginated<TypefullySocialSet>>(`/v2/social-sets?${params.toString()}`)
+  }
+
+  async getSocialSet(socialSetId: number): Promise<TypefullySocialSetDetail> {
+    return this.request<TypefullySocialSetDetail>(`/v2/social-sets/${socialSetId}/`)
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {

@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/v2/AppHeader'
 import { PageHeader } from '@/components/v2/PageHeader'
 import { AccountCardV2 } from '@/components/v2/AccountCardV2'
 import { ConnectAccountModal } from '@/components/accounts/ConnectAccountModal'
+import { TypefullyIntegrationSection } from '@/components/v2/TypefullyIntegrationSection'
 import { Button } from '@/components/ui/button'
 
 interface AccountOwner {
@@ -87,6 +88,11 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
 
         {/* Content */}
         <div className="space-y-6">
+          <TypefullyIntegrationSection
+            description="Manage Typefully connection and map social sets to your Castor accounts."
+            emptyAccountsHint="You don&apos;t have any Castor accounts available to map. Add a Farcaster account in this page first."
+          />
+
           {accounts.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">

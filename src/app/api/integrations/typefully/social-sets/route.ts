@@ -4,10 +4,14 @@ import { nanoid } from 'nanoid'
 import { getSession } from '@/lib/auth'
 import { db, accounts, accountMembers, typefullySocialSets } from '@/lib/db'
 import { getTypefullyClientForUser, getTypefullyConnectionForUser } from '@/lib/integrations/typefully-store'
-import { TypefullyApiError } from '@/lib/integrations/typefully'
+import { TypefullyApiError, type TypefullyPlatformAccount } from '@/lib/integrations/typefully'
 
 const MAX_PAGES = 10
 const PAGE_LIMIT = 50
+const PLATFORM_KEYS = ['x', 'linkedin', 'mastodon', 'threads', 'bluesky'] as const
+
+const isPlatformConnected = (platform: TypefullyPlatformAccount | null | undefined) =>
+  Boolean(platform?.username?.trim() || platform?.profile_url?.trim())
 
 export async function GET() {
   try {
@@ -75,6 +79,23 @@ export async function GET() {
       }
     }
 
+    const platformDetails = await Promise.allSettled(
+      remoteSets.map(async (set) => {
+        const detail = await client.getSocialSet(set.id)
+        const connectedPlatforms = PLATFORM_KEYS.filter((key) =>
+          isPlatformConnected(detail.platforms?.[key])
+        )
+        return { socialSetId: set.id, connectedPlatforms }
+      })
+    )
+
+    const connectedPlatformsBySet = new Map<number, string[]>()
+    for (const result of platformDetails) {
+      if (result.status === 'fulfilled') {
+        connectedPlatformsBySet.set(result.value.socialSetId, result.value.connectedPlatforms)
+      }
+    }
+
     const linkedSets = await db.query.typefullySocialSets.findMany({
       where: eq(typefullySocialSets.connectionId, connection.id),
       with: {
@@ -125,6 +146,7 @@ export async function GET() {
         profileImageUrl: set.profileImageUrl,
         teamId: set.teamId,
         teamName: set.teamName,
+        connectedPlatforms: connectedPlatformsBySet.get(set.socialSetId) || [],
         linkedAccount: set.linkedAccount,
         lastSyncedAt: set.lastSyncedAt,
       })),

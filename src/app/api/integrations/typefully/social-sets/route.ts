@@ -10,8 +10,15 @@ const MAX_PAGES = 10
 const PAGE_LIMIT = 50
 const PLATFORM_KEYS = ['x', 'linkedin', 'mastodon', 'threads', 'bluesky'] as const
 
+const hasValue = (value: string | null | undefined) => Boolean(value?.trim())
+
 const isPlatformConnected = (platform: TypefullyPlatformAccount | null | undefined) =>
-  Boolean(platform?.username?.trim() || platform?.profile_url?.trim())
+  Boolean(
+    hasValue(platform?.username) ||
+      hasValue(platform?.profile_url) ||
+      hasValue(platform?.name) ||
+      hasValue(platform?.profile_image_url)
+  )
 
 export async function GET() {
   try {

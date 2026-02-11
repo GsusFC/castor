@@ -214,6 +214,12 @@ export function ComposeModal({
     })
   }
 
+  useEffect(() => {
+    if (!selectedNetworks.includes('farcaster') && selectedChannel) {
+      setSelectedChannel(null)
+    }
+  }, [selectedNetworks, selectedChannel])
+
   // Cargar template
   const handleLoadTemplate = (template: Template) => {
     thread.setCasts([{

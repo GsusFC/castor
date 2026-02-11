@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { Loader2, Link2, Unlink2, RefreshCw, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 type TypefullyConnection = {
   id: string
@@ -51,7 +51,7 @@ interface TypefullyIntegrationSectionProps {
 
 export function TypefullyIntegrationSection({
   title = 'Typefully Integration',
-  description = 'Step 1: connect Typefully. Step 2: map each social set to a Castor account.',
+  description = 'Map your Typefully social sets to Castor accounts.',
   emptyAccountsHint = 'You don&apos;t have any Castor accounts available to map. Add a Farcaster account first.',
 }: TypefullyIntegrationSectionProps) {
   const [typefullyApiKey, setTypefullyApiKey] = useState('')
@@ -223,12 +223,28 @@ export function TypefullyIntegrationSection({
     return platform
   }
 
+  const getInitials = (name: string, username: string) => {
+    const base = name?.trim() || username?.trim() || 'T'
+    const parts = base.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return base.slice(0, 2).toUpperCase()
+  }
+
+  const platformTone = (platform: string) => {
+    if (platform === 'x') return 'border-zinc-500/40 bg-zinc-500/10 text-zinc-300'
+    if (platform === 'linkedin') return 'border-sky-500/40 bg-sky-500/10 text-sky-300'
+    if (platform === 'threads') return 'border-neutral-500/40 bg-neutral-500/10 text-neutral-300'
+    if (platform === 'bluesky') return 'border-blue-500/40 bg-blue-500/10 text-blue-300'
+    if (platform === 'mastodon') return 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300'
+    return 'border-border/60 bg-muted/40 text-muted-foreground'
+  }
+
   return (
     <section className="p-4 rounded-xl border border-border/50 bg-card/50">
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-sm font-medium">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <h2 className="text-sm font-medium text-balance">{title}</h2>
+          <p className="text-sm text-muted-foreground text-pretty">{description}</p>
         </div>
         {typefullyConnection && (
           <div className="flex items-center gap-2">
@@ -287,10 +303,14 @@ export function TypefullyIntegrationSection({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-lg border border-border/50 bg-background/40 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Step 1 · Connected account</p>
-            <p className="text-sm font-medium">{typefullyConnection.typefullyUserName || 'Typefully user'}</p>
-            <p className="text-xs text-muted-foreground">
+          <div className="rounded-lg border border-border/50 bg-background/40 p-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Connected as</p>
+              <p className="text-sm font-medium truncate">
+                {typefullyConnection.typefullyUserName || 'Typefully user'}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
               {typefullyConnection.typefullyUserEmail || 'No email'}
               {typefullyConnection.apiKeyLabel ? ` · ${typefullyConnection.apiKeyLabel}` : ''}
             </p>
@@ -301,8 +321,7 @@ export function TypefullyIntegrationSection({
               No social sets yet. Use sync to pull your accounts from Typefully.
             </p>
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Step 2 · Map social sets</p>
+            <div className="space-y-3">
               {typefullyAccounts.length === 0 && (
                 <div className="rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                   {emptyAccountsHint}
@@ -311,35 +330,41 @@ export function TypefullyIntegrationSection({
               {typefullySocialSets.map((socialSet) => {
                 const linkedId = socialSet.linkedAccount?.id || ''
                 const isLinking = linkingSocialSetId === socialSet.socialSetId
+                const initials = getInitials(socialSet.name, socialSet.username)
                 return (
                   <div
                     key={socialSet.id}
-                    className="rounded-lg border border-border/50 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                    className="rounded-xl border border-border/60 bg-background/30 p-4 flex flex-col md:flex-row md:items-center gap-4"
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-muted border border-border/50 shrink-0">
+                    <div className="flex items-center gap-3 min-w-0 md:flex-1">
+                      <div className="relative size-12 rounded-xl overflow-hidden bg-muted border border-border/50 shrink-0 grid place-items-center text-sm font-semibold text-muted-foreground">
+                        <span>{initials}</span>
                         {socialSet.profileImageUrl ? (
-                          <Image
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
                             src={socialSet.profileImageUrl}
-                            alt=""
-                            width={36}
-                            height={36}
-                            className="w-full h-full object-cover"
+                            alt={socialSet.name || socialSet.username}
+                            className="absolute inset-0 size-12 object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none'
+                            }}
                           />
                         ) : null}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{socialSet.name}</p>
+                        <p className="text-sm font-semibold truncate">{socialSet.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          @{socialSet.username}
-                          {socialSet.teamName ? ` · ${socialSet.teamName}` : ''}
+                          @{socialSet.username}{socialSet.teamName ? ` · ${socialSet.teamName}` : ''}
                         </p>
-                        <div className="mt-1 flex flex-wrap gap-1">
+                        <div className="mt-2 flex flex-wrap gap-1.5">
                           {socialSet.connectedPlatforms.length > 0 ? (
                             socialSet.connectedPlatforms.map((platform) => (
                               <span
                                 key={`${socialSet.id}-${platform}`}
-                                className="inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
+                                className={cn(
+                                  'inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium',
+                                  platformTone(platform)
+                                )}
                               >
                                 {formatPlatformLabel(platform)}
                               </span>
@@ -351,15 +376,15 @@ export function TypefullyIntegrationSection({
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-start gap-1 sm:items-end">
-                      <label className="text-[11px] text-muted-foreground">Castor account destination</label>
+                    <div className="flex flex-col items-start gap-1 md:items-end md:min-w-[280px]">
+                      <label className="text-[11px] text-muted-foreground">Map to Castor account</label>
                       <div className="flex items-center gap-2">
                         {isLinking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         <select
                           value={linkedId}
                           disabled={isLinking || typefullyAccounts.length === 0}
                           onChange={(e) => void linkTypefullySocialSet(socialSet.socialSetId, e.target.value)}
-                          className="h-9 min-w-[220px] rounded-md border border-border bg-background px-3 text-sm"
+                          className="h-9 min-w-[240px] rounded-md border border-border bg-background px-3 text-sm"
                         >
                           <option value="">Not linked</option>
                           {typefullyAccounts.map((account) => (
@@ -369,8 +394,10 @@ export function TypefullyIntegrationSection({
                           ))}
                         </select>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        This is the Castor account used to publish for this social set.
+                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                        {socialSet.linkedAccount
+                          ? `Mapped to @${socialSet.linkedAccount.username}`
+                          : 'Not mapped yet'}
                       </p>
                     </div>
                   </div>

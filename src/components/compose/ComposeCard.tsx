@@ -99,6 +99,9 @@ export function ComposeCard({
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
   const isThread = casts.length > 1
+  const hasFarcasterSelected = selectedNetworks.includes('farcaster')
+  const hasOtherNetworksSelected =
+    selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')
   const today = new Date().toISOString().split('T')[0]
 
   // Formatear fecha/hora para mostrar
@@ -133,12 +136,14 @@ export function ComposeCard({
             isLoading={isLoadingAccounts}
           />
 
-          {/* Channel Selector */}
-          <ChannelDropdown
-            selectedChannel={selectedChannel}
-            onSelect={onSelectChannel}
-            accountFid={selectedAccount?.fid}
-          />
+          {/* Channel Selector (Farcaster only) */}
+          {hasFarcasterSelected && (
+            <ChannelDropdown
+              selectedChannel={selectedChannel}
+              onSelect={onSelectChannel}
+              accountFid={selectedAccount?.fid}
+            />
+          )}
 
           {/* Schedule Selector */}
           <ScheduleDropdown
@@ -173,14 +178,17 @@ export function ComposeCard({
                       ? ''
                       : `${network.label} is not connected for this account in Typefully`
                 }
-                disabled={!isEnabled}
-                onClick={() => onToggleNetwork(network.id)}
+                aria-disabled={!isEnabled}
+                onClick={() => {
+                  if (!isEnabled) return
+                  onToggleNetwork(network.id)
+                }}
                 className={cn(
                   'h-8 rounded-md border px-2.5 text-xs font-medium transition-colors',
                   selected
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted',
-                  !isEnabled && 'opacity-50 cursor-not-allowed'
+                  !isEnabled && 'opacity-50 hover:bg-transparent'
                 )}
               >
                 {network.label}
@@ -191,6 +199,16 @@ export function ComposeCard({
             Destinations: {selectedNetworks.length}
           </span>
         </div>
+        {hasFarcasterSelected && hasOtherNetworksSelected && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Channel applies only to Farcaster. X/LinkedIn publish without channel targeting.
+          </p>
+        )}
+        {!hasFarcasterSelected && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Channel targeting is only available when Farcaster is selected.
+          </p>
+        )}
       </div>
 
       {/* AI Tabs */}

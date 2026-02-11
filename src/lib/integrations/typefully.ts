@@ -35,6 +35,8 @@ export interface TypefullyPlatformAccount {
   platform: 'x' | 'linkedin' | 'mastodon' | 'threads' | 'bluesky'
   username?: string | null
   profile_url?: string | null
+  name?: string | null
+  profile_image_url?: string | null
 }
 
 export interface TypefullySocialSetDetail extends TypefullySocialSet {

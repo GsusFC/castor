@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { and, eq } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
-import { db, accounts, accountKnowledgeBase, accountMembers } from '@/lib/db'
+import { db, accounts, accountKnowledgeBase, accountMembers, userStyleProfiles } from '@/lib/db'
 import { VoiceSettingsV2Client } from './voice-settings-v2-client'
 
 export const dynamic = 'force-dynamic'
@@ -35,6 +35,12 @@ export default async function VoiceSettingsPage({ params }: PageProps) {
 
   if (!canView) redirect('/v2/accounts')
 
+  const styleProfile = account.ownerId
+    ? await db.query.userStyleProfiles.findFirst({
+        where: eq(userStyleProfiles.userId, account.ownerId),
+      })
+    : null
+
   return (
     <VoiceSettingsV2Client
       user={{
@@ -61,6 +67,17 @@ export default async function VoiceSettingsPage({ params }: PageProps) {
               hashtags: knowledgeBase.hashtags,
               defaultTone: knowledgeBase.defaultTone,
               defaultLanguage: knowledgeBase.defaultLanguage,
+            }
+          : null
+      }
+      styleProfile={
+        styleProfile
+          ? {
+              tone: styleProfile.tone,
+              avgLength: styleProfile.avgLength,
+              languagePreference: styleProfile.languagePreference,
+              topics: styleProfile.topics,
+              sampleCasts: styleProfile.sampleCasts,
             }
           : null
       }

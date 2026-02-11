@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
         signerUuid,
         signerStatus: 'approved' as const,
         type: 'personal' as const,
+        voiceMode: 'auto' as const,
         isPremium: user.isPremium || false,
         ownerId: session.userId,
       }

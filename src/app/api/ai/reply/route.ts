@@ -5,7 +5,7 @@ import { canAccess, getSession } from '@/lib/auth'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
-import { buildBrandContext, sanitizePromptInput } from '@/lib/ai/prompt-utils'
+import { buildBrandContext, resolveVoiceMode, sanitizePromptInput } from '@/lib/ai/prompt-utils'
 import { requireGeminiEnv } from '@/lib/env'
 import { aiReplySchema, validate } from '@/lib/validations'
 
@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       where: eq(accounts.id, accountId),
       columns: {
         ownerId: true,
+        type: true,
+        voiceMode: true,
       },
     })
 
@@ -60,9 +62,13 @@ export async function POST(request: NextRequest) {
     }
 
     const toneDesc = toneDescriptions[tone as Tone] || toneDescriptions.friendly
+    const effectiveVoiceMode = resolveVoiceMode(
+      account.type as 'personal' | 'business',
+      (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
+    )
 
     const accountContext = await castorAI.getAccountContext(accountId)
-    const brandContext = buildBrandContext(accountContext)
+    const brandContext = effectiveVoiceMode === 'brand' ? buildBrandContext(accountContext) : ''
 
     const prompt = `Eres un asistente que ayuda a escribir respuestas para Farcaster (red social descentralizada similar a Twitter).
 

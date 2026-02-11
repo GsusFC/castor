@@ -91,6 +91,7 @@ export default async function DashboardPage() {
     pfpUrl: account.pfpUrl,
     signerStatus: account.signerStatus,
     type: account.type,
+    voiceMode: account.voiceMode,
     isPremium: account.isPremium,
     ownerId: account.ownerId,
     owner: account.owner,
@@ -148,4 +149,3 @@ export default async function DashboardPage() {
     />
   )
 }
-

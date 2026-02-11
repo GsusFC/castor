@@ -118,7 +118,7 @@ export class BrandValidator {
       coherenceScore: score,
       violations,
       strengths,
-      feedback: this.generateFeedback(score, violations, strengths),
+      feedback: this.generateFeedback(score, violations, strengths, 'personal'),
       category: this.scoreToCategory(score),
     }
   }
@@ -153,7 +153,7 @@ export class BrandValidator {
       coherenceScore: Math.max(0, Math.min(100, validation.coherenceScore || 0)),
       violations: validation.violations || [],
       strengths: validation.strengths || [],
-      feedback: validation.feedback || 'No comment',
+      feedback: validation.feedback || this.generateFeedback(validation.coherenceScore || 0, [], [], 'brand'),
       category: this.scoreToCategory(validation.coherenceScore || 0),
     }
   }
@@ -214,12 +214,18 @@ Analyze and respond ONLY with valid JSON (no markdown):
   private generateFeedback(
     score: number,
     violations: string[],
-    strengths: string[]
+    strengths: string[],
+    mode: 'brand' | 'personal'
   ): string {
     if (score >= 90) {
-      return strengths[0] || 'Perfect match for your brand voice! ✨'
+      if (strengths[0]) return strengths[0]
+      return mode === 'brand'
+        ? 'Perfect match for your brand voice! ✨'
+        : 'Perfect match for your personal voice! ✨'
     } else if (score >= 75) {
-      return 'This fits your brand well with minor adjustments'
+      return mode === 'brand'
+        ? 'This fits your brand well with minor adjustments'
+        : 'This fits your personal style well with minor adjustments'
     } else if (score >= 60) {
       return `Mostly aligned: ${violations[0] || 'consider adjusting'}`
     } else {

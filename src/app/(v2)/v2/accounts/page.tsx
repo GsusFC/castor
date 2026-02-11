@@ -45,6 +45,7 @@ export default async function AccountsV2Page() {
     displayName: account.displayName,
     pfpUrl: account.pfpUrl,
     type: account.type as 'personal' | 'business',
+    voiceMode: account.voiceMode as 'auto' | 'brand' | 'personal',
     signerStatus: account.signerStatus as 'pending' | 'approved' | 'revoked',
     isPremium: account.isPremium,
     ownerId: account.ownerId,

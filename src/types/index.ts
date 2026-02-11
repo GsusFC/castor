@@ -13,6 +13,7 @@ export interface SerializedAccount {
   pfpUrl: string | null
   signerStatus: string
   type: string
+  voiceMode: 'auto' | 'brand' | 'personal'
   isPremium: boolean
   ownerId: string | null
   owner: {

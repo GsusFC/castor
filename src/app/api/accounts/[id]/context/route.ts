@@ -51,7 +51,22 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       hashtags,
       defaultTone,
       defaultLanguage,
+      voiceMode,
     } = body
+
+    if (voiceMode !== undefined && !['auto', 'brand', 'personal'].includes(voiceMode)) {
+      return NextResponse.json({ error: 'Invalid voiceMode' }, { status: 400 })
+    }
+
+    if (voiceMode !== undefined) {
+      await db
+        .update(accounts)
+        .set({
+          voiceMode,
+          updatedAt: new Date(),
+        })
+        .where(eq(accounts.id, accountId))
+    }
 
     // Buscar knowledge base existente
     const existing = await db.query.accountKnowledgeBase.findFirst({

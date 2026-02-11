@@ -45,6 +45,9 @@ export const accounts = sqliteTable(
     type: text('type', { enum: ['personal', 'business'] })
       .notNull()
       .default('personal'),
+    voiceMode: text('voice_mode', { enum: ['auto', 'brand', 'personal'] })
+      .notNull()
+      .default('auto'),
     isPremium: integer('is_premium', { mode: 'boolean' })
       .notNull()
       .default(false),

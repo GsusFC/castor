@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AccountContext } from './castor-ai'
-import { buildBrandContext, sanitizePromptInput } from './prompt-utils'
+import { buildBrandContext, resolveVoiceMode, sanitizePromptInput } from './prompt-utils'
 
 describe('sanitizePromptInput', () => {
   it('elimina caracteres peligrosos y controla el tamaño', () => {
@@ -41,5 +41,17 @@ describe('buildBrandContext', () => {
   it('devuelve cadena vacía cuando no hay contexto', () => {
     expect(buildBrandContext(null)).toBe('')
     expect(buildBrandContext(undefined)).toBe('')
+  })
+})
+
+describe('resolveVoiceMode', () => {
+  it('usa la preferencia explícita cuando existe', () => {
+    expect(resolveVoiceMode('business', 'personal')).toBe('personal')
+    expect(resolveVoiceMode('personal', 'brand')).toBe('brand')
+  })
+
+  it('en modo auto deriva según tipo de cuenta', () => {
+    expect(resolveVoiceMode('business', 'auto')).toBe('brand')
+    expect(resolveVoiceMode('personal', 'auto')).toBe('personal')
   })
 })

@@ -82,9 +82,9 @@ Responde en español, máximo 100 palabras.`
   }
 }
 
-// Función para sintetizar todos los análisis en Brand Voice completo
-async function synthesizeBrandVoice(batchAnalyses: string[], totalCasts: number): Promise<{
-  brandVoice: string
+// Función para sintetizar todos los análisis en Voz Personal completa
+async function synthesizePersonalVoice(batchAnalyses: string[], totalCasts: number): Promise<{
+  personalVoice: string
   tone: string
   topics: string[]
   emojiUsage: string
@@ -94,14 +94,14 @@ async function synthesizeBrandVoice(batchAnalyses: string[], totalCasts: number)
   neverDo: string[]
   hashtags: string[]
 }> {
-  const prompt = `Basándote en el análisis de ${totalCasts} publicaciones, genera un perfil de "Voz de Marca" completo.
+  const prompt = `Basándote en el análisis de ${totalCasts} publicaciones, genera un perfil de "Voz Personal" completo para este usuario.
 
 Análisis parciales:
 ${batchAnalyses.map((a, i) => `Batch ${i + 1}: ${a}`).join('\n\n')}
 
 Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (sin markdown):
 {
-  "brandVoice": "<descripción detallada de 150-250 palabras: personalidad, estilo único, cómo se comunica, qué tono usa, patrones distintivos>",
+  "personalVoice": "<descripción detallada de 150-250 palabras: personalidad, estilo único, cómo se comunica, qué tono usa, patrones distintivos>",
   "tone": "casual|formal|technical|humorous|mixed",
   "topics": ["tema1", "tema2", "tema3", "tema4", "tema5"],
   "emojiUsage": "none|light|heavy",
@@ -136,7 +136,30 @@ Analiza los patrones y genera reglas de estilo. Responde SOLO con JSON válido (
     .replace(/```\n?/g, '')
     .trim()
 
-  return JSON.parse(text)
+  const parsed = JSON.parse(text) as {
+    personalVoice?: string
+    brandVoice?: string
+    tone?: string
+    topics?: string[]
+    emojiUsage?: string
+    languagePreference?: string
+    avgLength?: number
+    alwaysDo?: string[]
+    neverDo?: string[]
+    hashtags?: string[]
+  }
+
+  return {
+    personalVoice: parsed.personalVoice || parsed.brandVoice || '',
+    tone: parsed.tone || 'casual',
+    topics: parsed.topics || [],
+    emojiUsage: parsed.emojiUsage || 'light',
+    languagePreference: parsed.languagePreference || 'en',
+    avgLength: parsed.avgLength || 150,
+    alwaysDo: parsed.alwaysDo || [],
+    neverDo: parsed.neverDo || [],
+    hashtags: parsed.hashtags || [],
+  }
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -201,9 +224,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    // 3. Sintetizar Brand Voice final
-    console.log('[Style Profile] Synthesizing brand voice...')
-    const brandVoiceData = await synthesizeBrandVoice(batchAnalyses, allCasts.length)
+    // 3. Sintetizar voz personal final
+    console.log('[Style Profile] Synthesizing personal voice...')
+    const personalVoiceData = await synthesizePersonalVoice(batchAnalyses, allCasts.length)
 
     // 4. Guardar en DB
     const existingProfile = await db.query.userStyleProfiles.findFirst({
@@ -215,22 +238,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const validEmoji = ['none', 'light', 'heavy'] as const
     const validLang = ['en', 'es', 'mixed'] as const
 
-    const tone = validTones.includes(brandVoiceData.tone as typeof validTones[number])
-      ? brandVoiceData.tone as typeof validTones[number]
+    const tone = validTones.includes(personalVoiceData.tone as typeof validTones[number])
+      ? personalVoiceData.tone as typeof validTones[number]
       : 'casual'
-    const emojiUsage = validEmoji.includes(brandVoiceData.emojiUsage as typeof validEmoji[number])
-      ? brandVoiceData.emojiUsage as typeof validEmoji[number]
+    const emojiUsage = validEmoji.includes(personalVoiceData.emojiUsage as typeof validEmoji[number])
+      ? personalVoiceData.emojiUsage as typeof validEmoji[number]
       : 'light'
-    const languagePreference = validLang.includes(brandVoiceData.languagePreference as typeof validLang[number])
-      ? brandVoiceData.languagePreference as typeof validLang[number]
+    const languagePreference = validLang.includes(personalVoiceData.languagePreference as typeof validLang[number])
+      ? personalVoiceData.languagePreference as typeof validLang[number]
       : 'en'
 
     const profileData = {
       fid: account.fid,
       tone,
-      avgLength: brandVoiceData.avgLength || 150,
-      commonPhrases: JSON.stringify([brandVoiceData.brandVoice]),
-      topics: JSON.stringify(brandVoiceData.topics || []),
+      avgLength: personalVoiceData.avgLength || 150,
+      commonPhrases: JSON.stringify([personalVoiceData.personalVoice]),
+      topics: JSON.stringify(personalVoiceData.topics || []),
       emojiUsage,
       languagePreference,
       sampleCasts: JSON.stringify(allCasts.slice(0, 10)),
@@ -278,10 +301,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       success: true,
       profile,
       castsAnalyzed: allCasts.length,
-      brandVoice: brandVoiceData.brandVoice,
-      alwaysDo: brandVoiceData.alwaysDo || [],
-      neverDo: brandVoiceData.neverDo || [],
-      hashtags: brandVoiceData.hashtags || []
+      personalVoice: personalVoiceData.personalVoice,
+      brandVoice: personalVoiceData.personalVoice, // Legacy compatibility for existing clients
+      alwaysDo: personalVoiceData.alwaysDo || [],
+      neverDo: personalVoiceData.neverDo || [],
+      hashtags: personalVoiceData.hashtags || []
     })
   } catch (error) {
     console.error('Error generating style profile:', error)

@@ -4,6 +4,7 @@ import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
 import { brandValidator } from '@/lib/ai/brand-validator'
+import { resolveVoiceMode } from '@/lib/ai/prompt-utils'
 
 /**
  * POST /api/ai/validate-brand
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Verificar acceso
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.id, accountId),
-      columns: { ownerId: true },
+      columns: { ownerId: true, type: true, voiceMode: true },
     })
 
     if (!account) {
@@ -70,13 +71,21 @@ export async function POST(request: NextRequest) {
 
     // Obtener contexto de marca
     const accountContext = await castorAI.getAccountContext(accountId)
+    const effectiveVoiceMode = resolveVoiceMode(
+      account.type as 'personal' | 'business',
+      (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
+    )
 
-    if (!accountContext?.brandVoice) {
+    if (effectiveVoiceMode !== 'brand' || !accountContext?.brandVoice) {
       return NextResponse.json(
         {
           error: 'Brand Mode not enabled',
-          message: 'This account does not have Brand Voice configured',
+          message:
+            effectiveVoiceMode !== 'brand'
+              ? 'This account is configured to use Personal Voice'
+              : 'This account does not have Brand Voice configured',
           hasBrandMode: false,
+          voiceMode: effectiveVoiceMode,
         },
         { status: 400 }
       )
@@ -94,6 +103,7 @@ export async function POST(request: NextRequest) {
         topics: profile.topics,
       },
       accountContext: {
+        voiceMode: effectiveVoiceMode,
         hasBrandVoice: !!accountContext.brandVoice,
         hasAlwaysDo: !!accountContext.alwaysDo?.length,
         hasNeverDo: !!accountContext.neverDo?.length,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-const { getSessionMock, dbMock, generateContentMock } = vi.hoisted(() => {
+const { getSessionMock, dbMock, generateContentMock, generateGeminiTextMock, neynarFetchFeedMock } = vi.hoisted(() => {
   const db: any = {
     query: {
       accounts: {
@@ -26,12 +26,12 @@ const { getSessionMock, dbMock, generateContentMock } = vi.hoisted(() => {
   }
 
   const generateContent = vi.fn(async (prompt: string) => {
-    if (prompt.includes('Responde SOLO con JSON válido') && prompt.includes('"brandVoice"')) {
+    if (prompt.includes('Responde SOLO con JSON válido') && prompt.includes('"personalVoice"')) {
       return {
         response: {
           text: () =>
             JSON.stringify({
-              brandVoice: 'Voice',
+              personalVoice: 'Voice',
               tone: 'casual',
               topics: ['t1'],
               emojiUsage: 'light',
@@ -56,6 +56,24 @@ const { getSessionMock, dbMock, generateContentMock } = vi.hoisted(() => {
     getSessionMock: vi.fn(),
     dbMock: db,
     generateContentMock: generateContent,
+    generateGeminiTextMock: vi.fn(async (options: { prompt?: string }) => {
+      const prompt = options?.prompt || ''
+      if (prompt.includes('Responde SOLO con JSON válido') && prompt.includes('"personalVoice"')) {
+        return JSON.stringify({
+          personalVoice: 'Voice',
+          tone: 'casual',
+          topics: ['t1'],
+          emojiUsage: 'light',
+          languagePreference: 'en',
+          avgLength: 120,
+          alwaysDo: ['a'],
+          neverDo: ['n'],
+          hashtags: ['#h'],
+        })
+      }
+      return 'analysis'
+    }),
+    neynarFetchFeedMock: vi.fn(),
   }
 })
 
@@ -75,6 +93,16 @@ vi.mock('@/lib/db', async (importActual) => {
   }
 })
 
+vi.mock('@/lib/farcaster/client', () => ({
+  neynar: {
+    fetchFeed: neynarFetchFeedMock,
+  },
+}))
+
+vi.mock('@/lib/ai/gemini-helpers', () => ({
+  generateGeminiText: generateGeminiTextMock,
+}))
+
 vi.mock('@google/generative-ai', () => {
   class GoogleGenerativeAI {
     getGenerativeModel() {
@@ -90,7 +118,6 @@ vi.mock('@google/generative-ai', () => {
 import { POST } from './route'
 
 describe('/api/accounts/[id]/style-profile', () => {
-  const originalFetch = global.fetch
   const originalSetTimeout = global.setTimeout
 
   beforeEach(() => {
@@ -102,18 +129,13 @@ describe('/api/accounts/[id]/style-profile', () => {
       return 0 as any
     }) as any)
 
-    // Mock de Neynar casts fetch
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
+    neynarFetchFeedMock.mockResolvedValue({
         casts: [{ text: 'this is a cast text long enough' }, { text: 'another cast text long enough' }, { text: 'third cast text long enough' }, { text: 'fourth cast text long enough' }, { text: 'fifth cast text long enough' }],
         next: null,
-      }),
-    })) as any)
+    })
   })
 
   afterEach(() => {
-    global.fetch = originalFetch
     global.setTimeout = originalSetTimeout
   })
 

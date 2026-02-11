@@ -4,6 +4,7 @@ import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI, AIMode, SuggestionContext, assertSupportedTargetLanguage } from '@/lib/ai/castor-ai'
 import { brandValidator } from '@/lib/ai/brand-validator'
+import { resolveVoiceMode } from '@/lib/ai/prompt-utils'
 import { getMaxChars } from '@/lib/compose/constants'
 import { nanoid } from 'nanoid'
 
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
     // Obtener contexto de la cuenta si se proporciona accountId
     let accountContext: SuggestionContext['accountContext']
     let isProValidated = isPro // Fallback al valor enviado pero preferiremos el de DB
+    let effectiveVoiceMode: 'brand' | 'personal' = 'personal'
 
     if (accountId) {
       const account = await db.query.accounts.findFirst({
@@ -133,6 +135,8 @@ export async function POST(request: NextRequest) {
         columns: {
           ownerId: true,
           isPremium: true,
+          type: true,
+          voiceMode: true,
         },
       })
 
@@ -142,6 +146,10 @@ export async function POST(request: NextRequest) {
 
       // Validar Pro status desde DB
       isProValidated = account.isPremium
+      effectiveVoiceMode = resolveVoiceMode(
+        account.type as 'personal' | 'business',
+        (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
+      )
 
       const membership = await db.query.accountMembers.findFirst({
         where: and(
@@ -160,8 +168,18 @@ export async function POST(request: NextRequest) {
       console.log('[AI Assistant] Getting account context for:', accountId)
       const ctx = await castorAI.getAccountContext(accountId)
       if (ctx) {
-        accountContext = ctx
+        accountContext =
+          effectiveVoiceMode === 'brand'
+            ? ctx
+            : {
+                ...ctx,
+                brandVoice: undefined,
+                alwaysDo: undefined,
+                neverDo: undefined,
+                hashtags: undefined,
+              }
         console.log('[AI Assistant] Account context loaded:', {
+          voiceMode: effectiveVoiceMode,
           hasBrandVoice: !!accountContext.brandVoice,
           hasAlwaysDo: !!accountContext.alwaysDo?.length,
           hasNeverDo: !!accountContext.neverDo?.length,
@@ -213,7 +231,7 @@ export async function POST(request: NextRequest) {
 
     // Validar coherencia de marca para cada sugerencia (con cache)
     const validationCache = new Map<string, Awaited<ReturnType<typeof brandValidator.validate>>>()
-    const shouldValidateBrand = Boolean(accountContext?.brandVoice)
+    const shouldValidateBrand = effectiveVoiceMode === 'brand' && Boolean(accountContext?.brandVoice)
     const suggestionObjects = await Promise.all(
       suggestions.map(async (text: string) => {
         let brandValidation = undefined
@@ -252,6 +270,7 @@ export async function POST(request: NextRequest) {
         languagePreference: profile.languagePreference,
       },
       hasBrandMode: !!accountContext?.brandVoice,
+      voiceMode: effectiveVoiceMode,
     })
   } catch (error) {
     console.error('[AI Assistant] Error:', error)

@@ -6,37 +6,11 @@ import { castorAI } from '@/lib/ai/castor-ai'
 import { requireGeminiEnv } from '@/lib/env'
 import { GEMINI_MODELS } from '@/lib/ai/gemini-config'
 import { generateGeminiText } from '@/lib/ai/gemini-helpers'
+import { buildBrandContext, resolveVoiceMode } from '@/lib/ai/prompt-utils'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-}
-
-const buildBrandContext = (accountContext: Awaited<ReturnType<typeof castorAI.getAccountContext>>): string => {
-  if (!accountContext) return ''
-
-  let context = ''
-
-  if (accountContext.brandVoice) {
-    context += `\n\nVOZ DE MARCA:\n${accountContext.brandVoice}`
-  }
-  if (accountContext.bio) {
-    context += `\n\nBIO:\n${accountContext.bio}`
-  }
-  if (accountContext.expertise?.length) {
-    context += `\n\nÁREAS DE EXPERTISE:\n- ${accountContext.expertise.join('\n- ')}`
-  }
-  if (accountContext.alwaysDo?.length) {
-    context += `\n\nSIEMPRE HACER:\n- ${accountContext.alwaysDo.join('\n- ')}`
-  }
-  if (accountContext.neverDo?.length) {
-    context += `\n\nNUNCA HACER:\n- ${accountContext.neverDo.join('\n- ')}`
-  }
-  if (accountContext.hashtags?.length) {
-    context += `\n\nHASHTAGS PREFERIDOS: ${accountContext.hashtags.join(', ')}`
-  }
-
-  return context.trim() ? `\n\nCONTEXTO DE MARCA:${context}` : ''
 }
 
 /**
@@ -90,6 +64,8 @@ export async function POST(request: NextRequest) {
       where: eq(accounts.id, accountId),
       columns: {
         ownerId: true,
+        type: true,
+        voiceMode: true,
       },
     })
 
@@ -113,7 +89,15 @@ export async function POST(request: NextRequest) {
     }
 
     const accountContext = await castorAI.getAccountContext(accountId)
-    const brandContext = buildBrandContext(accountContext)
+    const effectiveVoiceMode = resolveVoiceMode(
+      account.type as 'personal' | 'business',
+      (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
+    )
+    const brandContext = effectiveVoiceMode === 'brand' ? buildBrandContext(accountContext) : ''
+    const voiceInstruction =
+      effectiveVoiceMode === 'brand'
+        ? 'Sigue la voz de marca y sus reglas si están disponibles, pero prioriza precisión.'
+        : 'No impongas voz de marca: responde claro, útil y accionable.'
 
     // Construir contexto del análisis
     const analysisContext = `
@@ -150,7 +134,7 @@ ${conversationHistory ? `Historial de la conversación:\n${conversationHistory}\
 Pregunta del usuario: ${question}
 
 Responde de forma concisa, útil y accionable.
-Sigue la voz de marca y sus reglas si están disponibles, pero prioriza precisión.
+${voiceInstruction}
 Si no tienes suficiente información para responder algo específico, dilo claramente.
 Responde en español.`
 

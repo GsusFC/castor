@@ -145,6 +145,7 @@ export default async function StudioV2Page() {
     pfpUrl: account.pfpUrl,
     signerStatus: account.signerStatus,
     type: account.type,
+    voiceMode: account.voiceMode,
     isPremium: account.isPremium,
     ownerId: account.ownerId,
     owner: account.owner,

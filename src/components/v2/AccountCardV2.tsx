@@ -20,6 +20,7 @@ interface Account {
   displayName: string | null
   pfpUrl: string | null
   type: 'personal' | 'business'
+  voiceMode: 'auto' | 'brand' | 'personal'
   signerStatus: 'pending' | 'approved' | 'revoked'
   isPremium?: boolean
   ownerId: string | null
@@ -67,7 +68,18 @@ export function AccountCardV2({ account, currentUserId, isAdmin }: AccountCardV2
   }
 
   return (
-    <Card className="p-4 hover:bg-muted/50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer h-full flex flex-col">
+    <Card
+      className="p-4 hover:bg-muted/50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer h-full flex flex-col"
+      onClick={() => router.push(`/v2/accounts/${account.id}/voice`)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          router.push(`/v2/accounts/${account.id}/voice`)
+        }
+      }}
+    >
       {/* Header: Avatar + Info */}
       <div className="flex items-start gap-3 mb-3">
         {account.pfpUrl ? (

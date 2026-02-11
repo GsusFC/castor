@@ -22,6 +22,7 @@ interface Account {
   displayName: string | null
   pfpUrl: string | null
   type: 'personal' | 'business'
+  voiceMode: 'auto' | 'brand' | 'personal'
   signerStatus: 'pending' | 'approved' | 'revoked'
   isPremium: boolean
   ownerId: string | null

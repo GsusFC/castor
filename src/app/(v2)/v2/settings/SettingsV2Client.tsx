@@ -41,12 +41,19 @@ interface SettingsV2ClientProps {
     displayName: string | null
     pfpUrl: string | null
   }
+  accounts: Array<{
+    id: string
+    username: string
+    displayName: string | null
+    type: 'personal' | 'business'
+    voiceMode: 'auto' | 'brand' | 'personal'
+  }>
 }
 
 const VERSION_COOKIE = 'castor_studio_version'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
-export function SettingsV2Client({ user }: SettingsV2ClientProps) {
+export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [isMounted, setIsMounted] = useState(false)
@@ -61,6 +68,7 @@ export function SettingsV2Client({ user }: SettingsV2ClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ChannelOption[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '')
 
   useEffect(() => {
     setIsMounted(true)
@@ -368,6 +376,72 @@ export function SettingsV2Client({ user }: SettingsV2ClientProps) {
                     )
                   })
                 })()}
+              </div>
+            )}
+          </section>
+
+          {/* Version Switcher */}
+          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-sm font-medium">Voice Settings</h2>
+                <p className="text-sm text-muted-foreground">
+                  Configure Brand Voice or Personal Voice per account.
+                </p>
+              </div>
+            </div>
+
+            {accounts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No accounts available.</p>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="justify-start sm:min-w-[280px]">
+                      {(() => {
+                        const selected = accounts.find((a) => a.id === selectedAccountId) || accounts[0]
+                        const modeLabel =
+                          selected.voiceMode === 'auto'
+                            ? selected.type === 'business'
+                              ? 'Auto → Brand'
+                              : 'Auto → Personal'
+                            : selected.voiceMode === 'brand'
+                              ? 'Brand'
+                              : 'Personal'
+                        return `${selected.displayName || selected.username} · ${modeLabel}`
+                      })()}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {accounts.map((account) => {
+                      const modeLabel =
+                        account.voiceMode === 'auto'
+                          ? account.type === 'business'
+                            ? 'Auto → Brand'
+                            : 'Auto → Personal'
+                          : account.voiceMode === 'brand'
+                            ? 'Brand'
+                            : 'Personal'
+                      return (
+                        <DropdownMenuItem
+                          key={account.id}
+                          onClick={() => setSelectedAccountId(account.id)}
+                        >
+                          {(account.displayName || account.username)} · {modeLabel}
+                        </DropdownMenuItem>
+                      )
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  onClick={() => {
+                    if (!selectedAccountId) return
+                    router.push(`/v2/accounts/${selectedAccountId}/voice`)
+                  }}
+                >
+                  Open voice config
+                </Button>
               </div>
             )}
           </section>

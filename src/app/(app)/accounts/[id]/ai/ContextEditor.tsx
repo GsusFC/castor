@@ -61,6 +61,12 @@ const LANGUAGES = [
   { value: 'pt', label: 'Português' },
 ]
 
+const VOICE_MODES = [
+  { value: 'auto', label: 'Automático' },
+  { value: 'brand', label: 'Brand Voice' },
+  { value: 'personal', label: 'Personal Voice' },
+]
+
 export interface ContextEditorHandle {
   save: () => Promise<void>
   isSaving: boolean
@@ -99,6 +105,9 @@ export const ContextEditor = forwardRef<ContextEditorHandle, ContextEditorProps>
   )
   const [defaultTone, setDefaultTone] = useState(knowledgeBase?.defaultTone || 'casual')
   const [defaultLanguage, setDefaultLanguage] = useState(knowledgeBase?.defaultLanguage || 'en')
+  const [voiceMode, setVoiceMode] = useState<'auto' | 'brand' | 'personal'>(
+    (account.voiceMode as 'auto' | 'brand' | 'personal' | undefined) || 'auto'
+  )
   
   // New item inputs
   const [newExpertise, setNewExpertise] = useState('')
@@ -293,8 +302,9 @@ export const ContextEditor = forwardRef<ContextEditorHandle, ContextEditorProps>
       }
       
       // Auto-rellenar campos con datos del análisis AI
-      if (data?.brandVoice && !brandVoice) {
-        setBrandVoice(data.brandVoice)
+      const detectedVoice = data?.personalVoice || data?.brandVoice
+      if (detectedVoice && !brandVoice) {
+        setBrandVoice(detectedVoice)
       }
       if (data?.alwaysDo?.length && alwaysDo.length === 0) {
         setAlwaysDo(data.alwaysDo)
@@ -329,6 +339,7 @@ export const ContextEditor = forwardRef<ContextEditorHandle, ContextEditorProps>
           hashtags,
           defaultTone,
           defaultLanguage,
+          voiceMode,
         }),
       })
 
@@ -561,6 +572,26 @@ export const ContextEditor = forwardRef<ContextEditorHandle, ContextEditorProps>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+          <div className="flex-1">
+            <label className="text-sm text-muted-foreground mb-1 block">Voice Mode</label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild id={`account-${accountId}-voice-mode-trigger`}>
+                <Button variant="outline" className="w-full justify-start" disabled={!canEdit}>
+                  {VOICE_MODES.find(v => v.value === voiceMode)?.label}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {VOICE_MODES.map((voice) => (
+                  <DropdownMenuItem key={voice.value} onClick={() => setVoiceMode(voice.value as typeof voiceMode)}>
+                    {voice.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <p className="text-xs text-muted-foreground mt-1">
+              Auto uses {account.type === 'business' ? 'Brand Voice' : 'Personal Voice'} from account type.
+            </p>
           </div>
         </div>
       </section>

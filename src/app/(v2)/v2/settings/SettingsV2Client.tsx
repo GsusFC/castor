@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Image from 'next/image'
 import {
@@ -53,9 +53,12 @@ interface SettingsV2ClientProps {
 const VERSION_COOKIE = 'castor_studio_version'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 type SettingsTab = 'appearance' | 'ai' | 'feed' | 'voice' | 'advanced'
+const SETTINGS_TABS: SettingsTab[] = ['appearance', 'ai', 'feed', 'voice', 'advanced']
 
 export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   const [isMounted, setIsMounted] = useState(false)
   const { defaultLanguage, enabledLanguages, setDefaultLanguage, toggleEnabledLanguage } =
@@ -71,10 +74,27 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '')
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
+  const tabFromUrl = searchParams.get('tab')
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!tabFromUrl || !SETTINGS_TABS.includes(tabFromUrl as SettingsTab)) return
+    const parsedTab = tabFromUrl as SettingsTab
+    if (parsedTab !== activeTab) {
+      setActiveTab(parsedTab)
+    }
+  }, [tabFromUrl, activeTab])
+
+  useEffect(() => {
+    if (tabFromUrl === activeTab) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', activeTab)
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }, [activeTab, tabFromUrl, pathname, router, searchParams])
 
   useEffect(() => {
     const fetchChannels = async () => {

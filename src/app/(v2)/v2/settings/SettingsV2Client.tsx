@@ -52,6 +52,7 @@ interface SettingsV2ClientProps {
 
 const VERSION_COOKIE = 'castor_studio_version'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+type SettingsTab = 'appearance' | 'ai' | 'feed' | 'voice' | 'advanced'
 
 export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const router = useRouter()
@@ -69,6 +70,7 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const [searchResults, setSearchResults] = useState<ChannelOption[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
 
   useEffect(() => {
     setIsMounted(true)
@@ -191,10 +193,38 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
           subtitle="Customize your experience"
         />
 
+        {/* Tabs */}
+        <div className="mb-4 overflow-x-auto">
+          <div className="inline-flex rounded-lg border border-border/60 p-1 bg-card/60 min-w-max">
+            {([
+              { id: 'appearance', label: 'Appearance' },
+              { id: 'ai', label: 'AI' },
+              { id: 'feed', label: 'Feed' },
+              { id: 'voice', label: 'Voice' },
+              { id: 'advanced', label: 'Advanced' },
+            ] as Array<{ id: SettingsTab; label: string }>).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'px-3 py-1.5 text-sm rounded-md transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Content */}
         <div className="space-y-6">
           {/* Theme Section */}
-          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+          {activeTab === 'appearance' && (
+            <section className="p-4 rounded-xl border border-border/50 bg-card/50">
             <h2 className="text-sm font-medium mb-4">Appearance</h2>
 
             <div className="grid grid-cols-3 gap-3">
@@ -237,10 +267,12 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
                 <span className="text-sm">System</span>
               </button>
             </div>
-          </section>
+            </section>
+          )}
 
           {/* AI Language Section */}
-          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+          {activeTab === 'ai' && (
+            <section className="p-4 rounded-xl border border-border/50 bg-card/50">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-sm font-medium">AI Language</h2>
@@ -290,10 +322,12 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
                 )
               })}
             </div>
-          </section>
+            </section>
+          )}
 
           {/* Feed Tabs Section */}
-          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+          {activeTab === 'feed' && (
+            <section className="p-4 rounded-xl border border-border/50 bg-card/50">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-sm font-medium">Feed Tabs</h2>
@@ -378,10 +412,11 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
                 })()}
               </div>
             )}
-          </section>
+            </section>
+          )}
 
-          {/* Version Switcher */}
-          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+          {activeTab === 'voice' && (
+            <section className="p-4 rounded-xl border border-border/50 bg-card/50">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-sm font-medium">Voice Settings</h2>
@@ -444,10 +479,11 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
                 </Button>
               </div>
             )}
-          </section>
+            </section>
+          )}
 
-          {/* Version Switcher */}
-          <section className="p-4 rounded-xl border border-border/50 bg-card/50">
+          {activeTab === 'advanced' && (
+            <section className="p-4 rounded-xl border border-border/50 bg-card/50">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
@@ -464,7 +500,8 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
                 Switch
               </Button>
             </div>
-          </section>
+            </section>
+          )}
         </div>
       </main>
     </>

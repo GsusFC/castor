@@ -51,7 +51,7 @@ interface TypefullyIntegrationSectionProps {
 
 export function TypefullyIntegrationSection({
   title = 'Typefully Integration',
-  description = 'Connect Typefully and map each social set to a Castor account.',
+  description = 'Step 1: connect Typefully. Step 2: map each social set to a Castor account.',
   emptyAccountsHint = 'You don&apos;t have any Castor accounts available to map. Add a Farcaster account first.',
 }: TypefullyIntegrationSectionProps) {
   const [typefullyApiKey, setTypefullyApiKey] = useState('')
@@ -214,6 +214,15 @@ export function TypefullyIntegrationSection({
     }
   }
 
+  const formatPlatformLabel = (platform: string) => {
+    if (platform === 'x') return 'X'
+    if (platform === 'linkedin') return 'LinkedIn'
+    if (platform === 'threads') return 'Threads'
+    if (platform === 'bluesky') return 'Bluesky'
+    if (platform === 'mastodon') return 'Mastodon'
+    return platform
+  }
+
   return (
     <section className="p-4 rounded-xl border border-border/50 bg-card/50">
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -279,6 +288,7 @@ export function TypefullyIntegrationSection({
       ) : (
         <div className="space-y-4">
           <div className="rounded-lg border border-border/50 bg-background/40 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Step 1 · Connected account</p>
             <p className="text-sm font-medium">{typefullyConnection.typefullyUserName || 'Typefully user'}</p>
             <p className="text-xs text-muted-foreground">
               {typefullyConnection.typefullyUserEmail || 'No email'}
@@ -292,6 +302,7 @@ export function TypefullyIntegrationSection({
             </p>
           ) : (
             <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Step 2 · Map social sets</p>
               {typefullyAccounts.length === 0 && (
                 <div className="rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                   {emptyAccountsHint}
@@ -330,7 +341,7 @@ export function TypefullyIntegrationSection({
                                 key={`${socialSet.id}-${platform}`}
                                 className="inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
                               >
-                                {platform}
+                                {formatPlatformLabel(platform)}
                               </span>
                             ))
                           ) : (
@@ -340,21 +351,27 @@ export function TypefullyIntegrationSection({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {isLinking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                      <select
-                        value={linkedId}
-                        disabled={isLinking || typefullyAccounts.length === 0}
-                        onChange={(e) => void linkTypefullySocialSet(socialSet.socialSetId, e.target.value)}
-                        className="h-9 min-w-[220px] rounded-md border border-border bg-background px-3 text-sm"
-                      >
-                        <option value="">Not linked</option>
-                        {typefullyAccounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.displayName || account.username} (@{account.username})
-                          </option>
-                        ))}
-                      </select>
+                    <div className="flex flex-col items-start gap-1 sm:items-end">
+                      <label className="text-[11px] text-muted-foreground">Castor account destination</label>
+                      <div className="flex items-center gap-2">
+                        {isLinking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                        <select
+                          value={linkedId}
+                          disabled={isLinking || typefullyAccounts.length === 0}
+                          onChange={(e) => void linkTypefullySocialSet(socialSet.socialSetId, e.target.value)}
+                          className="h-9 min-w-[220px] rounded-md border border-border bg-background px-3 text-sm"
+                        >
+                          <option value="">Not linked</option>
+                          {typefullyAccounts.map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.displayName || account.username} (@{account.username})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        This is the Castor account used to publish for this social set.
+                      </p>
                     </div>
                   </div>
                 )

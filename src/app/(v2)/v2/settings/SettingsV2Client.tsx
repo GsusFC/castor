@@ -73,28 +73,23 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
   const [searchResults, setSearchResults] = useState<ChannelOption[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '')
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const tabFromUrl = searchParams.get('tab')
+  const activeTab: SettingsTab =
+    tabFromUrl && SETTINGS_TABS.includes(tabFromUrl as SettingsTab)
+      ? (tabFromUrl as SettingsTab)
+      : 'appearance'
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  useEffect(() => {
-    if (!tabFromUrl || !SETTINGS_TABS.includes(tabFromUrl as SettingsTab)) return
-    const parsedTab = tabFromUrl as SettingsTab
-    if (parsedTab !== activeTab) {
-      setActiveTab(parsedTab)
-    }
-  }, [tabFromUrl, activeTab])
-
-  useEffect(() => {
-    if (tabFromUrl === activeTab) return
+  const handleTabChange = (tab: SettingsTab) => {
+    if (tab === activeTab) return
     const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', activeTab)
+    params.set('tab', tab)
     const nextQuery = params.toString()
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
-  }, [activeTab, tabFromUrl, pathname, router, searchParams])
+  }
 
   useEffect(() => {
     const fetchChannels = async () => {
@@ -226,7 +221,7 @@ export function SettingsV2Client({ user, accounts }: SettingsV2ClientProps) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={cn(
                   'px-3 py-1.5 text-sm rounded-md transition-colors',
                   activeTab === tab.id

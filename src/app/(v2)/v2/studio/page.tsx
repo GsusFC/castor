@@ -7,6 +7,21 @@ import { StudioV2Client } from './StudioV2Client'
 
 export const dynamic = 'force-dynamic'
 
+const parsePublishTargets = (value: string | null): Array<'farcaster' | 'x' | 'linkedin'> | undefined => {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) return undefined
+    const targets = parsed.filter(
+      (item): item is 'farcaster' | 'x' | 'linkedin' =>
+        item === 'farcaster' || item === 'x' || item === 'linkedin'
+    )
+    return targets.length > 0 ? targets : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export default async function StudioV2Page() {
   const session = await getSession()
 
@@ -159,6 +174,8 @@ export default async function StudioV2Page() {
     id: cast.id,
     content: cast.content,
     status: cast.status,
+    network: cast.network ?? undefined,
+    publishTargets: parsePublishTargets(cast.publishTargets),
     scheduledAt: cast.scheduledAt.toISOString(),
     publishedAt: cast.publishedAt?.toISOString() || null,
     castHash: cast.castHash,

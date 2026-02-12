@@ -86,6 +86,8 @@ export const scheduledCasts = sqliteTable(
     castHash: text('cast_hash'),
     parentHash: text('parent_hash'), // Para replies
     channelId: text('channel_id'), // Para publicar en un canal
+    network: text('network', { enum: ['farcaster', 'x', 'linkedin'] }),
+    publishTargets: text('publish_targets'), // JSON array de redes objetivo
     errorMessage: text('error_message'),
     retryCount: integer('retry_count').notNull().default(0),
     // Thread support

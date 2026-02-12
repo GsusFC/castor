@@ -17,6 +17,21 @@ import { getSession } from '@/lib/auth'
    pfpUrl: account.pfpUrl,
  })
 
+const parsePublishTargets = (value: string | null): Array<'farcaster' | 'x' | 'linkedin'> | undefined => {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) return undefined
+    const targets = parsed.filter(
+      (item): item is 'farcaster' | 'x' | 'linkedin' =>
+        item === 'farcaster' || item === 'x' || item === 'linkedin'
+    )
+    return targets.length > 0 ? targets : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * GET /api/casts
  * Lista todos los casts programados
@@ -110,6 +125,8 @@ export async function GET(request: NextRequest) {
     const slicedCasts = hasPagination ? casts.slice(0, paginatedLimit) : casts
     const safeCasts = slicedCasts.map((cast) => ({
       ...cast,
+      network: cast.network ?? undefined,
+      publishTargets: parsePublishTargets(cast.publishTargets),
       account: cast.account ? toPublicAccount(cast.account) : null,
     }))
     const hasMore = hasPagination ? casts.length > paginatedLimit : false

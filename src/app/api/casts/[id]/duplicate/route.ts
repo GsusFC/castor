@@ -61,6 +61,8 @@ export async function POST(
         accountId: cast.accountId,
         content: cast.content,
         channelId: cast.channelId,
+        network: cast.network ?? 'farcaster',
+        publishTargets: cast.publishTargets ?? JSON.stringify(['farcaster']),
         parentHash: cast.parentHash,
         status: 'draft',
         scheduledAt: new Date(),

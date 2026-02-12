@@ -121,6 +121,8 @@ export async function POST(request: NextRequest) {
             content: cast.content.trim(),
             scheduledAt: scheduledDate,
             channelId: channelId || null,
+            network: 'farcaster',
+            publishTargets: JSON.stringify(['farcaster']),
             status: 'scheduled',
             threadId,
             threadOrder: i,

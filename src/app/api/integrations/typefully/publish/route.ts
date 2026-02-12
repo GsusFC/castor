@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
-import { db, accounts, accountMembers, typefullySocialSets } from '@/lib/db'
+import { db, accounts, accountMembers, typefullySocialSets, scheduledCasts, castMedia } from '@/lib/db'
 import { getTypefullyClientForUser, getTypefullyConnectionForUser } from '@/lib/integrations/typefully-store'
 import { TypefullyApiError } from '@/lib/integrations/typefully'
+import { generateId } from '@/lib/utils'
 
 const bodySchema = z.object({
   accountId: z.string().min(1),
@@ -349,9 +350,50 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const successfulResults = results.filter((r) => r.status === 'published' || r.status === 'degraded')
     const publishedCount = results.filter((r) => r.status === 'published').length
     const degradedCount = results.filter((r) => r.status === 'degraded').length
     const failedCount = results.filter((r) => r.status === 'failed').length
+
+    if (successfulResults.length > 0) {
+      const scheduledAt = publishAt && publishAt !== 'now' ? new Date(publishAt) : new Date()
+      const isNow = publishAt === 'now'
+      const hasValidScheduledAt = !Number.isNaN(scheduledAt.getTime())
+      const content = posts.map((post) => post.text.trim()).filter(Boolean).join('\n\n')
+      const fallbackContent = posts.find((post) => post.text.trim())?.text.trim() || 'Published via Typefully'
+
+      for (const result of successfulResults) {
+        const castId = generateId()
+        await db.insert(scheduledCasts).values({
+          id: castId,
+          accountId,
+          content: content || fallbackContent,
+          scheduledAt: hasValidScheduledAt ? scheduledAt : new Date(),
+          publishedAt: isNow ? new Date() : null,
+          status: isNow ? 'published' : 'scheduled',
+          network: result.network,
+          publishTargets: JSON.stringify([result.network]),
+          createdById: session.userId,
+        })
+
+        const allMediaUrls = posts.flatMap((post) => post.mediaUrls || []).filter(Boolean)
+        if (allMediaUrls.length > 0) {
+          await db.insert(castMedia).values(
+            allMediaUrls.map((url, index) => {
+              const isVideo = /\.(mp4|mov|webm|m3u8)$/i.test(url)
+              return {
+                id: generateId(),
+                castId,
+                url,
+                type: isVideo ? 'video' as const : 'image' as const,
+                order: index,
+                videoStatus: isVideo ? 'pending' as const : undefined,
+              }
+            })
+          )
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

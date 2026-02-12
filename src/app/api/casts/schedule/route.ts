@@ -210,6 +210,8 @@ export async function POST(request: NextRequest) {
           content: (content || '').trim(),
           scheduledAt: scheduledDate || new Date(),
           channelId: channelId || null,
+          network: 'farcaster',
+          publishTargets: JSON.stringify(['farcaster']),
           parentHash: parentHash || null,
           status: isDraft ? 'draft' as const : 'scheduled' as const,
           createdById: session.userId,

@@ -71,6 +71,8 @@ interface Cast {
   id: string
   content: string
   status: string
+  network?: 'farcaster' | 'x' | 'linkedin'
+  publishTargets?: Array<'farcaster' | 'x' | 'linkedin'>
   scheduledAt: string
   publishedAt: string | null
   castHash: string | null
@@ -928,6 +930,13 @@ function CastCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const scheduledDate = new Date(cast.scheduledAt)
+  const network =
+    cast.network ||
+    (cast.publishTargets?.includes('x')
+      ? 'x'
+      : cast.publishTargets?.includes('linkedin')
+        ? 'linkedin'
+        : 'farcaster')
 
   const statusStyles: Record<string, string> = {
     scheduled: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
@@ -946,6 +955,12 @@ function CastCard({
     retrying: 'Retrying',
     draft: 'Draft',
   }
+
+  const networkBadge = network === 'x'
+    ? { label: 'X', className: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/25 dark:bg-zinc-500/20 dark:text-zinc-300 dark:border-zinc-500/40' }
+    : network === 'linkedin'
+      ? { label: 'LinkedIn', className: 'bg-sky-500/10 text-sky-700 border-sky-500/25 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/40' }
+      : { label: 'Farcaster', className: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/25 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/40' }
 
   // Truncar contenido para vista colapsada
   const truncatedContent = cast.content.length > 80
@@ -978,6 +993,14 @@ function CastCard({
             {cast.content || <span className="text-muted-foreground italic">No content</span>}
           </p>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 overflow-hidden">
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium shrink-0',
+                networkBadge.className
+              )}
+            >
+              {networkBadge.label}
+            </span>
             {!isDraft && (
               <>
                 <span className="shrink-0 whitespace-nowrap">
@@ -1139,4 +1162,3 @@ function CastCard({
     </Card>
   )
 }
-

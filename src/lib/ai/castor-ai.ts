@@ -669,7 +669,14 @@ Return ONLY valid JSON (no markdown, no extra text):
       prompt += `Adjust to tone: ${context.targetTone}\n\n`
     }
 
+    const preferredMinChars = Math.max(
+      Math.min(Math.floor(maxChars * 0.6), maxChars - 40),
+      Math.min(220, maxChars)
+    )
+
     prompt += `Improve this draft keeping the essence but making it more effective.
+You can expand the text with stronger framing, clearer arguments, and better flow when helpful.
+Prioritize substantial outputs: target roughly ${preferredMinChars}-${maxChars} characters when possible (never exceed ${maxChars}).
 Provide exactly 3 improved versions (max ${maxChars} characters each).
 
 Return ONLY valid JSON (no markdown, no extra text):

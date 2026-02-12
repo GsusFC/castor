@@ -121,9 +121,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Determinar límite de caracteres
-    const maxChars = getMaxChars(isPro)
-
     // Obtener contexto de la cuenta si se proporciona accountId
     let accountContext: SuggestionContext['accountContext']
     let isProValidated = isPro // Fallback al valor enviado pero preferiremos el de DB
@@ -186,6 +183,9 @@ export async function POST(request: NextRequest) {
         })
       }
     }
+
+    // Determinar límite de caracteres con el estado Pro validado desde DB
+    const maxChars = getMaxChars(isProValidated)
 
     // Construir contexto
     const context: SuggestionContext = {

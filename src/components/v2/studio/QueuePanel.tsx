@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Clock, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,35 @@ type QueuePanelProps = {
   hasMore: boolean
   locale: string
   timeZone: string
+}
+
+type CastNetwork = 'farcaster' | 'x' | 'linkedin'
+
+function getCastNetwork(cast: SerializedCast): CastNetwork {
+  if (cast.network) return cast.network
+  if (cast.publishTargets?.includes('x')) return 'x'
+  if (cast.publishTargets?.includes('linkedin')) return 'linkedin'
+  return 'farcaster'
+}
+
+function getNetworkTone(network: CastNetwork) {
+  if (network === 'x') return 'border-zinc-500/55 bg-zinc-500/10 hover:bg-zinc-500/15'
+  if (network === 'linkedin') return 'border-sky-500/55 bg-sky-500/10 hover:bg-sky-500/15'
+  return 'border-indigo-500/55 bg-indigo-500/10 hover:bg-indigo-500/15'
+}
+
+function getNetworkBadge(network: CastNetwork) {
+  if (network === 'x') {
+    return { label: 'X', icon: 'X', className: 'border-zinc-500/60 bg-zinc-500/15 text-zinc-200' }
+  }
+  if (network === 'linkedin') {
+    return { label: 'LinkedIn', icon: 'in', className: 'border-sky-500/60 bg-sky-500/15 text-sky-200' }
+  }
+  return {
+    label: 'Farcaster',
+    icon: 'F',
+    className: 'border-indigo-500/60 bg-indigo-500/15 text-indigo-200',
+  }
 }
 
 export function QueuePanel({
@@ -74,20 +104,26 @@ export function QueuePanel({
       </div>
 
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-2.5' : 'space-y-2.5'}>
-        {casts.map(cast => (
-          <div
-            key={cast.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelectCast(cast.id)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                onSelectCast(cast.id)
-              }
-            }}
-            className="group w-full text-left p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-          >
+        {casts.map((cast) => {
+          const network = getCastNetwork(cast)
+          const networkBadge = getNetworkBadge(network)
+          return (
+            <div
+              key={cast.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectCast(cast.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectCast(cast.id)
+                }
+              }}
+              className={cn(
+                'group w-full text-left p-3 rounded-lg border transition-colors cursor-pointer',
+                getNetworkTone(network)
+              )}
+            >
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 text-primary px-2 py-1">
                 <span className="text-[11px] font-semibold tabular-nums">
@@ -109,6 +145,17 @@ export function QueuePanel({
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
+                    networkBadge.className
+                  )}
+                >
+                  <span className="inline-flex size-3 items-center justify-center rounded-[3px] border border-current/40 text-[9px] leading-none">
+                    {networkBadge.icon}
+                  </span>
+                  {networkBadge.label}
+                </span>
                 {cast.status === 'draft' && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
                     Draft
@@ -170,8 +217,9 @@ export function QueuePanel({
                 </button>
               </div>
             </div>
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
 
       {hasMore && (

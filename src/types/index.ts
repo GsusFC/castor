@@ -29,6 +29,8 @@ export interface SerializedCast {
   id: string
   content: string
   status: string
+  network?: 'farcaster' | 'x' | 'linkedin'
+  publishTargets?: Array<'farcaster' | 'x' | 'linkedin'>
   scheduledAt: string
   publishedAt: string | null
   castHash: string | null

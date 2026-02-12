@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,35 @@ function getStatusDotClass(status: string) {
   if (status === 'retrying') return 'bg-orange-400'
   if (status === 'failed') return 'bg-red-400'
   return 'bg-muted-foreground'
+}
+
+type CastNetwork = 'farcaster' | 'x' | 'linkedin'
+
+function getCastNetwork(cast: SerializedCast): CastNetwork {
+  if (cast.network) return cast.network
+  if (cast.publishTargets?.includes('x')) return 'x'
+  if (cast.publishTargets?.includes('linkedin')) return 'linkedin'
+  return 'farcaster'
+}
+
+function getNetworkTone(network: CastNetwork) {
+  if (network === 'x') return 'border-zinc-500/55 bg-zinc-500/10 hover:bg-zinc-500/15'
+  if (network === 'linkedin') return 'border-sky-500/55 bg-sky-500/10 hover:bg-sky-500/15'
+  return 'border-indigo-500/55 bg-indigo-500/10 hover:bg-indigo-500/15'
+}
+
+function getNetworkBadge(network: CastNetwork) {
+  if (network === 'x') {
+    return { label: 'X', icon: 'X', className: 'border-zinc-500/60 bg-zinc-500/15 text-zinc-200' }
+  }
+  if (network === 'linkedin') {
+    return { label: 'LinkedIn', icon: 'in', className: 'border-sky-500/60 bg-sky-500/15 text-sky-200' }
+  }
+  return {
+    label: 'Farcaster',
+    icon: 'F',
+    className: 'border-indigo-500/60 bg-indigo-500/15 text-indigo-200',
+  }
 }
 
 export function DailyQueuePanel({
@@ -207,6 +237,8 @@ export function DailyQueuePanel({
             <div className="p-2 space-y-2">
               {group.casts.map((cast) => {
                 const isPublished = cast.status === 'published'
+                const network = getCastNetwork(cast)
+                const networkBadge = getNetworkBadge(network)
                 const castTime = formatStudioTime(getReferenceDate(cast), {
                   locale,
                   timeZone,
@@ -227,7 +259,10 @@ export function DailyQueuePanel({
                         onSelectCast(cast.id)
                       }
                     }}
-                    className="group w-full text-left p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
+                    className={cn(
+                      'group w-full text-left p-3 rounded-lg border transition-colors cursor-pointer',
+                      getNetworkTone(network)
+                    )}
                   >
                     <div className="flex items-start gap-3">
                       {cast.account?.pfpUrl ? (
@@ -243,6 +278,17 @@ export function DailyQueuePanel({
                               className={`size-2 rounded-full shrink-0 ${getStatusDotClass(cast.status)}`}
                               aria-label={cast.status}
                             />
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium shrink-0',
+                                networkBadge.className
+                              )}
+                            >
+                              <span className="inline-flex size-3 items-center justify-center rounded-[3px] border border-current/40 text-[9px] leading-none">
+                                {networkBadge.icon}
+                              </span>
+                              {networkBadge.label}
+                            </span>
                             <p className="text-[12px] text-muted-foreground truncate">{accountLabel}</p>
                           </div>
                           <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">{castTime}</span>

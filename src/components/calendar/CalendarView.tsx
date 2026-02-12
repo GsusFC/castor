@@ -39,6 +39,8 @@ interface Cast {
   content: string
   scheduledAt: Date
   status: string
+  network?: 'farcaster' | 'x' | 'linkedin'
+  publishTargets?: Array<'farcaster' | 'x' | 'linkedin'>
   account: {
     username: string
     pfpUrl: string | null
@@ -100,13 +102,41 @@ function getStatusDotClass(status: string) {
   return 'bg-muted-foreground'
 }
 
-function getStatusCardTone(status: string) {
-  if (status === 'published') return 'border-emerald-400/50 bg-emerald-500/10'
-  if (status === 'scheduled') return 'border-blue-400/50 bg-blue-500/10'
-  if (status === 'draft') return 'border-amber-400/45 bg-amber-500/8'
-  if (status === 'retrying') return 'border-orange-400/45 bg-orange-500/8'
-  if (status === 'failed') return 'border-red-400/50 bg-red-500/8'
-  return 'border-border bg-card'
+function getCastNetwork(cast: Cast): 'farcaster' | 'x' | 'linkedin' {
+  if (cast.network) return cast.network
+  if (cast.publishTargets?.includes('x')) return 'x'
+  if (cast.publishTargets?.includes('linkedin')) return 'linkedin'
+  return 'farcaster'
+}
+
+function getNetworkCardTone(network: 'farcaster' | 'x' | 'linkedin') {
+  if (network === 'x') return 'border-zinc-500/55 bg-zinc-500/10'
+  if (network === 'linkedin') return 'border-sky-500/55 bg-sky-500/10'
+  return 'border-indigo-500/55 bg-indigo-500/10'
+}
+
+function NetworkMark({ network }: { network: 'farcaster' | 'x' | 'linkedin' }) {
+  if (network === 'x') {
+    return (
+      <svg viewBox="0 0 24 24" className="size-2.5 fill-current" aria-hidden="true">
+        <path d="M18.9 3h2.9l-6.4 7.3 7.5 10.7h-5.9l-4.6-6.5L6.7 21H3.8l6.8-7.8L3.4 3h6l4.2 5.9L18.9 3Zm-1 16.3h1.6L8.6 4.6H6.9l11 14.7Z" />
+      </svg>
+    )
+  }
+
+  if (network === 'linkedin') {
+    return (
+      <svg viewBox="0 0 24 24" className="size-2.5 fill-current" aria-hidden="true">
+        <path d="M5.4 8.2a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6ZM3.9 20.1h3V9.9h-3v10.2Zm5 0h2.9v-5.1c0-1.3.2-2.6 1.9-2.6s1.7 1.6 1.7 2.7v5h2.9v-5.6c0-2.7-.6-4.8-3.7-4.8-1.5 0-2.5.8-2.9 1.6h-.1V9.9H8.9v10.2Z" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" className="size-2.5 fill-current" aria-hidden="true">
+      <path d="M8.2 4.5h7.6v3.1h-4.4v2.6h4v3h-4v6.3H8.2V4.5Zm7.5 0h3.1v3.1h-3.1V4.5Zm0 4.3h3.1v10.7h-3.1V8.8Z" />
+    </svg>
+  )
 }
 
 export function CalendarView({
@@ -437,7 +467,10 @@ export function CalendarView({
                       onSelectCast?.(cast.id)
                     }
                   }}
-                  className="flex items-start gap-2 rounded-md border p-2 bg-card hover:bg-muted/40"
+                  className={cn(
+                    'relative flex items-start gap-2 rounded-md border p-2 hover:bg-muted/40',
+                    getNetworkCardTone(getCastNetwork(cast))
+                  )}
                 >
                   <div className="text-[12px] tabular-nums text-muted-foreground min-w-[52px]">
                     {formatStudioTime(cast.scheduledAt, {
@@ -450,6 +483,13 @@ export function CalendarView({
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] line-clamp-2">{cast.content || 'Empty cast'}</p>
                   </div>
+                  <span
+                    className="absolute bottom-1 left-1 inline-flex size-4 items-center justify-center rounded-[4px] border border-current/35 bg-background/70 text-[9px] font-semibold text-muted-foreground"
+                    aria-label={`Network ${getCastNetwork(cast)}`}
+                    title={getCastNetwork(cast)}
+                  >
+                    <NetworkMark network={getCastNetwork(cast)} />
+                  </span>
                 </div>
               ))
             )}
@@ -588,7 +628,7 @@ export function CalendarView({
                     }}
                     className={cn(
                       'rounded-md border p-3 hover:bg-muted/40 cursor-pointer',
-                      getStatusCardTone(cast.status)
+                      getNetworkCardTone(getCastNetwork(cast))
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -835,6 +875,7 @@ function CastCard({
   onDuplicate?: () => void
   onDelete?: () => void
 }) {
+  const network = getCastNetwork(cast)
   const time = formatStudioTime(cast.scheduledAt, {
     locale,
     timeZone,
@@ -846,7 +887,7 @@ function CastCard({
     <div
       className={cn(
         'p-1.5 rounded border text-[12px] cursor-grab active:cursor-grabbing relative group',
-        getStatusCardTone(cast.status),
+        getNetworkCardTone(network),
         isDragging && 'shadow-lg rotate-2',
         cast.status !== 'scheduled' && 'cursor-default opacity-75'
       )}
@@ -865,6 +906,13 @@ function CastCard({
         <span className="text-muted-foreground tabular-nums shrink-0">{time}</span>
       </div>
       <p className="line-clamp-2 text-foreground">{cast.content}</p>
+      <span
+        className="absolute bottom-1 left-1 inline-flex size-4 items-center justify-center rounded-[4px] border border-current/35 bg-background/70 text-[9px] font-semibold text-muted-foreground"
+        aria-label={`Network ${network}`}
+        title={network}
+      >
+        <NetworkMark network={network} />
+      </span>
       {(onDuplicate || onDelete) && (
         <div className="mt-1 flex items-center justify-end gap-0.5">
           {onDuplicate && (

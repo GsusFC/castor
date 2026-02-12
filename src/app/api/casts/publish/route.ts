@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getSession, canModify } from '@/lib/auth'
-import { db, accounts, castAnalytics, accountMembers, aiGeneratedCasts } from '@/lib/db'
+import { db, accounts, castAnalytics, accountMembers, aiGeneratedCasts, scheduledCasts, castMedia } from '@/lib/db'
 import { eq, and } from 'drizzle-orm'
 import { publishCast } from '@/lib/farcaster/client'
 import { success, ApiErrors } from '@/lib/api/response'
@@ -9,6 +9,7 @@ import { checkRateLimit, getClientIP } from '@/lib/rate-limit'
 import { calculateTextLength } from '@/lib/url-utils'
 import { withLock } from '@/lib/lock'
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
+import { generateId } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 
@@ -120,6 +121,45 @@ export async function POST(request: NextRequest) {
 
       // Registrar en analytics (no bloquea la respuesta)
       if (result.hash) {
+        const castId = generateId()
+        const mediaEmbeds = (embeds || []).filter((embed) => {
+          const url = embed.url || ''
+          return /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|m3u8)$/i.test(url)
+        })
+
+        await db.transaction(async (tx) => {
+          await tx.insert(scheduledCasts).values({
+            id: castId,
+            accountId,
+            content: safeContent.trim(),
+            scheduledAt: new Date(),
+            publishedAt: new Date(),
+            status: 'published',
+            castHash: result.hash || null,
+            channelId: channelId || null,
+            parentHash: parentHash || null,
+            network: 'farcaster',
+            publishTargets: JSON.stringify(['farcaster']),
+            createdById: session.userId,
+          })
+
+          if (mediaEmbeds.length > 0) {
+            await tx.insert(castMedia).values(
+              mediaEmbeds.map((embed, index) => {
+                const isVideo = /\.(mp4|mov|webm|m3u8)$/i.test(embed.url)
+                return {
+                  id: generateId(),
+                  castId,
+                  url: embed.url,
+                  type: isVideo ? 'video' as const : 'image' as const,
+                  order: index,
+                  videoStatus: isVideo ? 'pending' as const : undefined,
+                }
+              })
+            )
+          }
+        })
+
         // Track for standard analytics
         db.insert(castAnalytics).values({
           id: crypto.randomUUID(),

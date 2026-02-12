@@ -36,6 +36,12 @@ interface ComposeModalProps {
   defaultReplyTo?: ReplyToCast | null // Cast al que se responde
 }
 
+type TypefullySocialSetOption = {
+  socialSetId: number
+  label: string
+  connectedPlatforms: string[]
+}
+
 export function ComposeModal({
   open,
   onOpenChange,
@@ -71,6 +77,8 @@ export function ComposeModal({
     x: false,
     linkedin: false,
   })
+  const [typefullySocialSets, setTypefullySocialSets] = useState<TypefullySocialSetOption[]>([])
+  const [selectedTypefullySocialSetId, setSelectedTypefullySocialSetId] = useState<number | null>(null)
   const [networkMappingHint, setNetworkMappingHint] = useState<string | null>(null)
 
   // Modo edición
@@ -100,6 +108,7 @@ export function ComposeModal({
     editCastId,
     selectedNetworks,
     availableNetworks,
+    typefullySocialSetId: selectedTypefullySocialSetId,
     onSuccess: () => {
       resetForm()
       onOpenChange(false)
@@ -176,6 +185,8 @@ export function ComposeModal({
           cache: 'no-store',
         })
         if (!res.ok) {
+          setTypefullySocialSets([])
+          setSelectedTypefullySocialSetId(null)
           setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
           setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
           return
@@ -183,6 +194,13 @@ export function ComposeModal({
 
         const data = await res.json().catch(() => ({}))
         const socialSets = Array.isArray(data?.socialSets) ? data.socialSets : []
+        const options: TypefullySocialSetOption[] = socialSets.map((set: any) => ({
+          socialSetId: set.socialSetId,
+          label: `@${set.username}${set.teamName ? ` · ${set.teamName}` : ''}`,
+          connectedPlatforms: Array.isArray(set.connectedPlatforms) ? set.connectedPlatforms : [],
+        }))
+        setTypefullySocialSets(options)
+
         const selectedUsername = selectedAccount?.username?.toLowerCase()
         let linked = socialSets.find(
           (set: any) =>
@@ -198,14 +216,26 @@ export function ComposeModal({
             (set: any) => String(set?.username || '').toLowerCase() === selectedUsername
           )
         }
-        if (!linked && socialSets.length === 1) {
+        if (!linked && selectedTypefullySocialSetId) {
+          linked = socialSets.find((set: any) => set?.socialSetId === selectedTypefullySocialSetId)
+        }
+        if (!linked) {
+          linked = socialSets.find((set: any) => {
+            const connected = Array.isArray(set?.connectedPlatforms) ? set.connectedPlatforms : []
+            return connected.includes('x') || connected.includes('linkedin')
+          })
+        }
+        if (!linked && socialSets.length > 0) {
           linked = socialSets[0]
         }
+        setSelectedTypefullySocialSetId(linked?.socialSetId ?? null)
         const connected = Array.isArray(linked?.connectedPlatforms) ? linked.connectedPlatforms : []
         setNetworkMappingHint(
           linked
             ? null
-            : 'X/LinkedIn disabled: this Castor account has no linked Typefully social set.'
+            : socialSets.length > 0
+              ? 'Select a Typefully account to enable X/LinkedIn publishing.'
+              : 'X/LinkedIn disabled: no Typefully social sets available.'
         )
 
         const nextAvailability = {
@@ -220,6 +250,8 @@ export function ComposeModal({
           return filtered.length > 0 ? filtered : ['farcaster']
         })
       } catch {
+        setTypefullySocialSets([])
+        setSelectedTypefullySocialSetId(null)
         setNetworkMappingHint('Could not load Typefully social sets for this account.')
         setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
         setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
@@ -227,7 +259,24 @@ export function ComposeModal({
     }
 
     void loadAccountNetworks()
-  }, [open, selectedAccountId, selectedAccount?.username])
+  }, [open, selectedAccountId, selectedAccount?.username, selectedTypefullySocialSetId])
+
+  useEffect(() => {
+    if (!selectedTypefullySocialSetId) return
+    const selected = typefullySocialSets.find((set) => set.socialSetId === selectedTypefullySocialSetId)
+    const connected = selected?.connectedPlatforms || []
+    const nextAvailability = {
+      farcaster: true,
+      x: connected.includes('x'),
+      linkedin: connected.includes('linkedin'),
+    } satisfies Record<PublishNetwork, boolean>
+
+    setAvailableNetworks(nextAvailability)
+    setSelectedNetworks((prev) => {
+      const filtered = prev.filter((network) => nextAvailability[network])
+      return filtered.length > 0 ? filtered : ['farcaster']
+    })
+  }, [selectedTypefullySocialSetId, typefullySocialSets])
 
   const handleToggleNetwork = (network: PublishNetwork) => {
     if (!availableNetworks[network]) return
@@ -345,6 +394,9 @@ export function ComposeModal({
           selectedNetworks={selectedNetworks}
           availableNetworks={availableNetworks}
           onToggleNetwork={handleToggleNetwork}
+          typefullySocialSets={typefullySocialSets}
+          selectedTypefullySocialSetId={selectedTypefullySocialSetId}
+          onSelectTypefullySocialSet={setSelectedTypefullySocialSetId}
           networkMappingHint={networkMappingHint}
         />
       </DialogContent>

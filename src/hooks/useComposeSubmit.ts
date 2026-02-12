@@ -23,6 +23,7 @@ interface UseComposeSubmitOptions {
   editCastId: string | null
   selectedNetworks: PublishNetwork[]
   availableNetworks: Record<PublishNetwork, boolean>
+  typefullySocialSetId?: number | null
   onSuccess: (data?: { castId?: string; status?: string }) => void
 }
 
@@ -49,6 +50,7 @@ export function useComposeSubmit({
   editCastId,
   selectedNetworks,
   availableNetworks,
+  typefullySocialSetId,
   onSuccess,
 }: UseComposeSubmitOptions): UseComposeSubmitReturn {
   const router = useRouter()
@@ -98,6 +100,9 @@ export function useComposeSubmit({
 
     if (wantsX && !availableNetworks.x) return 'X is not connected for this account'
     if (wantsLinkedIn && !availableNetworks.linkedin) return 'LinkedIn is not connected for this account'
+    if ((wantsX || wantsLinkedIn) && !typefullySocialSetId) {
+      return 'Select a Typefully account to publish on X/LinkedIn'
+    }
 
     if (!wantsX && !wantsLinkedIn) return null
 
@@ -117,7 +122,7 @@ export function useComposeSubmit({
     }
 
     return null
-  }, [selectedNetworks, availableNetworks, casts])
+  }, [selectedNetworks, availableNetworks, typefullySocialSetId, casts])
 
   const publishViaTypefully = useCallback(async (publishAt?: string | 'now') => {
     if (!selectedAccountId) return
@@ -135,10 +140,11 @@ export function useComposeSubmit({
         accountId: selectedAccountId,
         networks,
         posts,
+        ...(typefullySocialSetId ? { socialSetId: typefullySocialSetId } : {}),
         ...(publishAt ? { publishAt } : {}),
       }),
     })
-  }, [casts, selectedAccountId, selectedNetworks])
+  }, [casts, selectedAccountId, selectedNetworks, typefullySocialSetId])
 
   /**
    * Schedule cast(s) for later

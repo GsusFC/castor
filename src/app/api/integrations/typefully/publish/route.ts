@@ -8,6 +8,7 @@ import { TypefullyApiError } from '@/lib/integrations/typefully'
 
 const bodySchema = z.object({
   accountId: z.string().min(1),
+  socialSetId: z.number().int().positive().optional(),
   networks: z.array(z.enum(['x', 'linkedin'])).min(1),
   posts: z.array(
     z.object({
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { accountId, networks, posts, publishAt } = parsed.data
+    const { accountId, socialSetId, networks, posts, publishAt } = parsed.data
 
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.id, accountId),
@@ -55,12 +56,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Typefully is not connected' }, { status: 400 })
     }
 
-    const linkedSocialSet = await db.query.typefullySocialSets.findFirst({
-      where: and(
-        eq(typefullySocialSets.connectionId, connection.id),
-        eq(typefullySocialSets.linkedAccountId, accountId)
-      ),
-    })
+    const linkedSocialSet = socialSetId
+      ? await db.query.typefullySocialSets.findFirst({
+          where: and(
+            eq(typefullySocialSets.connectionId, connection.id),
+            eq(typefullySocialSets.socialSetId, socialSetId)
+          ),
+        })
+      : await db.query.typefullySocialSets.findFirst({
+          where: and(
+            eq(typefullySocialSets.connectionId, connection.id),
+            eq(typefullySocialSets.linkedAccountId, accountId)
+          ),
+        })
 
     if (!linkedSocialSet) {
       return NextResponse.json(
@@ -75,9 +83,15 @@ export async function POST(request: NextRequest) {
     }
 
     const detail = await client.getSocialSet(linkedSocialSet.socialSetId)
+    const hasValue = (value: string | null | undefined) => Boolean(value?.trim())
     const unavailable = networks.filter((network) => {
       const platform = detail.platforms[platformFromNetwork(network)]
-      return !(platform?.username || platform?.profile_url)
+      return !(
+        hasValue(platform?.username) ||
+        hasValue(platform?.profile_url) ||
+        hasValue(platform?.name) ||
+        hasValue(platform?.profile_image_url)
+      )
     })
     if (unavailable.length > 0) {
       return NextResponse.json(
@@ -129,4 +143,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to publish via Typefully' }, { status: 500 })
   }
 }
-

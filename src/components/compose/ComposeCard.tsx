@@ -59,6 +59,9 @@ interface ComposeCardProps {
   selectedNetworks: PublishNetwork[]
   availableNetworks: Record<PublishNetwork, boolean>
   onToggleNetwork: (network: PublishNetwork) => void
+  typefullySocialSets?: Array<{ socialSetId: number; label: string }>
+  selectedTypefullySocialSetId?: number | null
+  onSelectTypefullySocialSet?: (socialSetId: number) => void
   networkMappingHint?: string | null
 }
 
@@ -97,6 +100,9 @@ export function ComposeCard({
   selectedNetworks,
   availableNetworks,
   onToggleNetwork,
+  typefullySocialSets = [],
+  selectedTypefullySocialSetId = null,
+  onSelectTypefullySocialSet,
   networkMappingHint,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
@@ -200,6 +206,26 @@ export function ComposeCard({
           <span className="text-xs text-muted-foreground">
             Destinations: {selectedNetworks.length}
           </span>
+          {typefullySocialSets.length > 0 && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Typefully</span>
+              <select
+                value={selectedTypefullySocialSetId ?? ''}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  if (!Number.isFinite(value) || !onSelectTypefullySocialSet) return
+                  onSelectTypefullySocialSet(value)
+                }}
+                className="h-8 min-w-[220px] rounded-md border border-border bg-background px-2 text-xs"
+              >
+                {typefullySocialSets.map((socialSet) => (
+                  <option key={socialSet.socialSetId} value={socialSet.socialSetId}>
+                    {socialSet.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         {hasFarcasterSelected && hasOtherNetworksSelected && (
           <p className="mt-1 text-[11px] text-muted-foreground">

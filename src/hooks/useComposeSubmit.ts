@@ -38,6 +38,27 @@ interface UseComposeSubmitReturn {
   clearError: () => void
 }
 
+type TypefullyPublishResult = {
+  network: 'x' | 'linkedin'
+  status: 'published' | 'degraded' | 'failed'
+  usedTextFallback?: boolean
+  error?: string
+}
+
+type TypefullyPublishResponse = {
+  socialSetId: number
+  requestedNetworks: Array<'x' | 'linkedin'>
+  availableNetworks: Array<'x' | 'linkedin'>
+  fallbackToTextOnly: boolean
+  mediaUploadError: string | null
+  summary: {
+    published: number
+    degraded: number
+    failed: number
+  }
+  results: TypefullyPublishResult[]
+}
+
 export function useComposeSubmit({
   casts,
   selectedAccountId,
@@ -133,17 +154,19 @@ export function useComposeSubmit({
         .map((media) => media.url)
         .filter((url): url is string => Boolean(url && /^https?:\/\//.test(url))),
     }))
-    await fetchApiData('/api/integrations/typefully/publish', {
+    const result = await fetchApiData<TypefullyPublishResponse>('/api/integrations/typefully/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         accountId: selectedAccountId,
         networks,
         posts,
+        fallbackToTextOnly: true,
         ...(typefullySocialSetId ? { socialSetId: typefullySocialSetId } : {}),
         ...(publishAt ? { publishAt } : {}),
       }),
     })
+    return result
   }, [casts, selectedAccountId, selectedNetworks, typefullySocialSetId])
 
   /**
@@ -206,7 +229,14 @@ export function useComposeSubmit({
         if (!res.ok) throw new Error(threadData.error || 'Error scheduling thread')
 
         if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
-          await publishViaTypefully(scheduledAt)
+          const typefullyResult = await publishViaTypefully(scheduledAt)
+          if (typefullyResult) {
+            if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
+              toast.error('Failed to schedule on X/LinkedIn. Farcaster thread remains scheduled.')
+            } else if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
+              toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+            }
+          }
         }
 
         toast.success('Thread scheduled successfully')
@@ -247,7 +277,14 @@ export function useComposeSubmit({
         if (!res.ok) throw new Error(scheduleData.error || 'Error scheduling cast')
 
         if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
-          await publishViaTypefully(scheduledAt)
+          const typefullyResult = await publishViaTypefully(scheduledAt)
+          if (typefullyResult) {
+            if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
+              toast.error('Failed to schedule on X/LinkedIn. Farcaster cast remains scheduled.')
+            } else if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
+              toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+            }
+          }
         }
 
         toast.success(isEditMode ? 'Cast updated successfully' : 'Cast scheduled successfully')
@@ -256,8 +293,17 @@ export function useComposeSubmit({
       }
 
       if (!wantsFarcaster && (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin'))) {
-        await publishViaTypefully(scheduledAt)
-        toast.success('Post scheduled for selected networks')
+        const typefullyResult = await publishViaTypefully(scheduledAt)
+        if (typefullyResult) {
+          if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
+            throw new Error('Failed to schedule on selected social networks.')
+          }
+          if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
+            toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+          } else {
+            toast.success('Post scheduled for selected networks')
+          }
+        }
         handleSuccess({ status: 'scheduled' })
         return
       }
@@ -340,7 +386,15 @@ export function useComposeSubmit({
       }
 
       if (selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')) {
-        await publishViaTypefully('now')
+        const typefullyResult = await publishViaTypefully('now')
+        if (typefullyResult) {
+          if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length && !wantsFarcaster) {
+            throw new Error('Failed to publish on selected social networks.')
+          }
+          if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
+            toast.warning('Published with partial issues on X/LinkedIn. Check network status.')
+          }
+        }
       }
 
       toast.success('Published to selected networks')

@@ -17,6 +17,7 @@ const bodySchema = z.object({
     })
   ).min(1),
   publishAt: z.union([z.literal('now'), z.string().datetime()]).optional(),
+  fallbackToTextOnly: z.boolean().optional(),
 })
 
 const platformFromNetwork = (network: 'x' | 'linkedin') => network
@@ -130,6 +131,31 @@ async function uploadMediaToTypefully(
   return mediaIds
 }
 
+type Network = 'x' | 'linkedin'
+
+type NetworkPublishResult = {
+  network: Network
+  status: 'published' | 'degraded' | 'failed'
+  draft?: unknown
+  usedTextFallback?: boolean
+  error?: string
+}
+
+const buildBasePlatforms = () =>
+  ({
+    x: { enabled: false },
+    linkedin: { enabled: false },
+    mastodon: { enabled: false },
+    threads: { enabled: false },
+    bluesky: { enabled: false },
+  }) as {
+    x: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
+    linkedin: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
+    mastodon: { enabled: boolean }
+    threads: { enabled: boolean }
+    bluesky: { enabled: boolean }
+  }
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
@@ -142,7 +168,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { accountId, socialSetId, networks, posts, publishAt } = parsed.data
+    const { accountId, socialSetId, networks, posts, publishAt, fallbackToTextOnly = true } = parsed.data
 
     const account = await db.query.accounts.findFirst({
       where: eq(accounts.id, accountId),
@@ -204,52 +230,144 @@ export async function POST(request: NextRequest) {
       )
     })
     if (unavailable.length > 0) {
-      return NextResponse.json(
-        { error: `Networks not connected in Typefully: ${unavailable.join(', ')}` },
-        { status: 400 }
-      )
+      // Continue with connected networks and report partial failure per network
+      console.warn('[Typefully Publish] Unavailable networks:', unavailable)
+    }
+    const availableNetworks = networks.filter((network) => !unavailable.includes(network))
+
+    const postsTextOnly = posts.map((post) => ({ text: post.text }))
+    const hasAnyMedia = posts.some((post) => (post.mediaUrls || []).filter(Boolean).length > 0)
+    let postsWithMedia = postsTextOnly
+    let mediaUploadError: string | null = null
+
+    if (hasAnyMedia) {
+      try {
+        postsWithMedia = await Promise.all(
+          posts.map(async (post) => {
+            const mediaUrls = (post.mediaUrls || []).filter(Boolean)
+            if (mediaUrls.length === 0) return { text: post.text }
+            const mediaIds = await uploadMediaToTypefully(linkedSocialSet.socialSetId, client, mediaUrls)
+            return { text: post.text, media_ids: mediaIds }
+          })
+        )
+      } catch (error) {
+        mediaUploadError = error instanceof Error ? error.message : 'Failed media upload to Typefully'
+        if (!fallbackToTextOnly) {
+          console.error('[Typefully Publish] media upload failed (no fallback):', mediaUploadError)
+        } else {
+          console.warn('[Typefully Publish] media upload failed; fallback to text-only:', mediaUploadError)
+        }
+      }
     }
 
-    const postsWithMedia = await Promise.all(
-      posts.map(async (post) => {
-        const mediaUrls = (post.mediaUrls || []).filter(Boolean)
-        if (mediaUrls.length === 0) return { text: post.text }
-        const mediaIds = await uploadMediaToTypefully(linkedSocialSet.socialSetId, client, mediaUrls)
-        return { text: post.text, media_ids: mediaIds }
+    const results: NetworkPublishResult[] = []
+
+    for (const network of unavailable) {
+      results.push({
+        network,
+        status: 'failed',
+        error: 'Network not connected in Typefully social set',
       })
-    )
-
-    const platforms = {
-      x: { enabled: false },
-      linkedin: { enabled: false },
-      mastodon: { enabled: false },
-      threads: { enabled: false },
-      bluesky: { enabled: false },
-    } as {
-      x: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
-      linkedin: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
-      mastodon: { enabled: boolean }
-      threads: { enabled: boolean }
-      bluesky: { enabled: boolean }
     }
 
-    if (networks.includes('x')) {
-      platforms.x = { enabled: true, posts: postsWithMedia }
-    }
-    if (networks.includes('linkedin')) {
-      platforms.linkedin = { enabled: true, posts: postsWithMedia }
+    for (const network of availableNetworks) {
+      const primaryPosts = mediaUploadError && fallbackToTextOnly ? postsTextOnly : postsWithMedia
+      const primaryUsedTextFallback = Boolean(mediaUploadError && fallbackToTextOnly)
+      const primaryPlatforms = buildBasePlatforms()
+      if (network === 'x') {
+        primaryPlatforms.x = { enabled: true, posts: primaryPosts }
+      } else {
+        primaryPlatforms.linkedin = { enabled: true, posts: primaryPosts }
+      }
+
+      try {
+        const draft = await client.createDraft(linkedSocialSet.socialSetId, {
+          platforms: primaryPlatforms,
+          ...(publishAt ? { publish_at: publishAt } : {}),
+        })
+        results.push({
+          network,
+          status: primaryUsedTextFallback ? 'degraded' : 'published',
+          draft,
+          usedTextFallback: primaryUsedTextFallback,
+        })
+      } catch (error) {
+        const message =
+          error instanceof TypefullyApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : 'Typefully draft creation failed'
+
+        // One more rescue path: if media was used in this attempt, retry text-only.
+        const canRetryTextOnly =
+          fallbackToTextOnly &&
+          hasAnyMedia &&
+          !primaryUsedTextFallback
+
+        if (canRetryTextOnly) {
+          try {
+            const retryPlatforms = buildBasePlatforms()
+            if (network === 'x') {
+              retryPlatforms.x = { enabled: true, posts: postsTextOnly }
+            } else {
+              retryPlatforms.linkedin = { enabled: true, posts: postsTextOnly }
+            }
+            const draft = await client.createDraft(linkedSocialSet.socialSetId, {
+              platforms: retryPlatforms,
+              ...(publishAt ? { publish_at: publishAt } : {}),
+            })
+            results.push({
+              network,
+              status: 'degraded',
+              draft,
+              usedTextFallback: true,
+              error: message,
+            })
+            continue
+          } catch (retryError) {
+            const retryMessage =
+              retryError instanceof TypefullyApiError
+                ? retryError.message
+                : retryError instanceof Error
+                  ? retryError.message
+                  : 'Typefully text-only retry failed'
+            results.push({
+              network,
+              status: 'failed',
+              error: `${message}. Retry without media failed: ${retryMessage}`,
+            })
+            continue
+          }
+        }
+
+        results.push({
+          network,
+          status: 'failed',
+          error: message,
+        })
+      }
     }
 
-    const draft = await client.createDraft(linkedSocialSet.socialSetId, {
-      platforms,
-      ...(publishAt ? { publish_at: publishAt } : {}),
-    })
+    const publishedCount = results.filter((r) => r.status === 'published').length
+    const degradedCount = results.filter((r) => r.status === 'degraded').length
+    const failedCount = results.filter((r) => r.status === 'failed').length
 
     return NextResponse.json({
       success: true,
-      socialSetId: linkedSocialSet.socialSetId,
-      networks,
-      draft,
+      data: {
+        socialSetId: linkedSocialSet.socialSetId,
+        requestedNetworks: networks,
+        availableNetworks,
+        fallbackToTextOnly,
+        mediaUploadError,
+        summary: {
+          published: publishedCount,
+          degraded: degradedCount,
+          failed: failedCount,
+        },
+        results,
+      },
     })
   } catch (error) {
     if (error instanceof TypefullyApiError) {

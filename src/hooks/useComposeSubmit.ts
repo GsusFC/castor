@@ -106,11 +106,6 @@ export function useComposeSubmit({
 
     if (!wantsX && !wantsLinkedIn) return null
 
-    const hasMedia = casts.some((cast) => cast.media.some((m) => m.url))
-    if (hasMedia) {
-      return 'Cross-post media to X/LinkedIn is not enabled yet. Publish text-only for those networks.'
-    }
-
     const xOverLimit = wantsX && casts.some((cast) => cast.content.trim().length > 280)
     if (xOverLimit) {
       return 'X posts cannot exceed 280 characters'
@@ -132,7 +127,12 @@ export function useComposeSubmit({
     )
     if (networks.length === 0) return
 
-    const posts = casts.map((cast) => ({ text: cast.content }))
+    const posts = casts.map((cast) => ({
+      text: cast.content,
+      mediaUrls: cast.media
+        .map((media) => media.url)
+        .filter((url): url is string => Boolean(url && /^https?:\/\//.test(url))),
+    }))
     await fetchApiData('/api/integrations/typefully/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -13,12 +13,86 @@ const bodySchema = z.object({
   posts: z.array(
     z.object({
       text: z.string().min(1),
+      mediaUrls: z.array(z.string().url()).optional(),
     })
   ).min(1),
   publishAt: z.union([z.literal('now'), z.string().datetime()]).optional(),
 })
 
 const platformFromNetwork = (network: 'x' | 'linkedin') => network
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const MIME_EXTENSION: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'application/pdf': 'pdf',
+}
+
+const normalizeMime = (value: string | null) => value?.split(';')[0].trim().toLowerCase() || null
+
+const getFileNameFromUrl = (url: string, fallbackExt: string, index: number) => {
+  try {
+    const pathname = new URL(url).pathname
+    const candidate = pathname.split('/').pop() || ''
+    if (candidate.includes('.')) return candidate
+  } catch {
+    // ignore parse errors and use fallback
+  }
+  return `media-${Date.now()}-${index}.${fallbackExt}`
+}
+
+async function uploadMediaToTypefully(
+  socialSetId: number,
+  client: NonNullable<Awaited<ReturnType<typeof getTypefullyClientForUser>>>,
+  mediaUrls: string[]
+) {
+  const mediaIds: string[] = []
+
+  for (let i = 0; i < mediaUrls.length; i++) {
+    const mediaUrl = mediaUrls[i]
+    const mediaRes = await fetch(mediaUrl, { cache: 'no-store' })
+    if (!mediaRes.ok) {
+      throw new Error(`Failed to fetch media from URL (${mediaRes.status})`)
+    }
+
+    const mime = normalizeMime(mediaRes.headers.get('content-type'))
+    const ext = mime ? MIME_EXTENSION[mime] : null
+    if (!ext) {
+      throw new Error(`Unsupported media type for Typefully: ${mime || 'unknown'}`)
+    }
+
+    const fileName = getFileNameFromUrl(mediaUrl, ext, i)
+    const uploadData = await client.createMediaUpload(socialSetId, fileName)
+    const bytes = await mediaRes.arrayBuffer()
+    const putRes = await fetch(uploadData.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': mime || 'application/octet-stream' },
+      body: bytes,
+    })
+
+    if (!putRes.ok) {
+      throw new Error(`Failed to upload media to Typefully storage (${putRes.status})`)
+    }
+
+    let status = await client.getMediaStatus(socialSetId, uploadData.media_id)
+    for (let attempt = 0; attempt < 20 && status.status === 'processing'; attempt++) {
+      await sleep(1500)
+      status = await client.getMediaStatus(socialSetId, uploadData.media_id)
+    }
+
+    if (status.status !== 'ready') {
+      throw new Error(status.error_reason || 'Typefully media processing did not complete')
+    }
+
+    mediaIds.push(uploadData.media_id)
+  }
+
+  return mediaIds
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +174,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const postsWithMedia = await Promise.all(
+      posts.map(async (post) => {
+        const mediaUrls = (post.mediaUrls || []).filter(Boolean)
+        if (mediaUrls.length === 0) return { text: post.text }
+        const mediaIds = await uploadMediaToTypefully(linkedSocialSet.socialSetId, client, mediaUrls)
+        return { text: post.text, media_ids: mediaIds }
+      })
+    )
+
     const platforms = {
       x: { enabled: false },
       linkedin: { enabled: false },
@@ -107,18 +190,18 @@ export async function POST(request: NextRequest) {
       threads: { enabled: false },
       bluesky: { enabled: false },
     } as {
-      x: { enabled: boolean; posts?: { text: string }[] }
-      linkedin: { enabled: boolean; posts?: { text: string }[] }
+      x: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
+      linkedin: { enabled: boolean; posts?: { text: string; media_ids?: string[] }[] }
       mastodon: { enabled: boolean }
       threads: { enabled: boolean }
       bluesky: { enabled: boolean }
     }
 
     if (networks.includes('x')) {
-      platforms.x = { enabled: true, posts }
+      platforms.x = { enabled: true, posts: postsWithMedia }
     }
     if (networks.includes('linkedin')) {
-      platforms.linkedin = { enabled: true, posts }
+      platforms.linkedin = { enabled: true, posts: postsWithMedia }
     }
 
     const draft = await client.createDraft(linkedSocialSet.socialSetId, {

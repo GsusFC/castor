@@ -51,6 +51,7 @@ export interface TypefullySocialSetDetail extends TypefullySocialSet {
 
 interface TypefullyDraftPost {
   text: string
+  media_ids?: string[]
 }
 
 interface TypefullyDraftPlatformConfig {
@@ -69,6 +70,19 @@ export interface TypefullyCreateDraftRequest {
   }
   publish_at?: string
   draft_title?: string
+}
+
+export interface TypefullyMediaUploadResponse {
+  media_id: string
+  upload_url: string
+}
+
+export interface TypefullyMediaStatusResponse {
+  media_id: string
+  file_name: string
+  status: 'processing' | 'ready' | 'failed'
+  error_reason?: string | null
+  mime?: string | null
 }
 
 interface TypefullyErrorDetail {
@@ -144,6 +158,17 @@ export class TypefullyClient {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  }
+
+  async createMediaUpload(socialSetId: number, fileName: string): Promise<TypefullyMediaUploadResponse> {
+    return this.request<TypefullyMediaUploadResponse>(`/v2/social-sets/${socialSetId}/media/upload`, {
+      method: 'POST',
+      body: JSON.stringify({ file_name: fileName }),
+    })
+  }
+
+  async getMediaStatus(socialSetId: number, mediaId: string): Promise<TypefullyMediaStatusResponse> {
+    return this.request<TypefullyMediaStatusResponse>(`/v2/social-sets/${socialSetId}/media/${mediaId}`)
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {

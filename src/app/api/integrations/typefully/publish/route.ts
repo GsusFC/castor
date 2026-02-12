@@ -23,6 +23,7 @@ const platformFromNetwork = (network: 'x' | 'linkedin') => network
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const MIME_EXTENSION: Record<string, string> = {
+  'image/jpg': 'jpg',
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
@@ -32,7 +33,29 @@ const MIME_EXTENSION: Record<string, string> = {
   'application/pdf': 'pdf',
 }
 
+const EXTENSION_MIME: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  pdf: 'application/pdf',
+}
+
 const normalizeMime = (value: string | null) => value?.split(';')[0].trim().toLowerCase() || null
+
+const getExtensionFromUrl = (url: string): string | null => {
+  try {
+    const pathname = new URL(url).pathname
+    const candidate = pathname.split('/').pop() || ''
+    const extension = candidate.includes('.') ? candidate.split('.').pop() : null
+    return extension?.toLowerCase() || null
+  } catch {
+    return null
+  }
+}
 
 const getFileNameFromUrl = (url: string, fallbackExt: string, index: number) => {
   try {
@@ -54,15 +77,28 @@ async function uploadMediaToTypefully(
 
   for (let i = 0; i < mediaUrls.length; i++) {
     const mediaUrl = mediaUrls[i]
-    const mediaRes = await fetch(mediaUrl, { cache: 'no-store' })
+    const mediaRes = await fetch(mediaUrl, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,application/pdf,*/*;q=0.8',
+      },
+    })
     if (!mediaRes.ok) {
-      throw new Error(`Failed to fetch media from URL (${mediaRes.status})`)
+      throw new Error(`Could not read attached media (${mediaRes.status}) from URL #${i + 1}`)
     }
 
-    const mime = normalizeMime(mediaRes.headers.get('content-type'))
+    const contentType = normalizeMime(mediaRes.headers.get('content-type'))
+    const urlExt = getExtensionFromUrl(mediaUrl)
+    const mime = contentType && MIME_EXTENSION[contentType]
+      ? contentType
+      : urlExt && EXTENSION_MIME[urlExt]
+        ? EXTENSION_MIME[urlExt]
+        : null
     const ext = mime ? MIME_EXTENSION[mime] : null
     if (!ext) {
-      throw new Error(`Unsupported media type for Typefully: ${mime || 'unknown'}`)
+      throw new Error(
+        `Unsupported media type for Typefully (content-type: ${contentType || 'unknown'}, extension: ${urlExt || 'unknown'})`
+      )
     }
 
     const fileName = getFileNameFromUrl(mediaUrl, ext, i)
@@ -221,6 +257,9 @@ export async function POST(request: NextRequest) {
         { error: error.message, code: error.code, details: error.details },
         { status: error.status }
       )
+    }
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
     console.error('[Typefully Publish] POST error:', error)
     return NextResponse.json({ error: 'Failed to publish via Typefully' }, { status: 500 })

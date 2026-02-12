@@ -11,6 +11,12 @@ export type ApiFailure = {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure
+type LegacyErrorResponse = {
+  error?: unknown
+  message?: unknown
+  code?: unknown
+  details?: unknown
+}
 
 export class ApiRequestError extends Error {
   status: number
@@ -79,10 +85,20 @@ export const fetchApiData = async <T>(input: RequestInfo | URL, init?: RequestIn
   }
 
   if (!res.ok) {
+    const legacy = parsed as LegacyErrorResponse
+    const legacyMessage =
+      typeof legacy?.error === 'string'
+        ? legacy.error
+        : typeof legacy?.message === 'string'
+          ? legacy.message
+          : undefined
+
     throw new ApiRequestError({
-      message: `Request failed (${res.status})`,
+      message: legacyMessage || `Request failed (${res.status})`,
       status: res.status,
       url,
+      code: typeof legacy?.code === 'string' ? legacy.code : undefined,
+      details: legacy?.details,
       rawBody: rawBody.slice(0, 500),
     })
   }

@@ -339,7 +339,12 @@ Respond ONLY with valid JSON (no markdown):
         userPrompt = this.buildWritePrompt(context, maxChars, profile.languagePreference)
         break
       case 'improve':
-        userPrompt = this.buildImprovePrompt(context, maxChars, profile.languagePreference)
+        userPrompt = this.buildImprovePrompt(
+          context,
+          maxChars,
+          profile.languagePreference,
+          this.computeImproveMinChars(context.currentDraft || '', maxChars)
+        )
         break
       case 'translate':
         userPrompt = this.buildTranslatePrompt(context)
@@ -355,7 +360,28 @@ Respond ONLY with valid JSON (no markdown):
     })
     // Translations can expand beyond maxChars — don't discard them
     const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
-    return this.parseSuggestions(resultText, parseLimit)
+    let suggestions = this.parseSuggestions(resultText, parseLimit)
+
+    if (mode === 'improve' && context.currentDraft) {
+      const minChars = this.computeImproveMinChars(context.currentDraft, maxChars)
+      if (this.shouldRetryImproveForLength(suggestions, context.currentDraft.length, minChars)) {
+        const retryPrompt = `${fullPrompt}
+
+LENGTH RETRY (MANDATORY):
+- Original draft length: ${context.currentDraft.length} chars
+- Each improved version MUST be more developed and materially longer than the draft
+- Target at least ${minChars} characters per version when possible
+- Keep under ${maxChars} characters`
+
+        const retryText = await this.generate(retryPrompt, {
+          isTranslation: false,
+          usePro: true,
+        })
+        suggestions = this.parseSuggestions(retryText, parseLimit)
+      }
+    }
+
+    return suggestions
   }
 
   /**
@@ -655,7 +681,8 @@ Return ONLY valid JSON (no markdown, no extra text):
   private buildImprovePrompt(
     context: SuggestionContext,
     maxChars: number,
-    profileLanguagePreference: StyleProfile['languagePreference']
+    profileLanguagePreference: StyleProfile['languagePreference'],
+    minCharsTarget: number
   ): string {
     if (!context.currentDraft) {
       throw new Error('Draft is required for improve mode')
@@ -669,14 +696,10 @@ Return ONLY valid JSON (no markdown, no extra text):
       prompt += `Adjust to tone: ${context.targetTone}\n\n`
     }
 
-    const preferredMinChars = Math.max(
-      Math.min(Math.floor(maxChars * 0.6), maxChars - 40),
-      Math.min(220, maxChars)
-    )
-
     prompt += `Improve this draft keeping the essence but making it more effective.
 You can expand the text with stronger framing, clearer arguments, and better flow when helpful.
-Prioritize substantial outputs: target roughly ${preferredMinChars}-${maxChars} characters when possible (never exceed ${maxChars}).
+Prioritize substantial outputs: target roughly ${minCharsTarget}-${maxChars} characters when possible (never exceed ${maxChars}).
+Each version should feel clearly more developed and materially longer than the original draft.
 Provide exactly 3 improved versions (max ${maxChars} characters each).
 
 Return ONLY valid JSON (no markdown, no extra text):
@@ -685,6 +708,37 @@ Return ONLY valid JSON (no markdown, no extra text):
 }`
 
     return prompt
+  }
+
+  private computeImproveMinChars(draft: string, maxChars: number): number {
+    const draftLength = draft.trim().length
+    const safeMaxTarget = Math.max(40, maxChars - 20)
+
+    const growth =
+      draftLength < 120 ? 40 :
+      draftLength < 260 ? 70 :
+      50
+
+    const floor =
+      draftLength < 120 ? 90 :
+      draftLength < 260 ? 180 :
+      Math.floor(draftLength * 1.15)
+
+    const desired = Math.max(draftLength + growth, floor)
+    return Math.min(safeMaxTarget, desired)
+  }
+
+  private shouldRetryImproveForLength(
+    suggestions: string[],
+    draftLength: number,
+    minCharsTarget: number
+  ): boolean {
+    if (suggestions.length === 0) return false
+
+    const meetsMinTarget = suggestions.filter((s) => s.length >= minCharsTarget).length
+    const clearlyLonger = suggestions.filter((s) => s.length >= draftLength + 20).length
+
+    return meetsMinTarget === 0 && clearlyLonger < 2
   }
 
   private buildTranslatePrompt(context: SuggestionContext): string {

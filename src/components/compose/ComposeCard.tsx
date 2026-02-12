@@ -59,6 +59,7 @@ interface ComposeCardProps {
   selectedNetworks: PublishNetwork[]
   availableNetworks: Record<PublishNetwork, boolean>
   onToggleNetwork: (network: PublishNetwork) => void
+  networkMappingHint?: string | null
 }
 
 export function ComposeCard({
@@ -96,6 +97,7 @@ export function ComposeCard({
   selectedNetworks,
   availableNetworks,
   onToggleNetwork,
+  networkMappingHint,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
   const isThread = casts.length > 1
@@ -207,6 +209,11 @@ export function ComposeCard({
         {!hasFarcasterSelected && (
           <p className="mt-1 text-[11px] text-muted-foreground">
             Channel targeting is only available when Farcaster is selected.
+          </p>
+        )}
+        {networkMappingHint && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {networkMappingHint}
           </p>
         )}
       </div>

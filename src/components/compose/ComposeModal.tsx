@@ -71,6 +71,7 @@ export function ComposeModal({
     x: false,
     linkedin: false,
   })
+  const [networkMappingHint, setNetworkMappingHint] = useState<string | null>(null)
 
   // Modo edición
   const isEditMode = !!editCast
@@ -182,11 +183,30 @@ export function ComposeModal({
 
         const data = await res.json().catch(() => ({}))
         const socialSets = Array.isArray(data?.socialSets) ? data.socialSets : []
-        const linked = socialSets.find(
+        const selectedUsername = selectedAccount?.username?.toLowerCase()
+        let linked = socialSets.find(
           (set: any) =>
             set?.linkedAccountId === selectedAccountId || set?.linkedAccount?.id === selectedAccountId
         )
+        if (!linked && selectedUsername) {
+          linked = socialSets.find(
+            (set: any) => String(set?.linkedAccount?.username || '').toLowerCase() === selectedUsername
+          )
+        }
+        if (!linked && selectedUsername) {
+          linked = socialSets.find(
+            (set: any) => String(set?.username || '').toLowerCase() === selectedUsername
+          )
+        }
+        if (!linked && socialSets.length === 1) {
+          linked = socialSets[0]
+        }
         const connected = Array.isArray(linked?.connectedPlatforms) ? linked.connectedPlatforms : []
+        setNetworkMappingHint(
+          linked
+            ? null
+            : 'X/LinkedIn disabled: this Castor account has no linked Typefully social set.'
+        )
 
         const nextAvailability = {
           farcaster: true,
@@ -200,13 +220,14 @@ export function ComposeModal({
           return filtered.length > 0 ? filtered : ['farcaster']
         })
       } catch {
+        setNetworkMappingHint('Could not load Typefully social sets for this account.')
         setAvailableNetworks({ farcaster: true, x: false, linkedin: false })
         setSelectedNetworks((prev) => prev.filter((network) => network === 'farcaster'))
       }
     }
 
     void loadAccountNetworks()
-  }, [open, selectedAccountId])
+  }, [open, selectedAccountId, selectedAccount?.username])
 
   const handleToggleNetwork = (network: PublishNetwork) => {
     if (!availableNetworks[network]) return
@@ -324,6 +345,7 @@ export function ComposeModal({
           selectedNetworks={selectedNetworks}
           availableNetworks={availableNetworks}
           onToggleNetwork={handleToggleNetwork}
+          networkMappingHint={networkMappingHint}
         />
       </DialogContent>
     </Dialog>

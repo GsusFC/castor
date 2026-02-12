@@ -36,6 +36,7 @@ const BeaverIcon = ({ className }: { className?: string }) => (
 import { useAiLanguagePreferences } from '@/context/AiLanguagePreferencesContext'
 import { NAV } from '@/lib/spacing-system'
 import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
+import type { PublishNetwork } from './types'
 
 type AIMode = 'translate' | 'propose' | 'improve' | null
 
@@ -61,6 +62,7 @@ interface AITabsProps {
   isPro?: boolean
   maxChars?: number
   accountId?: string
+  selectedNetworks?: PublishNetwork[]
 }
 
 const TONES = [
@@ -80,12 +82,14 @@ export function AITabs({
   isPro = false,
   maxChars = 320,
   accountId,
+  selectedNetworks = ['farcaster'],
 }: AITabsProps) {
   const { defaultLanguage, enabledLanguages } = useAiLanguagePreferences()
   const [activeTab, setActiveTab] = useState<AIMode>(null)
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTone, setSelectedTone] = useState('casual')
+  const [improveTargetNetwork, setImproveTargetNetwork] = useState<'farcaster' | 'x' | 'linkedin'>('farcaster')
   const [targetLanguage, setTargetLanguage] = useState<SupportedTargetLanguage>('en')
   const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -127,6 +131,40 @@ export function AITabs({
       isActive = false
     }
   }, [accountId])
+
+  useEffect(() => {
+    const improveNetworks = selectedNetworks.filter(
+      (network): network is 'farcaster' | 'x' | 'linkedin' =>
+        network === 'farcaster' || network === 'x' || network === 'linkedin'
+    )
+    if (improveNetworks.length === 0) return
+    if (!improveNetworks.includes(improveTargetNetwork)) {
+      setImproveTargetNetwork(improveNetworks[0])
+    }
+  }, [selectedNetworks, improveTargetNetwork])
+
+  const improveNetworkOptions = (
+    selectedNetworks.filter(
+      (network): network is 'farcaster' | 'x' | 'linkedin' =>
+        network === 'farcaster' || network === 'x' || network === 'linkedin'
+    ).length > 0
+      ? selectedNetworks.filter(
+          (network): network is 'farcaster' | 'x' | 'linkedin' =>
+            network === 'farcaster' || network === 'x' || network === 'linkedin'
+        )
+      : (['farcaster', 'x', 'linkedin'] as const)
+  )
+
+  const getNetworkLabel = (network: 'farcaster' | 'x' | 'linkedin') =>
+    network === 'farcaster' ? 'Farcaster' : network === 'x' ? 'X' : 'LinkedIn'
+
+  const getNetworkLimit = (network: 'farcaster' | 'x' | 'linkedin') => {
+    if (network === 'x') return 280
+    if (network === 'linkedin') return 3000
+    return maxChars
+  }
+
+  const activeMaxChars = activeTab === 'improve' ? getNetworkLimit(improveTargetNetwork) : maxChars
 
   const languageOptions = AI_LANGUAGE_OPTIONS.filter((lang) => enabledLanguages.includes(lang.value))
 
@@ -179,6 +217,8 @@ export function AITabs({
           quotingCast,
           targetTone: selectedTone,
           targetLanguage,
+          targetPlatform: activeTab === 'improve' ? improveTargetNetwork : undefined,
+          maxCharsOverride: activeTab === 'improve' ? getNetworkLimit(improveTargetNetwork) : undefined,
           isPro,
           accountId,
         })),
@@ -202,7 +242,7 @@ export function AITabs({
     } finally {
       setIsLoading(false)
     }
-  }, [activeTab, currentDraft, replyingTo, quotingCast, selectedTone, targetLanguage, isPro, accountId])
+  }, [activeTab, currentDraft, replyingTo, quotingCast, selectedTone, targetLanguage, improveTargetNetwork, isPro, accountId, maxChars])
 
   const handleSelectSuggestion = (suggestion: AISuggestion) => {
     onSelectText(suggestion.text)
@@ -363,6 +403,28 @@ export function AITabs({
               </DropdownMenu>
             )}
 
+            {activeTab === 'improve' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                    {getNetworkLabel(improveTargetNetwork)} ({getNetworkLimit(improveTargetNetwork)})
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {improveNetworkOptions.map((network) => (
+                    <DropdownMenuItem
+                      key={network}
+                      onClick={() => setImproveTargetNetwork(network)}
+                    >
+                      {improveTargetNetwork === network && <Check className="w-4 h-4 mr-2" />}
+                      {getNetworkLabel(network)} ({getNetworkLimit(network)})
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -453,7 +515,7 @@ export function AITabs({
                   className="w-full text-left p-3 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors bg-background"
                 >
                   <p className="text-sm">{suggestion.text}</p>
-                  <span className="text-xs text-muted-foreground mt-1">{suggestion.length}/{maxChars}</span>
+                  <span className="text-xs text-muted-foreground mt-1">{suggestion.length}/{activeMaxChars}</span>
                 </button>
               ))}
             </div>

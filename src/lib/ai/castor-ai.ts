@@ -82,6 +82,7 @@ export interface SuggestionContext {
   topic?: string
   targetTone?: string
   targetLanguage?: string
+  targetPlatform?: 'farcaster' | 'x' | 'linkedin'
   accountContext?: AccountContext
 }
 
@@ -694,6 +695,16 @@ Return ONLY valid JSON (no markdown, no extra text):
 
     if (context.targetTone) {
       prompt += `Adjust to tone: ${context.targetTone}\n\n`
+    }
+    if (context.targetPlatform) {
+      prompt += `Target platform: ${context.targetPlatform}\n`
+      if (context.targetPlatform === 'x') {
+        prompt += 'Prioritize concise, punchy phrasing suitable for X.\n\n'
+      } else if (context.targetPlatform === 'linkedin') {
+        prompt += 'Prioritize professional clarity and structured ideas suitable for LinkedIn.\n\n'
+      } else {
+        prompt += 'Prioritize native Farcaster tone and cadence.\n\n'
+      }
     }
 
     prompt += `Improve this draft keeping the essence but making it more effective.

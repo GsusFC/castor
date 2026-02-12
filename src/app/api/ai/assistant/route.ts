@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       topic,
       targetTone,
       targetLanguage,
+      targetPlatform,
+      maxCharsOverride,
       isPro = false,
       accountId,
     } = body as {
@@ -49,6 +51,8 @@ export async function POST(request: NextRequest) {
       topic?: string
       targetTone?: string
       targetLanguage?: string
+      targetPlatform?: 'farcaster' | 'x' | 'linkedin'
+      maxCharsOverride?: number
       isPro?: boolean
       accountId?: string
     }
@@ -92,6 +96,22 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         return NextResponse.json(
           { error: e instanceof Error ? e.message : 'Invalid targetLanguage' },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (targetPlatform !== undefined && !['farcaster', 'x', 'linkedin'].includes(targetPlatform)) {
+      return NextResponse.json(
+        { error: 'Invalid targetPlatform. Use: farcaster, x, or linkedin' },
+        { status: 400 }
+      )
+    }
+
+    if (maxCharsOverride !== undefined) {
+      if (!Number.isFinite(maxCharsOverride) || maxCharsOverride < 80 || maxCharsOverride > 10000) {
+        return NextResponse.json(
+          { error: 'Invalid maxCharsOverride. Must be between 80 and 10000' },
           { status: 400 }
         )
       }
@@ -185,7 +205,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Determinar límite de caracteres con el estado Pro validado desde DB
-    const maxChars = getMaxChars(isProValidated)
+    const maxChars = maxCharsOverride
+      ? Math.max(80, Math.min(10000, Math.floor(maxCharsOverride)))
+      : getMaxChars(isProValidated)
 
     // Construir contexto
     const context: SuggestionContext = {
@@ -195,6 +217,7 @@ export async function POST(request: NextRequest) {
       topic,
       targetTone,
       targetLanguage,
+      targetPlatform,
       accountContext,
     }
 

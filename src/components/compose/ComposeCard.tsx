@@ -276,6 +276,7 @@ export function ComposeCard({
         onClearReply={() => onSelectReplyTo(null)}
         maxChars={maxChars}
         accountId={selectedAccountId || undefined}
+        selectedNetworks={selectedNetworks}
       />
 
       {/* Progress Bar */}

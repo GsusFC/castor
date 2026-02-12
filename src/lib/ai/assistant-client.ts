@@ -7,6 +7,8 @@ type AssistantRequest = {
   quotingCast?: { text: string; author: string }
   targetTone?: string
   targetLanguage?: string
+  targetPlatform?: 'farcaster' | 'x' | 'linkedin'
+  maxCharsOverride?: number
   isPro?: boolean
   accountId?: string
 }
@@ -23,6 +25,8 @@ export const buildAssistantRequest = (input: AssistantRequest & { mode: Assistan
     quotingCast: input.quotingCast,
     targetTone: input.targetTone,
     targetLanguage: apiMode === 'translate' ? input.targetLanguage : undefined,
+    targetPlatform: apiMode === 'improve' ? input.targetPlatform : undefined,
+    maxCharsOverride: apiMode === 'improve' ? input.maxCharsOverride : undefined,
     isPro: input.isPro,
     accountId: input.accountId,
   }

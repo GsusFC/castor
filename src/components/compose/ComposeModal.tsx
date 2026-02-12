@@ -205,10 +205,15 @@ export function ComposeModal({
         setTypefullySocialSets(options)
 
         const selectedUsername = selectedAccount?.username?.toLowerCase()
-        let linked = socialSets.find(
+        let linked = selectedTypefullySocialSetId
+          ? socialSets.find((set: any) => set?.socialSetId === selectedTypefullySocialSetId)
+          : null
+        if (!linked) {
+          linked = socialSets.find(
           (set: any) =>
             set?.linkedAccountId === selectedAccountId || set?.linkedAccount?.id === selectedAccountId
-        )
+          )
+        }
         if (!linked && selectedUsername) {
           linked = socialSets.find(
             (set: any) => String(set?.linkedAccount?.username || '').toLowerCase() === selectedUsername
@@ -218,9 +223,6 @@ export function ComposeModal({
           linked = socialSets.find(
             (set: any) => String(set?.username || '').toLowerCase() === selectedUsername
           )
-        }
-        if (!linked && selectedTypefullySocialSetId) {
-          linked = socialSets.find((set: any) => set?.socialSetId === selectedTypefullySocialSetId)
         }
         if (!linked) {
           linked = socialSets.find((set: any) => {
@@ -262,7 +264,7 @@ export function ComposeModal({
     }
 
     void loadAccountNetworks()
-  }, [open, selectedAccountId, selectedAccount?.username, selectedTypefullySocialSetId])
+  }, [open, selectedAccountId, selectedAccount?.username])
 
   useEffect(() => {
     if (!selectedTypefullySocialSetId) return

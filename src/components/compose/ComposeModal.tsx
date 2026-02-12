@@ -123,6 +123,9 @@ export function ComposeModal({
   const hasOverEmbeds = thread.casts.some(cast => (cast.media.length + cast.links.length) > maxEmbeds)
   const hasOverLimit = hasOverChars || hasOverEmbeds
   const hasContent = thread.casts.some(cast => cast.content.trim().length > 0)
+  const showTypefullyDebug =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debugTypefully') === '1'
 
   // Resetear estado cuando se cierra el modal, cargar embed cuando se abre
   useEffect(() => {
@@ -398,6 +401,17 @@ export function ComposeModal({
           selectedTypefullySocialSetId={selectedTypefullySocialSetId}
           onSelectTypefullySocialSet={setSelectedTypefullySocialSetId}
           networkMappingHint={networkMappingHint}
+          typefullyDebugInfo={
+            showTypefullyDebug
+              ? {
+                  accountId: selectedAccountId,
+                  accountUsername: selectedAccount?.username || null,
+                  selectedSocialSetId: selectedTypefullySocialSetId,
+                  availableNetworks,
+                  socialSets: typefullySocialSets,
+                }
+              : null
+          }
         />
       </DialogContent>
     </Dialog>

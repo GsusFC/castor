@@ -63,6 +63,13 @@ interface ComposeCardProps {
   selectedTypefullySocialSetId?: number | null
   onSelectTypefullySocialSet?: (socialSetId: number) => void
   networkMappingHint?: string | null
+  typefullyDebugInfo?: {
+    accountId: string | null
+    accountUsername: string | null
+    selectedSocialSetId: number | null
+    availableNetworks: Record<PublishNetwork, boolean>
+    socialSets: Array<{ socialSetId: number; label: string; connectedPlatforms: string[] }>
+  } | null
 }
 
 export function ComposeCard({
@@ -104,6 +111,7 @@ export function ComposeCard({
   selectedTypefullySocialSetId = null,
   onSelectTypefullySocialSet,
   networkMappingHint,
+  typefullyDebugInfo,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
   const isThread = casts.length > 1
@@ -241,6 +249,14 @@ export function ComposeCard({
           <p className="mt-1 text-[11px] text-muted-foreground">
             {networkMappingHint}
           </p>
+        )}
+        {typefullyDebugInfo && (
+          <details className="mt-2 rounded-md border border-border/60 bg-muted/20 p-2">
+            <summary className="cursor-pointer text-[11px] text-muted-foreground">Typefully debug</summary>
+            <pre className="mt-2 whitespace-pre-wrap break-all text-[10px] text-muted-foreground">
+              {JSON.stringify(typefullyDebugInfo, null, 2)}
+            </pre>
+          </details>
         )}
       </div>
 

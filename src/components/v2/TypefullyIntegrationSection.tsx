@@ -352,9 +352,9 @@ export function TypefullyIntegrationSection({
                         ) : null}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">{socialSet.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          @{socialSet.username}{socialSet.teamName ? ` · ${socialSet.teamName}` : ''}
+                        <p className="text-sm font-semibold truncate">
+                          @{socialSet.username}
+                          {socialSet.teamName ? ` · ${socialSet.teamName}` : ''}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {socialSet.connectedPlatforms.length > 0 ? (
@@ -362,7 +362,7 @@ export function TypefullyIntegrationSection({
                               <span
                                 key={`${socialSet.id}-${platform}`}
                                 className={cn(
-                                  'inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium',
+                                  'inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium',
                                   platformTone(platform)
                                 )}
                               >
@@ -376,15 +376,14 @@ export function TypefullyIntegrationSection({
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-start gap-1 md:items-end md:min-w-[280px]">
-                      <label className="text-[11px] text-muted-foreground">Map to Castor account</label>
+                    <div className="flex flex-col items-start gap-1 md:items-end md:min-w-[300px]">
                       <div className="flex items-center gap-2">
                         {isLinking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         <select
                           value={linkedId}
                           disabled={isLinking || typefullyAccounts.length === 0}
                           onChange={(e) => void linkTypefullySocialSet(socialSet.socialSetId, e.target.value)}
-                          className="h-9 min-w-[240px] rounded-md border border-border bg-background px-3 text-sm"
+                          className="h-10 min-w-[280px] rounded-md border border-border bg-background px-3 text-base"
                         >
                           <option value="">Not linked</option>
                           {typefullyAccounts.map((account) => (
@@ -394,11 +393,6 @@ export function TypefullyIntegrationSection({
                           ))}
                         </select>
                       </div>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
-                        {socialSet.linkedAccount
-                          ? `Mapped to @${socialSet.linkedAccount.username}`
-                          : 'Not mapped yet'}
-                      </p>
                     </div>
                   </div>
                 )

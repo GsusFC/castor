@@ -89,7 +89,6 @@ export function AccountsV2Client({ user, accounts }: AccountsV2ClientProps) {
         {/* Content */}
         <div className="space-y-6">
           <TypefullyIntegrationSection
-            description="Manage Typefully connection and map social sets to your Castor accounts."
             emptyAccountsHint="You don&apos;t have any Castor accounts available to map. Add a Farcaster account in this page first."
           />
 

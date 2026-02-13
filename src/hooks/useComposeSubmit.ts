@@ -51,6 +51,7 @@ type TypefullyPublishResponse = {
   availableNetworks: Array<'x' | 'linkedin'>
   fallbackToTextOnly: boolean
   mediaUploadError: string | null
+  persistenceError?: string | null
   summary: {
     published: number
     degraded: number
@@ -169,6 +170,33 @@ export function useComposeSubmit({
     return result
   }, [casts, selectedAccountId, selectedNetworks, typefullySocialSetId])
 
+  const getTypefullyFailures = useCallback((result: TypefullyPublishResponse) => {
+    return result.results.filter((item) => item.status === 'failed')
+  }, [])
+
+  const buildTypefullyFailureMessage = useCallback((result: TypefullyPublishResponse) => {
+    const failures = getTypefullyFailures(result)
+    if (failures.length === 0) return null
+    const details = failures
+      .map((item) => `${item.network.toUpperCase()}: ${item.error || 'unknown error'}`)
+      .join(' | ')
+    return `Typefully publish failed on ${failures.length} network(s). ${details}`
+  }, [getTypefullyFailures])
+
+  const buildTypefullyWarningMessage = useCallback((result: TypefullyPublishResponse) => {
+    const degraded = result.results.filter((item) => item.status === 'degraded')
+    const degradedDetails = degraded
+      .map((item) => `${item.network.toUpperCase()}${item.usedTextFallback ? ' (text-only fallback)' : ''}`)
+      .join(', ')
+    const failureMessage = buildTypefullyFailureMessage(result)
+    if (failureMessage && degradedDetails) {
+      return `${failureMessage}. Degraded: ${degradedDetails}`
+    }
+    if (failureMessage) return failureMessage
+    if (degradedDetails) return `Published with degraded media handling on: ${degradedDetails}`
+    return null
+  }, [buildTypefullyFailureMessage])
+
   /**
    * Schedule cast(s) for later
    */
@@ -232,9 +260,13 @@ export function useComposeSubmit({
           const typefullyResult = await publishViaTypefully(scheduledAt)
           if (typefullyResult) {
             if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
-              toast.error('Failed to schedule on X/LinkedIn. Farcaster thread remains scheduled.')
-            } else if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
-              toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+              toast.error(buildTypefullyFailureMessage(typefullyResult) || 'Failed to schedule on X/LinkedIn. Farcaster thread remains scheduled.')
+            } else {
+              const warningMessage = buildTypefullyWarningMessage(typefullyResult)
+              if (warningMessage) toast.warning(warningMessage)
+            }
+            if (typefullyResult.persistenceError) {
+              toast.warning('Published on Typefully but failed to sync locally. Please refresh.')
             }
           }
         }
@@ -280,9 +312,13 @@ export function useComposeSubmit({
           const typefullyResult = await publishViaTypefully(scheduledAt)
           if (typefullyResult) {
             if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
-              toast.error('Failed to schedule on X/LinkedIn. Farcaster cast remains scheduled.')
-            } else if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
-              toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+              toast.error(buildTypefullyFailureMessage(typefullyResult) || 'Failed to schedule on X/LinkedIn. Farcaster cast remains scheduled.')
+            } else {
+              const warningMessage = buildTypefullyWarningMessage(typefullyResult)
+              if (warningMessage) toast.warning(warningMessage)
+            }
+            if (typefullyResult.persistenceError) {
+              toast.warning('Published on Typefully but failed to sync locally. Please refresh.')
             }
           }
         }
@@ -296,12 +332,16 @@ export function useComposeSubmit({
         const typefullyResult = await publishViaTypefully(scheduledAt)
         if (typefullyResult) {
           if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length) {
-            throw new Error('Failed to schedule on selected social networks.')
+            throw new Error(buildTypefullyFailureMessage(typefullyResult) || 'Failed to schedule on selected social networks.')
           }
-          if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
-            toast.warning('Scheduled with partial issues on X/LinkedIn. Check network status.')
+          const warningMessage = buildTypefullyWarningMessage(typefullyResult)
+          if (warningMessage) {
+            toast.warning(warningMessage)
           } else {
             toast.success('Post scheduled for selected networks')
+          }
+          if (typefullyResult.persistenceError) {
+            toast.warning('Published on Typefully but failed to sync locally. Please refresh.')
           }
         }
         handleSuccess({ status: 'scheduled' })
@@ -389,10 +429,14 @@ export function useComposeSubmit({
         const typefullyResult = await publishViaTypefully('now')
         if (typefullyResult) {
           if (typefullyResult.summary.failed === typefullyResult.requestedNetworks.length && !wantsFarcaster) {
-            throw new Error('Failed to publish on selected social networks.')
+            throw new Error(buildTypefullyFailureMessage(typefullyResult) || 'Failed to publish on selected social networks.')
           }
-          if (typefullyResult.summary.failed > 0 || typefullyResult.summary.degraded > 0) {
-            toast.warning('Published with partial issues on X/LinkedIn. Check network status.')
+          const warningMessage = buildTypefullyWarningMessage(typefullyResult)
+          if (warningMessage) {
+            toast.warning(warningMessage)
+          }
+          if (typefullyResult.persistenceError) {
+            toast.warning('Published on Typefully but failed to sync locally. Please refresh.')
           }
         }
       }
@@ -414,6 +458,8 @@ export function useComposeSubmit({
     handleError,
     validateNetworkPreflight,
     publishViaTypefully,
+    buildTypefullyFailureMessage,
+    buildTypefullyWarningMessage,
   ])
 
   /**

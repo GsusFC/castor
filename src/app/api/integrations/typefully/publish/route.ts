@@ -23,6 +23,7 @@ const bodySchema = z.object({
 
 const platformFromNetwork = (network: 'x' | 'linkedin') => network
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const MB = 1024 * 1024
 
 const MIME_EXTENSION: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -70,12 +71,111 @@ const getFileNameFromUrl = (url: string, fallbackExt: string, index: number) => 
   return `media-${Date.now()}-${index}.${fallbackExt}`
 }
 
+const getMimeFromHeadersOrUrl = (contentTypeHeader: string | null, mediaUrl: string) => {
+  const contentType = normalizeMime(contentTypeHeader)
+  const urlExt = getExtensionFromUrl(mediaUrl)
+  const mime = contentType && MIME_EXTENSION[contentType]
+    ? contentType
+    : urlExt && EXTENSION_MIME[urlExt]
+      ? EXTENSION_MIME[urlExt]
+      : null
+  const ext = mime ? MIME_EXTENSION[mime] : null
+  return { contentType, urlExt, mime, ext }
+}
+
+const isImageMime = (mime: string) => mime.startsWith('image/')
+const isVideoMime = (mime: string) => mime.startsWith('video/')
+const X_MAX_IMAGE_BYTES = 5 * MB
+
+const compressImageForX = async (input: Uint8Array) => {
+  const sharp = (await import('sharp')).default
+  const source = Buffer.from(input)
+  const metadata = await sharp(source, { failOn: 'none' }).metadata()
+  const sourceWidth = metadata.width || 0
+  const sourceHeight = metadata.height || 0
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const quality = Math.max(42, 82 - attempt * 8)
+    const scale = 1 - attempt * 0.1
+    const width =
+      sourceWidth > 0 && sourceHeight > 0
+        ? Math.max(720, Math.round(sourceWidth * scale))
+        : undefined
+    const height =
+      sourceWidth > 0 && sourceHeight > 0
+        ? Math.max(720, Math.round(sourceHeight * scale))
+        : undefined
+
+    let pipeline = sharp(source, { failOn: 'none' }).rotate()
+    if (width && height) {
+      pipeline = pipeline.resize({
+        width,
+        height,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+    }
+
+    const output = await pipeline.jpeg({
+      quality,
+      mozjpeg: true,
+      progressive: true,
+    }).toBuffer()
+
+    if (output.byteLength <= X_MAX_IMAGE_BYTES) {
+      return output
+    }
+  }
+
+  throw new Error('Could not compress image below X 5MB limit')
+}
+
+const validateXMediaConstraints = ({
+  mime,
+  sizeBytes,
+  mediaIndex,
+}: {
+  mime: string
+  sizeBytes: number
+  mediaIndex: number
+}) => {
+  if (mime === 'application/pdf') {
+    throw new Error(`X does not support PDF attachments (media #${mediaIndex + 1})`)
+  }
+
+  if (mime === 'image/gif' && sizeBytes > 15 * MB) {
+    throw new Error(`X GIF exceeds 15MB limit (media #${mediaIndex + 1})`)
+  }
+
+  if (isImageMime(mime) && mime !== 'image/gif' && sizeBytes > X_MAX_IMAGE_BYTES) {
+    throw new Error(`X image exceeds 5MB limit (media #${mediaIndex + 1})`)
+  }
+
+  if (isVideoMime(mime) && sizeBytes > 512 * MB) {
+    throw new Error(`X video exceeds 512MB limit (media #${mediaIndex + 1})`)
+  }
+}
+
+const validatePostLevelConstraints = (
+  networks: Network[],
+  posts: Array<{ text: string; mediaUrls?: string[] }>
+) => {
+  if (networks.includes('x')) {
+    const overLimitPost = posts.findIndex((post) => (post.mediaUrls || []).filter(Boolean).length > 4)
+    if (overLimitPost >= 0) {
+      throw new Error(`X supports up to 4 media attachments per post (post #${overLimitPost + 1})`)
+    }
+  }
+}
+
 async function uploadMediaToTypefully(
   socialSetId: number,
   client: NonNullable<Awaited<ReturnType<typeof getTypefullyClientForUser>>>,
-  mediaUrls: string[]
+  mediaUrls: string[],
+  networks: Network[]
 ) {
   const mediaIds: string[] = []
+  const shouldValidateForX = networks.includes('x')
 
   for (let i = 0; i < mediaUrls.length; i++) {
     const mediaUrl = mediaUrls[i]
@@ -89,27 +189,44 @@ async function uploadMediaToTypefully(
       throw new Error(`Could not read attached media (${mediaRes.status}) from URL #${i + 1}`)
     }
 
-    const contentType = normalizeMime(mediaRes.headers.get('content-type'))
-    const urlExt = getExtensionFromUrl(mediaUrl)
-    const mime = contentType && MIME_EXTENSION[contentType]
-      ? contentType
-      : urlExt && EXTENSION_MIME[urlExt]
-        ? EXTENSION_MIME[urlExt]
-        : null
-    const ext = mime ? MIME_EXTENSION[mime] : null
+    const { contentType, urlExt, mime, ext } = getMimeFromHeadersOrUrl(
+      mediaRes.headers.get('content-type'),
+      mediaUrl
+    )
     if (!ext) {
       throw new Error(
         `Unsupported media type for Typefully (content-type: ${contentType || 'unknown'}, extension: ${urlExt || 'unknown'})`
       )
     }
 
-    const fileName = getFileNameFromUrl(mediaUrl, ext, i)
+    let uploadMime = mime || 'application/octet-stream'
+    let uploadExt = ext
+    const originalBytes = await mediaRes.arrayBuffer()
+    let uploadBytes = new Uint8Array(originalBytes)
+
+    if (shouldValidateForX && mime) {
+      const isCompressibleImage = isImageMime(mime) && mime !== 'image/gif'
+      if (isCompressibleImage && uploadBytes.byteLength > X_MAX_IMAGE_BYTES) {
+        try {
+          uploadBytes = await compressImageForX(uploadBytes)
+          uploadMime = 'image/jpeg'
+          uploadExt = 'jpg'
+        } catch (compressionError) {
+          const compressionMessage =
+            compressionError instanceof Error ? compressionError.message : 'unknown compression error'
+          throw new Error(`X image exceeds 5MB and compression failed (media #${i + 1}): ${compressionMessage}`)
+        }
+      }
+
+      validateXMediaConstraints({ mime: uploadMime, sizeBytes: uploadBytes.byteLength, mediaIndex: i })
+    }
+
+    const fileName = getFileNameFromUrl(mediaUrl, uploadExt, i)
     const uploadData = await client.createMediaUpload(socialSetId, fileName)
-    const bytes = await mediaRes.arrayBuffer()
     const putRes = await fetch(uploadData.upload_url, {
       method: 'PUT',
-      headers: { 'Content-Type': mime || 'application/octet-stream' },
-      body: bytes,
+      headers: { 'Content-Type': uploadMime },
+      body: uploadBytes,
     })
 
     if (!putRes.ok) {
@@ -236,6 +353,8 @@ export async function POST(request: NextRequest) {
     }
     const availableNetworks = networks.filter((network) => !unavailable.includes(network))
 
+    validatePostLevelConstraints(availableNetworks, posts)
+
     const postsTextOnly = posts.map((post) => ({ text: post.text }))
     const hasAnyMedia = posts.some((post) => (post.mediaUrls || []).filter(Boolean).length > 0)
     let postsWithMedia = postsTextOnly
@@ -247,7 +366,12 @@ export async function POST(request: NextRequest) {
           posts.map(async (post) => {
             const mediaUrls = (post.mediaUrls || []).filter(Boolean)
             if (mediaUrls.length === 0) return { text: post.text }
-            const mediaIds = await uploadMediaToTypefully(linkedSocialSet.socialSetId, client, mediaUrls)
+            const mediaIds = await uploadMediaToTypefully(
+              linkedSocialSet.socialSetId,
+              client,
+              mediaUrls,
+              availableNetworks
+            )
             return { text: post.text, media_ids: mediaIds }
           })
         )
@@ -355,6 +479,8 @@ export async function POST(request: NextRequest) {
     const degradedCount = results.filter((r) => r.status === 'degraded').length
     const failedCount = results.filter((r) => r.status === 'failed').length
 
+    let persistenceError: string | null = null
+
     if (successfulResults.length > 0) {
       const scheduledAt = publishAt && publishAt !== 'now' ? new Date(publishAt) : new Date()
       const isNow = publishAt === 'now'
@@ -362,36 +488,44 @@ export async function POST(request: NextRequest) {
       const content = posts.map((post) => post.text.trim()).filter(Boolean).join('\n\n')
       const fallbackContent = posts.find((post) => post.text.trim())?.text.trim() || 'Published via Typefully'
 
-      for (const result of successfulResults) {
-        const castId = generateId()
-        await db.insert(scheduledCasts).values({
-          id: castId,
-          accountId,
-          content: content || fallbackContent,
-          scheduledAt: hasValidScheduledAt ? scheduledAt : new Date(),
-          publishedAt: isNow ? new Date() : null,
-          status: isNow ? 'published' : 'scheduled',
-          network: result.network,
-          publishTargets: JSON.stringify([result.network]),
-          createdById: session.userId,
-        })
+      try {
+        for (const result of successfulResults) {
+          const castId = generateId()
+          await db.insert(scheduledCasts).values({
+            id: castId,
+            accountId,
+            content: content || fallbackContent,
+            scheduledAt: hasValidScheduledAt ? scheduledAt : new Date(),
+            publishedAt: isNow ? new Date() : null,
+            status: isNow ? 'published' : 'scheduled',
+            network: result.network,
+            publishTargets: JSON.stringify([result.network]),
+            createdById: session.userId,
+          })
 
-        const allMediaUrls = posts.flatMap((post) => post.mediaUrls || []).filter(Boolean)
-        if (allMediaUrls.length > 0) {
-          await db.insert(castMedia).values(
-            allMediaUrls.map((url, index) => {
-              const isVideo = /\.(mp4|mov|webm|m3u8)$/i.test(url)
-              return {
-                id: generateId(),
-                castId,
-                url,
-                type: isVideo ? 'video' as const : 'image' as const,
-                order: index,
-                videoStatus: isVideo ? 'pending' as const : undefined,
-              }
-            })
-          )
+          const allMediaUrls = posts.flatMap((post) => post.mediaUrls || []).filter(Boolean)
+          if (allMediaUrls.length > 0) {
+            await db.insert(castMedia).values(
+              allMediaUrls.map((url, index) => {
+                const isVideo = /\.(mp4|mov|webm|m3u8)$/i.test(url)
+                return {
+                  id: generateId(),
+                  castId,
+                  url,
+                  type: isVideo ? 'video' as const : 'image' as const,
+                  order: index,
+                  videoStatus: isVideo ? 'pending' as const : undefined,
+                }
+              })
+            )
+          }
         }
+      } catch (error) {
+        persistenceError =
+          error instanceof Error
+            ? error.message
+            : 'Failed to persist Typefully publish into local Castor storage'
+        console.error('[Typefully Publish] Local persistence failed:', error)
       }
     }
 
@@ -403,6 +537,7 @@ export async function POST(request: NextRequest) {
         availableNetworks,
         fallbackToTextOnly,
         mediaUploadError,
+        persistenceError,
         summary: {
           published: publishedCount,
           degraded: degradedCount,

@@ -123,7 +123,9 @@ const compressImageForX = async (input: Uint8Array) => {
     }).toBuffer()
 
     if (output.byteLength <= X_MAX_IMAGE_BYTES) {
-      return output
+      const copy = new Uint8Array(output.byteLength)
+      copy.set(output)
+      return copy.buffer
     }
   }
 
@@ -208,7 +210,7 @@ async function uploadMediaToTypefully(
       const isCompressibleImage = isImageMime(mime) && mime !== 'image/gif'
       if (isCompressibleImage && uploadBytes.byteLength > X_MAX_IMAGE_BYTES) {
         try {
-          uploadBytes = await compressImageForX(uploadBytes)
+          uploadBytes = new Uint8Array(await compressImageForX(uploadBytes))
           uploadMime = 'image/jpeg'
           uploadExt = 'jpg'
         } catch (compressionError) {

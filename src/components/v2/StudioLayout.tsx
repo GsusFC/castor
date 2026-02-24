@@ -20,6 +20,7 @@ interface StudioLayoutProps {
   isCalendarCollapsed?: boolean
   onToggleCalendarCollapsed?: () => void
   calendarRail?: React.ReactNode
+  focusAside?: React.ReactNode
 
   // Legacy props kept for compatibility with tests while v2 migrates.
   calendarPanel?: React.ReactNode
@@ -34,6 +35,7 @@ export function StudioLayout({
   isCalendarCollapsed = false,
   onToggleCalendarCollapsed,
   calendarRail,
+  focusAside,
   calendarPanel,
   queuePanel,
   activityPanel,
@@ -47,11 +49,13 @@ export function StudioLayout({
   return (
     <div className="flex h-[100dvh] sm:h-[calc(100dvh-3.5rem)] overflow-hidden">
       {/* Left Panel — Composer (~45%) — hidden on mobile, compose via MobileNavV2 */}
-      <div className="hidden lg:flex w-[45%] min-w-[420px] max-w-[680px] border-r flex-col overflow-hidden">
-        <ErrorBoundary fallbackTitle="Composer failed to load">
-          {composerPanel}
-        </ErrorBoundary>
-      </div>
+      {!showCollapsedCalendar && (
+        <div className="hidden lg:flex w-[45%] min-w-[420px] max-w-[680px] border-r flex-col overflow-hidden">
+          <ErrorBoundary fallbackTitle="Composer failed to load">
+            {composerPanel}
+          </ErrorBoundary>
+        </div>
+      )}
 
       {showCollapsedCalendar && (
         <div className="hidden lg:flex w-14 shrink-0 border-r bg-background/80 backdrop-blur-sm">
@@ -90,7 +94,22 @@ export function StudioLayout({
         )}
 
         {showCollapsedCalendar ? (
-          <div className="hidden lg:flex h-full" />
+          <div className="hidden lg:flex h-full min-w-0">
+            <div className="flex-1 min-w-0 overflow-auto px-4 py-4">
+              <div className="mx-auto max-w-[760px] xl:max-w-[860px] 2xl:max-w-[940px] h-full">
+                <ErrorBoundary fallbackTitle="Composer failed to load">
+                  {composerPanel}
+                </ErrorBoundary>
+              </div>
+            </div>
+            <div className="w-[260px] xl:w-[280px] 2xl:w-[300px] shrink-0 border-l bg-background/60 p-3">
+              <ErrorBoundary fallbackTitle="Focus tools failed">
+                {focusAside ?? (
+                  <div className="h-full rounded-xl border border-dashed border-border/70 bg-muted/20" />
+                )}
+              </ErrorBoundary>
+            </div>
+          </div>
         ) : isLegacyTabbedMode ? (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">

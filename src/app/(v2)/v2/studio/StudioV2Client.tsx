@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { AppHeader } from '@/components/v2/AppHeader'
 import { StudioLayout } from '@/components/v2/StudioLayout'
-import { ComposerPanel, ComposerPanelRef } from '@/components/v2/ComposerPanel'
+import { ComposerPanel, ComposerPanelRef, type ComposerFocusState } from '@/components/v2/ComposerPanel'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { SelectedAccountV2Provider } from '@/context/SelectedAccountV2Context'
 import { AccountFilterControl } from '@/components/v2/studio/AccountFilterControl'
@@ -12,6 +12,7 @@ import { DailyQueuePanel } from '@/components/v2/studio/DailyQueuePanel'
 import { QueuePanel } from '@/components/v2/studio/QueuePanel'
 import { ActivityPanel } from '@/components/v2/studio/ActivityPanel'
 import { StudioCalendarRail } from '@/components/v2/studio/StudioCalendarRail'
+import { StudioFocusChecklist } from '@/components/v2/studio/StudioFocusChecklist'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,11 +43,24 @@ const OPEN_COMPOSE_ON_DATE_EVENT = 'castor:studio-open-compose-on-date'
 const SCROLL_TO_TODAY_EVENT = 'castor:studio-scroll-to-today'
 const DESKTOP_FOCUS_STORAGE_KEY = 'castor:studio:v2:desktop-focus-mode'
 type DesktopFocusMode = 'normal' | 'composer'
+const DEFAULT_COMPOSER_FOCUS_STATE: ComposerFocusState = {
+  selectedNetworks: ['farcaster'],
+  availableNetworks: { farcaster: true, x: false, linkedin: false },
+  hasContent: false,
+  hasMedia: false,
+  isMediaReady: true,
+  hasOverLimit: false,
+  typefullyLinked: false,
+  scheduleReady: false,
+}
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
   const composerRef = useRef<ComposerPanelRef>(null)
   const [desktopFocusMode, setDesktopFocusMode] = useState<DesktopFocusMode>('normal')
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
+  const [composerFocusState, setComposerFocusState] = useState<ComposerFocusState>(
+    DEFAULT_COMPOSER_FOCUS_STATE
+  )
 
   const {
     approvedAccounts,
@@ -252,6 +266,20 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             defaultAccountId={defaultAccountId}
             templates={templates}
             onCastCreated={handleCastCreated}
+            onComposerStateChange={setComposerFocusState}
+          />
+        }
+        focusAside={
+          <StudioFocusChecklist
+            selectedNetworks={composerFocusState.selectedNetworks}
+            availableNetworks={composerFocusState.availableNetworks}
+            hasContent={composerFocusState.hasContent}
+            hasMedia={composerFocusState.hasMedia}
+            isMediaReady={composerFocusState.isMediaReady}
+            hasOverLimit={composerFocusState.hasOverLimit}
+            networkLimits={{ x: 280, linkedin: 3000, farcaster: 320 }}
+            typefullyLinked={composerFocusState.typefullyLinked}
+            scheduleReady={composerFocusState.scheduleReady}
           />
         }
         rightPanelControls={(

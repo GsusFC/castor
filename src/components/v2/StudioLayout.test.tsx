@@ -41,6 +41,22 @@ describe('StudioLayout', () => {
     expect(screen.queryByText('Right panel content')).not.toBeInTheDocument()
   })
 
+  it('renders focus aside content when calendar is collapsed', () => {
+    render(
+      <StudioLayout
+        composerPanel={<div>Composer content</div>}
+        rightPanel={<div>Right panel content</div>}
+        isCalendarCollapsed
+        calendarRail={<div>Rail content</div>}
+        focusAside={<div>Checklist content</div>}
+      />
+    )
+
+    expect(screen.getByText('Composer content')).toBeInTheDocument()
+    expect(screen.getByText('Checklist content')).toBeInTheDocument()
+    expect(screen.queryByText('Right panel content')).not.toBeInTheDocument()
+  })
+
   it('hides legacy desktop panel body when collapsed and rightPanel is present', () => {
     render(
       <StudioLayout

@@ -9,7 +9,35 @@ vi.mock('@/components/v2/AppHeader', () => ({
 }))
 
 vi.mock('@/components/v2/ComposerPanel', () => ({
-  ComposerPanel: React.forwardRef(() => <div data-testid="composer-panel" />),
+  ComposerPanel: React.forwardRef((
+    props: {
+      onComposerStateChange?: (state: {
+        selectedNetworks: Array<'farcaster' | 'x' | 'linkedin'>
+        availableNetworks: Record<'farcaster' | 'x' | 'linkedin', boolean>
+        hasContent: boolean
+        hasMedia: boolean
+        isMediaReady: boolean
+        hasOverLimit: boolean
+        typefullyLinked: boolean
+        scheduleReady: boolean
+      }) => void
+    },
+    _ref
+  ) => {
+    React.useEffect(() => {
+      props.onComposerStateChange?.({
+        selectedNetworks: ['farcaster'],
+        availableNetworks: { farcaster: true, x: false, linkedin: false },
+        hasContent: true,
+        hasMedia: false,
+        isMediaReady: true,
+        hasOverLimit: false,
+        typefullyLinked: false,
+        scheduleReady: true,
+      })
+    }, [props.onComposerStateChange])
+    return <div data-testid="composer-panel" />
+  }),
 }))
 
 vi.mock('@/components/calendar/CalendarView', () => ({
@@ -24,12 +52,15 @@ vi.mock('@/components/v2/StudioLayout', () => ({
   StudioLayout: ({
     rightPanelControls,
     isCalendarCollapsed,
+    focusAside,
   }: {
     rightPanelControls?: React.ReactNode
     isCalendarCollapsed?: boolean
+    focusAside?: React.ReactNode
   }) => (
     <div>
       <div data-testid="collapsed-state">{isCalendarCollapsed ? 'collapsed' : 'normal'}</div>
+      <div data-testid="focus-aside">{focusAside}</div>
       {rightPanelControls}
     </div>
   ),
@@ -95,6 +126,34 @@ describe('StudioV2Client focus mode', () => {
 
     await waitFor(() => {
       expect(window.localStorage.getItem('castor:studio:v2:desktop-focus-mode')).toBe('normal')
+    })
+  })
+
+  it('renders focus checklist from composer snapshot', async () => {
+    window.localStorage.setItem('castor:studio:v2:desktop-focus-mode', 'composer')
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: true,
+      media: '(min-width: 1024px)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    render(
+      <StudioV2Client
+        user={user}
+        accounts={accounts}
+        casts={[]}
+        templates={[]}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Focus Checklist')).toBeInTheDocument()
+      expect(screen.getByText('Within limits')).toBeInTheDocument()
     })
   })
 })

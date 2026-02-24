@@ -29,12 +29,25 @@ interface ComposerPanelProps {
   templates?: Template[]
   /** Called when a cast is created/submitted — for optimistic UI updates */
   onCastCreated?: (cast: SerializedCast) => void
+  /** Emits minimal composer status for focus-mode utilities */
+  onComposerStateChange?: (state: ComposerFocusState) => void
 }
 
 type TypefullySocialSetOption = {
   socialSetId: number
   label: string
   connectedPlatforms: string[]
+}
+
+export type ComposerFocusState = {
+  selectedNetworks: PublishNetwork[]
+  availableNetworks: Record<PublishNetwork, boolean>
+  hasContent: boolean
+  hasMedia: boolean
+  isMediaReady: boolean
+  hasOverLimit: boolean
+  typefullyLinked: boolean
+  scheduleReady: boolean
 }
 
 /** Methods exposed to parent via ref */
@@ -67,7 +80,10 @@ function isRenderableMedia(url: string, type: 'image' | 'video'): boolean {
  * - Imperative ref for external interactions (calendar click, queue click)
  */
 export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
-  function ComposerPanel({ accounts: serverAccounts, userFid, defaultAccountId, onCastCreated }, ref) {
+  function ComposerPanel(
+    { accounts: serverAccounts, userFid, defaultAccountId, onCastCreated, onComposerStateChange },
+    ref
+  ) {
     // Map SerializedAccount to compose Account type
     const composeAccounts: Account[] = serverAccounts.map(a => ({
       id: a.id,
@@ -377,6 +393,18 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
     const hasOverEmbeds = thread.casts.some(cast => (cast.media.length + cast.links.length) > maxEmbeds)
     const hasOverLimit = hasOverChars || hasOverEmbeds
     const hasContent = thread.casts.some(cast => cast.content.trim().length > 0)
+    const hasMedia = thread.casts.some((cast) => cast.media.length > 0)
+    const isMediaReady = thread.casts.every((cast) =>
+      cast.media.every((media) => {
+        if (media.uploading || media.error) return false
+        if (media.type === 'video' && (media.videoStatus === 'pending' || media.videoStatus === 'processing')) {
+          return false
+        }
+        return true
+      })
+    )
+    const typefullyLinked = selectedTypefullySocialSetId !== null
+    const scheduleReady = schedule.isValid
 
     // Template handlers
     const handleLoadTemplate = useCallback((template: Template) => {
@@ -409,6 +437,30 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
         channelId: selectedChannel?.id,
       })
     }, [hasContent, thread.casts, selectedChannel, saveTemplate])
+
+    useEffect(() => {
+      if (!onComposerStateChange) return
+      onComposerStateChange({
+        selectedNetworks,
+        availableNetworks,
+        hasContent,
+        hasMedia,
+        isMediaReady,
+        hasOverLimit,
+        typefullyLinked,
+        scheduleReady,
+      })
+    }, [
+      onComposerStateChange,
+      selectedNetworks,
+      availableNetworks,
+      hasContent,
+      hasMedia,
+      isMediaReady,
+      hasOverLimit,
+      typefullyLinked,
+      scheduleReady,
+    ])
 
     return (
       <div className="flex flex-col h-full">

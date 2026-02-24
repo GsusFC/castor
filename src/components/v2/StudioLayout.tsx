@@ -17,6 +17,9 @@ interface StudioLayoutProps {
   composerPanel: React.ReactNode
   rightPanel?: React.ReactNode
   rightPanelControls?: React.ReactNode
+  isCalendarCollapsed?: boolean
+  onToggleCalendarCollapsed?: () => void
+  calendarRail?: React.ReactNode
 
   // Legacy props kept for compatibility with tests while v2 migrates.
   calendarPanel?: React.ReactNode
@@ -28,22 +31,46 @@ export function StudioLayout({
   composerPanel,
   rightPanel,
   rightPanelControls,
+  isCalendarCollapsed = false,
+  onToggleCalendarCollapsed,
+  calendarRail,
   calendarPanel,
   queuePanel,
   activityPanel,
 }: StudioLayoutProps) {
   const hasLegacyPanels = Boolean(calendarPanel || queuePanel || activityPanel)
   const isLegacyTabbedMode = !rightPanel && hasLegacyPanels
+  const canCollapseCalendar = Boolean(rightPanel) && !isLegacyTabbedMode
+  const showCollapsedCalendar = canCollapseCalendar && isCalendarCollapsed
   const [activeTab, setActiveTab] = useState<RightPanelTab>('calendar')
 
   return (
     <div className="flex h-[100dvh] sm:h-[calc(100dvh-3.5rem)] overflow-hidden">
-      {/* Left Panel — Composer (~38%) — hidden on mobile, compose via MobileNavV2 */}
-      <div className="hidden lg:flex w-[38%] min-w-[340px] max-w-[520px] border-r flex-col overflow-hidden">
+      {/* Left Panel — Composer (~45%) — hidden on mobile, compose via MobileNavV2 */}
+      <div className="hidden lg:flex w-[45%] min-w-[420px] max-w-[680px] border-r flex-col overflow-hidden">
         <ErrorBoundary fallbackTitle="Composer failed to load">
           {composerPanel}
         </ErrorBoundary>
       </div>
+
+      {showCollapsedCalendar && (
+        <div className="hidden lg:flex w-14 shrink-0 border-r bg-background/80 backdrop-blur-sm">
+          <ErrorBoundary fallbackTitle="Calendar rail failed">
+            <div className="flex h-full w-full flex-col items-center py-2">
+              {calendarRail}
+              {!calendarRail && (
+                <button
+                  type="button"
+                  onClick={onToggleCalendarCollapsed}
+                  className="rounded-md border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  Show
+                </button>
+              )}
+            </div>
+          </ErrorBoundary>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {hasLegacyPanels && rightPanel && (
@@ -162,6 +189,8 @@ export function StudioLayout({
               </ErrorBoundary>
             </div>
           </div>
+        ) : showCollapsedCalendar ? (
+          <div className="hidden lg:flex h-full" />
         ) : (
           <>
             {rightPanelControls && (

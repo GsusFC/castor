@@ -25,4 +25,19 @@ describe('StudioLayout', () => {
     expect(screen.getByRole('tab', { name: 'Queue' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tabpanel')).toHaveTextContent('Queue panel')
   })
+
+  it('shows calendar rail and hides right panel body when collapsed', () => {
+    render(
+      <StudioLayout
+        composerPanel={<div>Composer content</div>}
+        rightPanel={<div>Right panel content</div>}
+        rightPanelControls={<div>Controls content</div>}
+        isCalendarCollapsed
+        calendarRail={<div>Rail content</div>}
+      />
+    )
+
+    expect(screen.getByText('Rail content')).toBeInTheDocument()
+    expect(screen.queryByText('Right panel content')).not.toBeInTheDocument()
+  })
 })

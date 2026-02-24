@@ -21,8 +21,15 @@ vi.mock('@/context/SelectedAccountV2Context', () => ({
 }))
 
 vi.mock('@/components/v2/StudioLayout', () => ({
-  StudioLayout: ({ rightPanelControls }: { rightPanelControls?: React.ReactNode }) => (
+  StudioLayout: ({
+    rightPanelControls,
+    isCalendarCollapsed,
+  }: {
+    rightPanelControls?: React.ReactNode
+    isCalendarCollapsed?: boolean
+  }) => (
     <div>
+      <div data-testid="collapsed-state">{isCalendarCollapsed ? 'collapsed' : 'normal'}</div>
       {rightPanelControls}
     </div>
   ),
@@ -54,26 +61,12 @@ const accounts: SerializedAccount[] = [
     owner: null,
     hasBrandVoice: false,
   },
-  {
-    id: 'account-b',
-    fid: 2,
-    username: 'beta',
-    displayName: 'Beta',
-    pfpUrl: null,
-    signerStatus: 'approved',
-    type: 'business',
-    voiceMode: 'auto',
-    isPremium: false,
-    ownerId: 'user-1',
-    owner: null,
-    hasBrandVoice: false,
-  },
 ]
 
-describe('StudioV2Client account filter', () => {
-  it('does not loop or revert when changing selected account', async () => {
+describe('StudioV2Client focus mode', () => {
+  it('loads composer focus from localStorage and toggles back to normal', async () => {
     const userEventSetup = userEvent.setup()
-    window.localStorage.setItem('castor_v2_studio_account_filter', 'account-a')
+    window.localStorage.setItem('castor:studio:v2:desktop-focus-mode', 'composer')
     window.matchMedia = vi.fn().mockImplementation(() => ({
       matches: true,
       media: '(min-width: 1024px)',
@@ -94,14 +87,14 @@ describe('StudioV2Client account filter', () => {
       />
     )
 
-    const select = screen.getByLabelText('Filter studio panels by account') as HTMLSelectElement
-    expect(select.value).toBe('account-a')
+    await waitFor(() => {
+      expect(screen.getByTestId('collapsed-state')).toHaveTextContent('collapsed')
+    })
 
-    await userEventSetup.selectOptions(select, 'account-b')
+    await userEventSetup.click(screen.getByRole('button', { name: /show calendar/i }))
 
     await waitFor(() => {
-      expect(select.value).toBe('account-b')
-      expect(window.localStorage.getItem('castor_v2_studio_account_filter')).toBe('account-b')
+      expect(window.localStorage.getItem('castor:studio:v2:desktop-focus-mode')).toBe('normal')
     })
   })
 })

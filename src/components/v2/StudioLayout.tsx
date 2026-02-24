@@ -89,7 +89,9 @@ export function StudioLayout({
           </div>
         )}
 
-        {isLegacyTabbedMode ? (
+        {showCollapsedCalendar ? (
+          <div className="hidden lg:flex h-full" />
+        ) : isLegacyTabbedMode ? (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-4 pt-3 pb-2 shrink-0">
               <div
@@ -189,8 +191,6 @@ export function StudioLayout({
               </ErrorBoundary>
             </div>
           </div>
-        ) : showCollapsedCalendar ? (
-          <div className="hidden lg:flex h-full" />
         ) : (
           <>
             {rightPanelControls && (

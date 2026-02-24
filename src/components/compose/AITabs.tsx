@@ -279,106 +279,91 @@ export function AITabs({
 
       {/* Tabs */}
       <div className={cn(NAV.PILL_TABS.containerPadding)}>
-        <div className="space-y-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground px-1">
-            Generate
-          </div>
-          <div
-            role="tablist"
-            aria-label="Generate actions"
+        <div
+          role="tablist"
+          aria-label="AI actions"
+          className={cn(
+            'flex w-full items-center',
+            NAV.PILL_TABS.containerBg,
+            NAV.PILL_TABS.containerPadding,
+            NAV.PILL_TABS.gap
+          )}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'propose'}
+            onClick={() => handleTabClick('propose')}
             className={cn(
-              'flex w-full items-center',
-              NAV.PILL_TABS.containerBg,
-              NAV.PILL_TABS.containerPadding,
-              NAV.PILL_TABS.gap
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
+              activeTab === 'propose'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
             )}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'propose'}
-              onClick={() => handleTabClick('propose')}
-              className={cn(
-                'basis-1/2',
-                NAV.PILL_TABS.pill.base,
-                NAV.PILL_TABS.iconText,
-                activeTab === 'propose'
-                  ? NAV.PILL_TABS.pill.active
-                  : NAV.PILL_TABS.pill.inactive
-              )}
-            >
-              <FileEdit className={NAV.PILL_TABS.iconSize} />
-              <span>Propose</span>
-            </button>
+            <FileEdit className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Propose</span>
+            <span className="sm:hidden">Prop</span>
+          </button>
 
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'translate'}
-              onClick={() => handleTabClick('translate')}
-              className={cn(
-                'basis-1/2',
-                NAV.PILL_TABS.pill.base,
-                NAV.PILL_TABS.iconText,
-                activeTab === 'translate'
-                  ? NAV.PILL_TABS.pill.active
-                  : NAV.PILL_TABS.pill.inactive
-              )}
-            >
-              <Languages className={NAV.PILL_TABS.iconSize} />
-              <span>Translate</span>
-            </button>
-          </div>
-
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground px-1">
-            Post-edit
-          </div>
-          <div
-            role="tablist"
-            aria-label="Post-edit actions"
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'translate'}
+            onClick={() => handleTabClick('translate')}
             className={cn(
-              'flex w-full items-center',
-              NAV.PILL_TABS.containerBg,
-              NAV.PILL_TABS.containerPadding,
-              NAV.PILL_TABS.gap
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
+              activeTab === 'translate'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
             )}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'improve'}
-              onClick={() => handleTabClick('improve')}
-              className={cn(
-                'basis-1/2',
-                NAV.PILL_TABS.pill.base,
-                NAV.PILL_TABS.iconText,
-                activeTab === 'improve'
-                  ? NAV.PILL_TABS.pill.active
-                  : NAV.PILL_TABS.pill.inactive
-              )}
-            >
-              <Wand2 className={NAV.PILL_TABS.iconSize} />
-              <span>Improve</span>
-            </button>
+            <Languages className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Translate</span>
+            <span className="sm:hidden">Trans</span>
+          </button>
 
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'humanize'}
-              onClick={() => handleTabClick('humanize')}
-              className={cn(
-                'basis-1/2',
-                NAV.PILL_TABS.pill.base,
-                NAV.PILL_TABS.iconText,
-                activeTab === 'humanize'
-                  ? NAV.PILL_TABS.pill.active
-                  : NAV.PILL_TABS.pill.inactive
-              )}
-            >
-              <Sparkles className={NAV.PILL_TABS.iconSize} />
-              <span>Humanize</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'improve'}
+            onClick={() => handleTabClick('improve')}
+            className={cn(
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
+              activeTab === 'improve'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
+            )}
+          >
+            <Wand2 className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Improve</span>
+            <span className="sm:hidden">Impr</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'humanize'}
+            onClick={() => handleTabClick('humanize')}
+            className={cn(
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
+              activeTab === 'humanize'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
+            )}
+          >
+            <Sparkles className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Humanize</span>
+            <span className="sm:hidden">Hum</span>
+          </button>
         </div>
       </div>
 

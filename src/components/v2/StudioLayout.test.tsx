@@ -40,4 +40,23 @@ describe('StudioLayout', () => {
     expect(screen.getByText('Rail content')).toBeInTheDocument()
     expect(screen.queryByText('Right panel content')).not.toBeInTheDocument()
   })
+
+  it('hides legacy desktop panel body when collapsed and rightPanel is present', () => {
+    render(
+      <StudioLayout
+        composerPanel={<div>Composer content</div>}
+        rightPanel={<div>Right panel content</div>}
+        calendarPanel={<div>Calendar panel</div>}
+        queuePanel={<div>Queue panel</div>}
+        activityPanel={<div>Activity panel</div>}
+        isCalendarCollapsed
+        calendarRail={<div>Rail content</div>}
+      />
+    )
+
+    expect(screen.getByText('Rail content')).toBeInTheDocument()
+    expect(screen.queryByText('Calendar panel')).not.toBeInTheDocument()
+    expect(screen.queryByText('Queue panel')).not.toBeInTheDocument()
+    expect(screen.queryByText('Activity panel')).not.toBeInTheDocument()
+  })
 })

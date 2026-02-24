@@ -8,6 +8,7 @@ import {
   Languages,
   FileEdit,
   Wand2,
+  Sparkles,
   Loader2,
   RefreshCw,
   ChevronDown,
@@ -38,7 +39,7 @@ import { NAV } from '@/lib/spacing-system'
 import { buildAssistantRequest, getAssistantErrorMessage } from '@/lib/ai/assistant-client'
 import type { PublishNetwork } from './types'
 
-type AIMode = 'translate' | 'propose' | 'improve' | null
+type AIMode = 'translate' | 'propose' | 'improve' | 'humanize' | null
 
 type AISuggestion = {
   id: string
@@ -164,7 +165,7 @@ export function AITabs({
     return maxChars
   }
 
-  const activeMaxChars = activeTab === 'improve' ? getNetworkLimit(improveTargetNetwork) : maxChars
+  const activeMaxChars = (activeTab === 'improve' || activeTab === 'humanize') ? getNetworkLimit(improveTargetNetwork) : maxChars
 
   const languageOptions = AI_LANGUAGE_OPTIONS.filter((lang) => enabledLanguages.includes(lang.value))
 
@@ -192,8 +193,8 @@ export function AITabs({
       setError('Write something first to translate')
       return
     }
-    if (activeTab === 'improve' && !currentDraft.trim()) {
-      setError('Write a draft first to improve')
+    if ((activeTab === 'improve' || activeTab === 'humanize') && !currentDraft.trim()) {
+      setError(activeTab === 'humanize' ? 'Write a draft first to humanize' : 'Write a draft first to improve')
       return
     }
 
@@ -217,8 +218,8 @@ export function AITabs({
           quotingCast,
           targetTone: selectedTone,
           targetLanguage,
-          targetPlatform: activeTab === 'improve' ? improveTargetNetwork : undefined,
-          maxCharsOverride: activeTab === 'improve' ? getNetworkLimit(improveTargetNetwork) : undefined,
+          targetPlatform: activeTab === 'improve' || activeTab === 'humanize' ? improveTargetNetwork : undefined,
+          maxCharsOverride: activeTab === 'improve' || activeTab === 'humanize' ? getNetworkLimit(improveTargetNetwork) : undefined,
           isPro,
           accountId,
         })),
@@ -343,6 +344,25 @@ export function AITabs({
             <span className="hidden sm:inline">Improve</span>
             <span className="sm:hidden">Impr</span>
           </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'humanize'}
+            onClick={() => handleTabClick('humanize')}
+            className={cn(
+              'flex-1',
+              NAV.PILL_TABS.pill.base,
+              NAV.PILL_TABS.iconText,
+              activeTab === 'humanize'
+                ? NAV.PILL_TABS.pill.active
+                : NAV.PILL_TABS.pill.inactive
+            )}
+          >
+            <Sparkles className={NAV.PILL_TABS.iconSize} />
+            <span className="hidden sm:inline">Humanize</span>
+            <span className="sm:hidden">Hum</span>
+          </button>
         </div>
       </div>
 
@@ -384,7 +404,7 @@ export function AITabs({
 
           {/* Controls */}
           <div className="flex items-center gap-2">
-            {(activeTab === 'propose' || activeTab === 'improve') && (
+            {(activeTab === 'propose' || activeTab === 'improve' || activeTab === 'humanize') && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -403,7 +423,7 @@ export function AITabs({
               </DropdownMenu>
             )}
 
-            {activeTab === 'improve' && (
+            {(activeTab === 'improve' || activeTab === 'humanize') && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -453,11 +473,11 @@ export function AITabs({
             <Button
               onClick={generateSuggestions}
               disabled={isLoading}
-              variant={isPro || activeTab === 'improve' ? 'default' : 'outline'}
+              variant={isPro || activeTab === 'improve' || activeTab === 'humanize' ? 'default' : 'outline'}
               size="sm"
               className={cn(
                 "h-8 gap-1.5",
-                (isPro || activeTab === 'improve') && "bg-gradient-to-r from-primary to-primary/80 border-none shadow-sm"
+                (isPro || activeTab === 'improve' || activeTab === 'humanize') && "bg-gradient-to-r from-primary to-primary/80 border-none shadow-sm"
               )}
             >
               {isLoading ? (
@@ -472,7 +492,7 @@ export function AITabs({
                 </>
               ) : (
                 <>
-                  {(isPro || activeTab === 'improve') ? (
+                  {(isPro || activeTab === 'improve' || activeTab === 'humanize') ? (
                     <BeaverIcon className="w-4 h-4" />
                   ) : (
                     <>
@@ -481,8 +501,14 @@ export function AITabs({
                     </>
                   )}
                   <span className="flex items-center gap-1.5">
-                    {activeTab === 'translate' ? 'Translate' : activeTab === 'propose' ? 'Propose' : 'Improve'}
-                    {(isPro || activeTab === 'improve') && (
+                    {activeTab === 'translate'
+                      ? 'Translate'
+                      : activeTab === 'propose'
+                        ? 'Propose'
+                        : activeTab === 'humanize'
+                          ? 'Humanize'
+                          : 'Improve'}
+                    {(isPro || activeTab === 'improve' || activeTab === 'humanize') && (
                       <span className="text-[10px] font-bold px-1 bg-white/20 rounded uppercase tracking-tighter">Pro</span>
                     )}
                   </span>

@@ -86,7 +86,7 @@ export interface SuggestionContext {
   accountContext?: AccountContext
 }
 
-export type AIMode = 'write' | 'improve' | 'translate'
+export type AIMode = 'write' | 'improve' | 'humanize' | 'translate'
 
 export class CastorAI {
   constructor() {
@@ -347,6 +347,13 @@ Respond ONLY with valid JSON (no markdown):
           this.computeImproveMinChars(context.currentDraft || '', maxChars)
         )
         break
+      case 'humanize':
+        userPrompt = this.buildHumanizePrompt(
+          context,
+          maxChars,
+          profile.languagePreference
+        )
+        break
       case 'translate':
         userPrompt = this.buildTranslatePrompt(context)
         break
@@ -357,7 +364,7 @@ Respond ONLY with valid JSON (no markdown):
     const fullPrompt = `${systemContext}\n\n---\n\n${userPrompt}`
     const resultText = await this.generate(fullPrompt, {
       isTranslation: mode === 'translate',
-      usePro: isProUser || mode === 'improve' // Force Pro for improvements or Pro users
+      usePro: isProUser || mode === 'improve' || mode === 'humanize' // Force Pro for advanced rewrites
     })
     // Translations can expand beyond maxChars — don't discard them
     const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
@@ -776,6 +783,51 @@ Return ONLY valid JSON (no markdown, no extra text):
 {
   "suggestions": ["translation 1", "translation 2", "translation 3"]
 }`
+  }
+
+  private buildHumanizePrompt(
+    context: SuggestionContext,
+    maxChars: number,
+    profileLanguagePreference: StyleProfile['languagePreference']
+  ): string {
+    if (!context.currentDraft) {
+      throw new Error('Draft is required for humanize mode')
+    }
+
+    const targetLang = resolveWritingLanguage(context.targetLanguage, profileLanguagePreference)
+    let prompt = `Humanize this text in ${toEnglishLanguageName(targetLang)}.\n\n`
+    prompt += `User draft:\n"${context.currentDraft}"\n\n`
+
+    if (context.targetTone) {
+      prompt += `Tone preference: ${context.targetTone}\n\n`
+    }
+
+    if (context.targetPlatform) {
+      prompt += `Target platform: ${context.targetPlatform}\n`
+      if (context.targetPlatform === 'x') {
+        prompt += 'Keep it tight, direct, and timeline-native for X.\n\n'
+      } else if (context.targetPlatform === 'linkedin') {
+        prompt += 'Keep it clear, natural, and professional for LinkedIn.\n\n'
+      } else {
+        prompt += 'Keep it conversational and native to Farcaster.\n\n'
+      }
+    }
+
+    prompt += `Rewrite to sound more human and less generic/AI-like:
+- Keep the original meaning and intent
+- Do NOT invent facts, claims, numbers, or names
+- Reduce boilerplate and robotic phrasing
+- Vary sentence rhythm and improve flow
+- Keep similar length where possible
+
+Provide exactly 3 humanized versions (max ${maxChars} characters each).
+
+Return ONLY valid JSON (no markdown, no extra text):
+{
+  "suggestions": ["version 1", "version 2", "version 3"]
+}`
+
+    return prompt
   }
 
   private parseSuggestions(text: string, maxChars: number): string[] {

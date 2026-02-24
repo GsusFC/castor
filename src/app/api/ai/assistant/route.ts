@@ -21,6 +21,7 @@ const isInvalidAIResponseError = (error: unknown): boolean => {
  * Modos:
  * - write: La IA escribe por ti basándose en contexto
  * - improve: Mejora un borrador manteniendo tu voz
+ * - humanize: Reescribe para sonar más natural manteniendo el significado
  * - translate: Traduce a otro idioma
  */
 export async function POST(request: NextRequest) {
@@ -61,17 +62,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account ID required' }, { status: 400 })
     }
 
-    if (!mode || !['write', 'improve', 'translate'].includes(mode)) {
+    if (!mode || !['write', 'improve', 'humanize', 'translate'].includes(mode)) {
       return NextResponse.json(
-        { error: 'Invalid mode. Use: write, improve, or translate' },
+        { error: 'Invalid mode. Use: write, improve, humanize, or translate' },
         { status: 400 }
       )
     }
 
     // Validaciones por modo
-    if (mode === 'improve' && !draft) {
+    if ((mode === 'improve' || mode === 'humanize') && !draft) {
       return NextResponse.json(
-        { error: 'Draft is required for improve mode' },
+        { error: 'Draft is required for improve/humanize mode' },
         { status: 400 }
       )
     }

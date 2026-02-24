@@ -1,4 +1,4 @@
-export type AssistantApiMode = 'write' | 'improve' | 'translate'
+export type AssistantApiMode = 'write' | 'improve' | 'humanize' | 'translate'
 export type AssistantUiMode = AssistantApiMode | 'propose'
 
 type AssistantRequest = {
@@ -25,8 +25,8 @@ export const buildAssistantRequest = (input: AssistantRequest & { mode: Assistan
     quotingCast: input.quotingCast,
     targetTone: input.targetTone,
     targetLanguage: apiMode === 'translate' ? input.targetLanguage : undefined,
-    targetPlatform: apiMode === 'improve' ? input.targetPlatform : undefined,
-    maxCharsOverride: apiMode === 'improve' ? input.maxCharsOverride : undefined,
+    targetPlatform: apiMode === 'improve' || apiMode === 'humanize' ? input.targetPlatform : undefined,
+    maxCharsOverride: apiMode === 'improve' || apiMode === 'humanize' ? input.maxCharsOverride : undefined,
     isPro: input.isPro,
     accountId: input.accountId,
   }

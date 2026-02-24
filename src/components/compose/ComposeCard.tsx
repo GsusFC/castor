@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -114,11 +115,19 @@ export function ComposeCard({
   typefullyDebugInfo,
 }: ComposeCardProps) {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId)
+  const hasTypefullyIntegration = typefullySocialSets.length > 0
   const isThread = casts.length > 1
   const hasFarcasterSelected = selectedNetworks.includes('farcaster')
   const hasOtherNetworksSelected =
     selectedNetworks.includes('x') || selectedNetworks.includes('linkedin')
   const today = new Date().toISOString().split('T')[0]
+  const networkOptions = hasTypefullyIntegration
+    ? ([
+        { id: 'farcaster', label: 'Farcaster' },
+        { id: 'x', label: 'X' },
+        { id: 'linkedin', label: 'LinkedIn' },
+      ] as Array<{ id: PublishNetwork; label: string }>)
+    : ([{ id: 'farcaster', label: 'Farcaster' }] as Array<{ id: PublishNetwork; label: string }>)
 
   // Formatear fecha/hora para mostrar
   const getScheduleLabel = () => {
@@ -176,11 +185,7 @@ export function ComposeCard({
 
       <div className="px-3 py-2 border-b border-border bg-background/60">
         <div className="flex items-center gap-2 flex-wrap">
-          {([
-            { id: 'farcaster', label: 'Farcaster' },
-            { id: 'x', label: 'X' },
-            { id: 'linkedin', label: 'LinkedIn' },
-          ] as Array<{ id: PublishNetwork; label: string }>).map((network) => {
+          {networkOptions.map((network) => {
             const isEnabled = availableNetworks[network.id]
             const selected = selectedNetworks.includes(network.id)
             return (
@@ -214,6 +219,17 @@ export function ComposeCard({
           <span className="text-xs text-muted-foreground">
             Destinations: {selectedNetworks.length}
           </span>
+          {!hasTypefullyIntegration && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">X/LinkedIn locked</span>
+              <Link
+                href="/v2/settings"
+                className="h-8 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center"
+              >
+                Connect Typefully
+              </Link>
+            </div>
+          )}
           {typefullySocialSets.length > 0 && (
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Typefully</span>

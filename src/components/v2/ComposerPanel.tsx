@@ -198,7 +198,7 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
               ? null
               : socialSets.length > 0
                 ? 'Select a Typefully account to enable X/LinkedIn publishing.'
-                : 'X/LinkedIn disabled: no Typefully social sets available.'
+                : 'Connect Typefully to enable X/LinkedIn.'
           )
 
           const nextAvailability = {

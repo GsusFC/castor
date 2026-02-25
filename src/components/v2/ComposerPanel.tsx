@@ -48,6 +48,7 @@ export type ComposerFocusState = {
   hasOverLimit: boolean
   typefullyLinked: boolean
   scheduleReady: boolean
+  maxChars: number
 }
 
 /** Methods exposed to parent via ref */
@@ -449,6 +450,7 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
         hasOverLimit,
         typefullyLinked,
         scheduleReady,
+        maxChars,
       })
     }, [
       onComposerStateChange,
@@ -460,6 +462,7 @@ export const ComposerPanel = forwardRef<ComposerPanelRef, ComposerPanelProps>(
       hasOverLimit,
       typefullyLinked,
       scheduleReady,
+      maxChars,
     ])
 
     return (

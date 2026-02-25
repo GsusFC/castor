@@ -52,6 +52,7 @@ const DEFAULT_COMPOSER_FOCUS_STATE: ComposerFocusState = {
   hasOverLimit: false,
   typefullyLinked: false,
   scheduleReady: false,
+  maxChars: 1024,
 }
 
 export function StudioV2Client({ user, accounts, casts, templates }: StudioV2ClientProps) {
@@ -277,7 +278,7 @@ export function StudioV2Client({ user, accounts, casts, templates }: StudioV2Cli
             hasMedia={composerFocusState.hasMedia}
             isMediaReady={composerFocusState.isMediaReady}
             hasOverLimit={composerFocusState.hasOverLimit}
-            networkLimits={{ x: 280, linkedin: 3000, farcaster: 320 }}
+            networkLimits={{ x: 280, linkedin: 3000, farcaster: composerFocusState.maxChars }}
             typefullyLinked={composerFocusState.typefullyLinked}
             scheduleReady={composerFocusState.scheduleReady}
           />

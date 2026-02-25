@@ -81,7 +81,7 @@ export function AITabs({
   quotingCast,
   onClearReply,
   isPro = false,
-  maxChars = 320,
+  maxChars = 1024,
   accountId,
   selectedNetworks = ['farcaster'],
 }: AITabsProps) {

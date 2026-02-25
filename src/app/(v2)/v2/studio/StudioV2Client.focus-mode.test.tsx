@@ -20,6 +20,7 @@ vi.mock('@/components/v2/ComposerPanel', () => ({
         hasOverLimit: boolean
         typefullyLinked: boolean
         scheduleReady: boolean
+        maxChars: number
       }) => void
     },
     _ref
@@ -34,6 +35,7 @@ vi.mock('@/components/v2/ComposerPanel', () => ({
         hasOverLimit: false,
         typefullyLinked: false,
         scheduleReady: true,
+        maxChars: 1024,
       })
     }, [props.onComposerStateChange])
     return <div data-testid="composer-panel" />

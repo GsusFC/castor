@@ -1,0 +1,113 @@
+name: PR Release Gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  release-message-required:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release message section in PR body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request?.body || ""
+            const marker = "## Release Message (Required)"
+            const idx = body.indexOf(marker)
+            if (idx === -1) {
+              core.setFailed("Missing '## Release Message (Required)' section in PR body")
+              return
+            }
+
+            const section = body.slice(idx + marker.length)
+            const sectionUntilNextHeader = section.split(/\n##\s+/)[0]
+            const lines = sectionUntilNextHeader
+              .split("\n")
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0 && !line.startsWith("<!--") && line !== "-")
+
+            const firstValue = lines[0] || ""
+            if (!firstValue || firstValue.toLowerCase().includes("required")) {
+              core.setFailed("Release message section is empty. Please add a short release message.")
+              return
+            }
+
+            core.info(`Release message found: ${firstValue}`)
+
+  preview-smoke:
+    runs-on: ubuntu-latest
+    needs: [release-message-required]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve Netlify preview URL from checks
+        id: preview
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const ref = context.payload.pull_request.head.sha
+            const maxAttempts = 40
+            const sleepMs = 15000
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              const checksRes = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref,
+                per_page: 100,
+              })
+
+              const checkRun = checksRes.data.check_runs.find((c) => c.name === "netlify/castorapp/deploy-preview")
+              if (checkRun?.status === "completed" && checkRun?.conclusion === "success" && checkRun.details_url) {
+                core.setOutput("url", checkRun.details_url)
+                core.info(`Resolved preview URL (check run): ${checkRun.details_url}`)
+                return
+              }
+
+              const statusesRes = await github.rest.repos.getCombinedStatusForRef({
+                owner,
+                repo,
+                ref,
+              })
+
+              const statusContext = statusesRes.data.statuses.find(
+                (s) => s.context === "netlify/castorapp/deploy-preview"
+              )
+              if (statusContext?.state === "success" && statusContext.target_url) {
+                core.setOutput("url", statusContext.target_url)
+                core.info(`Resolved preview URL (status context): ${statusContext.target_url}`)
+                return
+              }
+
+              core.info(`Waiting for netlify/castorapp/deploy-preview (attempt ${attempt}/${maxAttempts})`)
+              await new Promise((resolve) => setTimeout(resolve, sleepMs))
+            }
+
+            core.setFailed("Timed out waiting for Netlify preview check to complete successfully")
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Assert CRON_SECRET is configured
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET GitHub secret for preview smoke checks"
+            exit 1
+          fi
+
+      - name: Run smoke checks on Preview
+        run: node scripts/ci/smoke-check.mjs --base-url "${{ steps.preview.outputs.url }}" --cron-secret "$CRON_SECRET"

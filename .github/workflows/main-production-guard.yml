@@ -1,0 +1,74 @@
+name: Main Production Guard
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  post-deploy-smoke-and-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PRODUCTION_URL: https://castorapp.xyz
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Wait for production deploy propagation
+        run: sleep 20
+
+      - name: Assert required secrets are configured
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET secret"
+            exit 1
+          fi
+          if [ -z "$NETLIFY_SITE_ID" ] || [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "Missing NETLIFY_SITE_ID/NETLIFY_AUTH_TOKEN; rollback would not be possible"
+            exit 1
+          fi
+
+      - name: Run production smoke checks (up to 2 minutes)
+        id: smoke
+        shell: bash
+        run: |
+          set +e
+          ATTEMPTS=4
+          DELAY=30
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "Smoke attempt $i/$ATTEMPTS"
+            node scripts/ci/smoke-check.mjs --base-url "$PRODUCTION_URL" --cron-secret "$CRON_SECRET"
+            CODE=$?
+            if [ $CODE -eq 0 ]; then
+              echo "ok=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ $i -lt $ATTEMPTS ]; then
+              sleep $DELAY
+            fi
+          done
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Trigger automatic rollback
+        if: failure() && steps.smoke.outputs.ok == 'false'
+        run: node scripts/ci/netlify-auto-rollback.mjs
+
+      - name: Notify rollback in Discord
+        if: failure() && steps.smoke.outputs.ok == 'false' && env.DISCORD_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"[Castor] Auto-rollback triggered after failed production smoke checks on main (${GITHUB_SHA::7}).\"}"

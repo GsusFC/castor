@@ -99,6 +99,34 @@
       "when": 1769267346998,
       "tag": "0013_tiny_krista_starr",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1769950560000,
+      "tag": "0014_add_voice_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1769995440000,
+      "tag": "0015_add_typefully_integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1770213120000,
+      "tag": "0016_add_scheduled_cast_networks",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1772011200000,
+      "tag": "0017_add_cron_hardening",
+      "breakpoints": true
     }
   ]
 }

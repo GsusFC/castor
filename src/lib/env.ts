@@ -34,6 +34,11 @@ const envSchema = z
     LOG_LEVEL: z.string().optional(),
     TYPEFULLY_API_KEY: z.string().optional(),
     TYPEFULLY_BASE_URL: z.string().optional(),
+    // Keep these tolerant to avoid taking down the app if ops env vars are misconfigured.
+    DISCORD_WEBHOOK_URL: z.string().optional(),
+    CRON_WATCHDOG_OVERDUE_MINUTES: z.coerce.number().catch(10),
+    CRON_WATCHDOG_HEARTBEAT_MINUTES: z.coerce.number().catch(3),
+    CRON_ALERT_COOLDOWN_MINUTES: z.coerce.number().catch(30),
   })
   .superRefine((val, ctx) => {
     if (val.NODE_ENV !== 'production') return

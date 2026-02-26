@@ -39,6 +39,7 @@ export const handler: Handler = async (_event, context) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${cronSecret}`,
+        'x-cron-source': 'netlify-scheduled',
         'Content-Type': 'application/json',
       },
       signal: controller.signal,

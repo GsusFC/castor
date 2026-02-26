@@ -5,6 +5,12 @@
 [functions."analyze-cast-performance"]
   schedule = "@hourly"
 
+[functions."scheduled-publish"]
+  schedule = "* * * * *"
+
+[functions."cron-watchdog"]
+  schedule = "*/5 * * * *"
+
 [build.environment]
   NODE_VERSION = "20"
 

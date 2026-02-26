@@ -646,6 +646,56 @@ export const userChannelsRelations = relations(userChannels, ({ one }) => ({
   }),
 }))
 
+/**
+ * Auditoría de ejecuciones de cron jobs operativos
+ */
+export const cronRuns = sqliteTable(
+  'cron_runs',
+  {
+    id: text('id').primaryKey(),
+    jobName: text('job_name', { enum: ['publish_due_casts', 'watchdog'] }).notNull(),
+    startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+    finishedAt: integer('finished_at', { mode: 'timestamp' }),
+    success: integer('success', { mode: 'boolean' }).notNull().default(false),
+    published: integer('published'),
+    failed: integer('failed'),
+    retrying: integer('retrying'),
+    skipped: integer('skipped'),
+    processed: integer('processed'),
+    errorMessage: text('error_message'),
+    source: text('source', { enum: ['netlify-scheduled', 'manual', 'watchdog-check'] }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    jobNameIdx: index('cron_runs_job_name_idx').on(table.jobName),
+    successIdx: index('cron_runs_success_idx').on(table.success),
+    startedAtIdx: index('cron_runs_started_at_idx').on(table.startedAt),
+  })
+)
+
+/**
+ * Cooldown de alertas operativas para evitar spam
+ */
+export const opsAlerts = sqliteTable(
+  'ops_alerts',
+  {
+    fingerprint: text('fingerprint').primaryKey(),
+    lastSentAt: integer('last_sent_at', { mode: 'timestamp' }).notNull(),
+    lastPayload: text('last_payload').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    lastSentAtIdx: index('ops_alerts_last_sent_at_idx').on(table.lastSentAt),
+  })
+)
+
 // Types inferidos
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -673,6 +723,10 @@ export type TypefullySocialSet = typeof typefullySocialSets.$inferSelect
 export type NewTypefullySocialSet = typeof typefullySocialSets.$inferInsert
 export type UserChannel = typeof userChannels.$inferSelect
 export type NewUserChannel = typeof userChannels.$inferInsert
+export type CronRun = typeof cronRuns.$inferSelect
+export type NewCronRun = typeof cronRuns.$inferInsert
+export type OpsAlert = typeof opsAlerts.$inferSelect
+export type NewOpsAlert = typeof opsAlerts.$inferInsert
 
 /**
  * Cache de insights de analytics por cuenta

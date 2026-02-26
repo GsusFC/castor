@@ -18,6 +18,7 @@ const publicPaths = [
 const publicPrefixes = [
   '/api/auth/',      // Auth endpoints
   '/api/cron/',      // Cron jobs (protegidos por CRON_SECRET)
+  '/.netlify/functions/', // Netlify Functions para debugging operativo
   '/_next/',         // Next.js assets
   '/favicon',        // Favicon
   '/brand/',         // Brand assets

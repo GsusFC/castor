@@ -11,6 +11,8 @@ type AssistantRequest = {
   maxCharsOverride?: number
   isPro?: boolean
   accountId?: string
+  includeBrandValidation?: boolean
+  stream?: boolean
 }
 
 export const toAssistantApiMode = (mode: AssistantUiMode): AssistantApiMode =>
@@ -29,6 +31,8 @@ export const buildAssistantRequest = (input: AssistantRequest & { mode: Assistan
     maxCharsOverride: apiMode === 'improve' || apiMode === 'humanize' ? input.maxCharsOverride : undefined,
     isPro: input.isPro,
     accountId: input.accountId,
+    includeBrandValidation: input.includeBrandValidation,
+    stream: input.stream,
   }
 }
 

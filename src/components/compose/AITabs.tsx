@@ -246,26 +246,22 @@ export function AITabs({
     setStreamStatus(null)
     setSuggestions([])
 
-    const requestBase = {
-      mode: activeTab,
-      draft: currentDraft,
-      replyingTo,
-      quotingCast,
-      targetTone: selectedTone,
-      targetLanguage,
-      targetPlatform: activeTab === 'improve' || activeTab === 'humanize' ? improveTargetNetwork : undefined,
-      maxCharsOverride: activeTab === 'improve' || activeTab === 'humanize' ? getNetworkLimit(improveTargetNetwork) : undefined,
-      isPro,
-      accountId,
-      includeBrandValidation: false,
-    } as const
-
     try {
       const response = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildAssistantRequest({
-          ...requestBase,
+          mode: activeTab,
+          draft: currentDraft,
+          replyingTo,
+          quotingCast,
+          targetTone: selectedTone,
+          targetLanguage,
+          targetPlatform: activeTab === 'improve' || activeTab === 'humanize' ? improveTargetNetwork : undefined,
+          maxCharsOverride: activeTab === 'improve' || activeTab === 'humanize' ? getNetworkLimit(improveTargetNetwork) : undefined,
+          isPro,
+          accountId,
+          includeBrandValidation: false,
           stream: true,
         })),
       })

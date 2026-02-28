@@ -468,7 +468,7 @@ LENGTH RETRY (MANDATORY):
           const retryParsed = JSON.parse(retryText)
           if (retryParsed && Array.isArray(retryParsed.suggestions)) {
             suggestions = retryParsed.suggestions
-              .filter((s): s is string => typeof s === 'string')
+              .filter((s: unknown): s is string => typeof s === 'string')
               .map((s: string) => s.trim().replace(/^["']|["']$/g, ''))
               .filter((s: string) => s.length > 0 && s.length <= parseLimit)
               .slice(0, suggestionCount)

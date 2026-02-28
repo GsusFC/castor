@@ -426,13 +426,16 @@ ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number)
 
     const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
     let parsed: { suggestions?: string[] }
+    
     try {
       parsed = JSON.parse(resultText)
     } catch (e) {
-      throw new Error('Invalid AI response: not a valid JSON string')
+      console.error('[CastorAI] Failed to parse JSON. Raw response from Gemini:', resultText)
+      throw new Error(`Invalid AI response: not a valid JSON string. Raw: ${resultText.substring(0, 100)}...`)
     }
 
     if (!parsed || !Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+      console.error('[CastorAI] JSON missing suggestions array. Parsed object:', parsed)
       throw new Error('Invalid AI response: expected a non-empty suggestions array')
     }
 
@@ -674,7 +677,12 @@ RULES:
       prompt += `Desired tone: ${context.targetTone}\n\n`
     }
 
-    prompt += `Generate exactly ${suggestionCount} different options (max ${maxChars} characters each).`
+    prompt += `Generate exactly ${suggestionCount} different options (max ${maxChars} characters each).
+
+Respond STRICTLY with a valid JSON object matching this schema exactly:
+{
+  "suggestions": ["suggestion 1", "suggestion 2", ...]
+}`
 
     return prompt
   }
@@ -712,7 +720,12 @@ RULES:
 You can expand the text with stronger framing, clearer arguments, and better flow when helpful.
 Prioritize substantial outputs: target roughly ${minCharsTarget}-${maxChars} characters when possible (never exceed ${maxChars}).
 Each version should feel clearly more developed and materially longer than the original draft.
-Provide exactly ${suggestionCount} improved versions (max ${maxChars} characters each).`
+Provide exactly ${suggestionCount} improved versions (max ${maxChars} characters each).
+
+Respond STRICTLY with a valid JSON object matching this schema exactly:
+{
+  "suggestions": ["improved version 1", "improved version 2", ...]
+}`
 
     return prompt
   }
@@ -765,7 +778,12 @@ Provide ${suggestionCount} translation versions:
 1. Literal — preserve exact meaning, sentence structure, and length
 2. Natural — slightly adapted for fluency in ${langName}
 
-IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version must translate the COMPLETE text faithfully.`
+IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version must translate the COMPLETE text faithfully.
+
+Respond STRICTLY with a valid JSON object matching this schema exactly:
+{
+  "suggestions": ["literal translation", "natural translation"]
+}`
   }
 
   private buildHumanizePrompt(
@@ -804,7 +822,12 @@ IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version
 - Vary sentence rhythm and improve flow
 - Keep similar length where possible
 
-Provide exactly ${suggestionCount} humanized versions (max ${maxChars} characters each).`
+Provide exactly ${suggestionCount} humanized versions (max ${maxChars} characters each).
+
+Respond STRICTLY with a valid JSON object matching this schema exactly:
+{
+  "suggestions": ["humanized version 1", "humanized version 2", ...]
+}`
 
     return prompt
   }

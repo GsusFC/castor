@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { neynar } from '@/lib/farcaster/client'
 import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
@@ -116,7 +116,7 @@ export class CastorAI {
   /**
    * Genera contenido usando el modelo configurado
    */
-  private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean; expectJson?: boolean; responseSchema?: Schema }): Promise<string> {
+  private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean; expectJson?: boolean }): Promise<string> {
     try {
       if (options?.isTranslation) {
         return await generateGeminiText({
@@ -128,7 +128,6 @@ export class CastorAI {
             topP: 0.9,
             maxOutputTokens: 8192,
             responseMimeType: options?.expectJson ? 'application/json' : 'text/plain',
-            responseSchema: options?.responseSchema,
           },
           systemInstruction: options?.expectJson 
             ? 'You are a professional translator engine. Return valid JSON containing the translation suggestions exactly matching the requested format.' 
@@ -138,10 +137,7 @@ export class CastorAI {
         const model = options?.usePro ? this.getProModel() : this.getModel()
         const result = await model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: options?.expectJson ? { 
-            responseMimeType: 'application/json',
-            responseSchema: options?.responseSchema,
-          } : undefined,
+          generationConfig: options?.expectJson ? { responseMimeType: 'application/json' } : undefined,
         })
         const response = await result.response
         return response.text().trim()
@@ -235,27 +231,23 @@ export class CastorAI {
 Analyze the writing style and patterns of this Farcaster user based on their casts:
 
 ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number) => `${i + 1}. "${text}"`).join('\n')}
-`
 
-      const profileSchema: Schema = {
-        type: SchemaType.OBJECT,
-        properties: {
-          tone: { type: SchemaType.STRING, description: "Must be: casual, formal, technical, humorous, or mixed" },
-          avgLength: { type: SchemaType.INTEGER, description: "Average length of casts in characters" },
-          commonPhrases: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-          topics: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-          emojiUsage: { type: SchemaType.STRING, description: "Must be: none, light, or heavy" },
-          languagePreference: { type: SchemaType.STRING, description: "Must be: en, es, or mixed" },
-          powerPhrases: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-          contentPatterns: { type: SchemaType.STRING, description: "Description of dominant content patterns" },
-        },
-        required: ["tone", "avgLength", "commonPhrases", "topics", "emojiUsage", "languagePreference"]
-      }
+MANDATORY RESPONSE FORMAT:
+Provide the output as a valid JSON object matching exactly this structure:
+{
+  "tone": "casual|formal|technical|humorous|mixed",
+  "avgLength": 150,
+  "commonPhrases": ["phrase1", "phrase2", "phrase3", "phrase4", "phrase5"],
+  "topics": ["topic1", "topic2", "topic3", "topic4", "topic5"],
+  "emojiUsage": "none|light|heavy",
+  "languagePreference": "en|es|mixed",
+  "powerPhrases": ["engaging_phrase1", "engaging_phrase2"],
+  "contentPatterns": "describe dominant content patterns (e.g., 'shares insights with examples', 'asks questions', 'uses humor')"
+}`
 
       const resultText = await this.generate(analysisPrompt, { 
         usePro: true, 
-        expectJson: true,
-        responseSchema: profileSchema
+        expectJson: true
       })
       let analysis: any = {}
       try {
@@ -405,23 +397,11 @@ ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number)
     }
 
     const fullPrompt = `${systemContext}\n\n---\n\n${userPrompt}`
-    
-    const suggestionSchema: Schema = {
-      type: SchemaType.OBJECT,
-      properties: {
-        suggestions: {
-          type: SchemaType.ARRAY,
-          items: { type: SchemaType.STRING }
-        }
-      },
-      required: ["suggestions"]
-    }
 
     const resultText = await this.generate(fullPrompt, {
       isTranslation: mode === 'translate',
       usePro: isProUser,
-      expectJson: true,
-      responseSchema: suggestionSchema
+      expectJson: true
     })
 
     const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
@@ -463,8 +443,7 @@ LENGTH RETRY (MANDATORY):
         const retryText = await this.generate(retryPrompt, {
           isTranslation: false,
           usePro: true,
-          expectJson: true,
-          responseSchema: suggestionSchema
+          expectJson: true
         })
         
         try {
@@ -502,14 +481,6 @@ Preserve formatting, punctuation, line breaks, URLs, hashtags, cashtags, and men
 ${chunk}
 </SOURCE_TEXT>`
 
-      const translationSchema: Schema = {
-        type: SchemaType.OBJECT,
-        properties: {
-          translation: { type: SchemaType.STRING }
-        },
-        required: ["translation"]
-      }
-
       try {
         const result = await generateGeminiText({
           modelId: AI_CONFIG.translationModel,
@@ -520,7 +491,6 @@ ${chunk}
             topP: 0.9,
             maxOutputTokens: 8192,
             responseMimeType: 'application/json',
-            responseSchema: translationSchema,
           },
           systemInstruction:
             'You are a professional translator engine. Return valid JSON containing the translation exactly matching the requested format.',

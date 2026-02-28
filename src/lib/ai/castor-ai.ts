@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, Schema, Type } from '@google/generative-ai'
 import { neynar } from '@/lib/farcaster/client'
 import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
@@ -95,6 +95,7 @@ export class CastorAI {
   private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
   private proModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
   private accountContextCache = new Map<string, { value: AccountContext | null; expiresAt: number }>()
+  private profileRefreshInFlight = new Map<string, Promise<void>>()
 
   private getModel() {
     if (this.model) return this.model
@@ -115,7 +116,7 @@ export class CastorAI {
   /**
    * Genera contenido usando el modelo configurado
    */
-  private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean }): Promise<string> {
+  private async generate(prompt: string, options?: { isTranslation?: boolean; usePro?: boolean; expectJson?: boolean; responseSchema?: Schema }): Promise<string> {
     try {
       if (options?.isTranslation) {
         return await generateGeminiText({
@@ -126,19 +127,22 @@ export class CastorAI {
             temperature: 0.1,
             topP: 0.9,
             maxOutputTokens: 8192,
-            responseMimeType: 'text/plain',
+            responseMimeType: options?.expectJson ? 'application/json' : 'text/plain',
+            responseSchema: options?.responseSchema,
           },
-          systemInstruction:
-            'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
+          systemInstruction: options?.expectJson 
+            ? 'You are a professional translator engine. Return valid JSON containing the translation suggestions exactly matching the requested format.' 
+            : 'You are a professional translator engine. You receive text and return ONLY the translation. Do not include explanations, intro text, or markdown formatting unless requested. Preserve original formatting.',
         })
-      } else if (options?.usePro) {
-        const model = this.getProModel()
-        const result = await model.generateContent(prompt)
-        const response = await result.response
-        return response.text().trim()
       } else {
-        const model = this.getModel()
-        const result = await model.generateContent(prompt)
+        const model = options?.usePro ? this.getProModel() : this.getModel()
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: options?.expectJson ? { 
+            responseMimeType: 'application/json',
+            responseSchema: options?.responseSchema,
+          } : undefined,
+        })
         const response = await result.response
         return response.text().trim()
       }
@@ -149,7 +153,8 @@ export class CastorAI {
   }
 
   /**
-   * Obtiene o crea el perfil de estilo del usuario
+   * Obtiene o crea el perfil de estilo del usuario de forma instantánea.
+   * Si no existe, devuelve uno genérico e inicia el análisis en segundo plano.
    */
   async getOrCreateProfile(userId: string, fid: number): Promise<StyleProfile> {
     // Buscar perfil existente
@@ -161,13 +166,40 @@ export class CastorAI {
       // Verificar si necesita actualización (más de 7 días)
       const daysSinceAnalysis = (Date.now() - existing.analyzedAt.getTime()) / (1000 * 60 * 60 * 24)
 
-      if (daysSinceAnalysis < AI_CONFIG.cacheProfileDays) {
-        return this.dbProfileToStyleProfile(existing)
+      if (daysSinceAnalysis >= AI_CONFIG.cacheProfileDays) {
+        this.refreshProfileInBackground(userId, fid)
       }
+
+      // Nunca bloqueamos al usuario por re-análisis pesado de perfil.
+      return this.dbProfileToStyleProfile(existing)
     }
 
-    // Analizar y guardar nuevo perfil
-    return this.analyzeAndSaveProfile(userId, fid)
+    // Usuario nuevo: Devolver perfil genérico inmediatamente
+    // e iniciar análisis de estilo en segundo plano (Neynar + Gemini Pro)
+    this.refreshProfileInBackground(userId, fid)
+
+    return this.createDefaultProfile(userId, fid)
+  }
+
+  private refreshProfileInBackground(userId: string, fid: number): void {
+    const key = `${userId}:${fid}`
+    if (this.profileRefreshInFlight.has(key)) return
+
+    try {
+      const refreshPromise = this.analyzeAndSaveProfile(userId, fid)
+        .then(() => undefined)
+        .catch((error) => {
+          console.warn('[CastorAI] Background profile refresh failed:', error)
+        })
+        .finally(() => {
+          this.profileRefreshInFlight.delete(key)
+        })
+
+      this.profileRefreshInFlight.set(key, refreshPromise)
+    } catch (e) {
+      console.warn('[CastorAI] Failed to initiate background refresh:', e)
+      this.profileRefreshInFlight.delete(key)
+    }
   }
 
   /**
@@ -203,26 +235,34 @@ export class CastorAI {
 Analyze the writing style and patterns of this Farcaster user based on their casts:
 
 ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number) => `${i + 1}. "${text}"`).join('\n')}
+`
 
-Respond ONLY with valid JSON (no markdown):
-{
-  "tone": "casual|formal|technical|humorous|mixed",
-  "avgLength": <average number of characters, calculate from sample>,
-  "commonPhrases": ["phrase1", "phrase2", "phrase3", "phrase4", "phrase5"],
-  "topics": ["topic1", "topic2", "topic3", "topic4", "topic5"],
-  "emojiUsage": "none|light|heavy",
-  "languagePreference": "en|es|mixed",
-  "powerPhrases": ["engaging_phrase1", "engaging_phrase2"],
-  "contentPatterns": "describe dominant content patterns (e.g., 'shares insights with examples', 'asks questions', 'uses humor')"
-}`
+      const profileSchema: Schema = {
+        type: Type.OBJECT,
+        properties: {
+          tone: { type: Type.STRING, description: "Must be: casual, formal, technical, humorous, or mixed" },
+          avgLength: { type: Type.INTEGER, description: "Average length of casts in characters" },
+          commonPhrases: { type: Type.ARRAY, items: { type: Type.STRING } },
+          topics: { type: Type.ARRAY, items: { type: Type.STRING } },
+          emojiUsage: { type: Type.STRING, description: "Must be: none, light, or heavy" },
+          languagePreference: { type: Type.STRING, description: "Must be: en, es, or mixed" },
+          powerPhrases: { type: Type.ARRAY, items: { type: Type.STRING } },
+          contentPatterns: { type: Type.STRING, description: "Description of dominant content patterns" },
+        },
+        required: ["tone", "avgLength", "commonPhrases", "topics", "emojiUsage", "languagePreference"]
+      }
 
-      const resultText = await this.generate(analysisPrompt, { usePro: true })
-      const analysisText = resultText
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim()
-
-      const analysis = JSON.parse(analysisText)
+      const resultText = await this.generate(analysisPrompt, { 
+        usePro: true, 
+        expectJson: true,
+        responseSchema: profileSchema
+      })
+      let analysis: any = {}
+      try {
+        analysis = JSON.parse(resultText)
+      } catch (e) {
+        console.warn('Failed to parse analysis JSON fallback to defaults')
+      }
 
       // Guardar en DB
       const profileId = nanoid()
@@ -332,45 +372,81 @@ Respond ONLY with valid JSON (no markdown):
     maxChars: number = 320,
     isProUser: boolean = false
   ): Promise<string[]> {
+    const suggestionCount = mode === 'write' ? 3 : 2
     const systemContext = this.buildSystemContext(profile, maxChars, context.accountContext)
     let userPrompt: string
 
     switch (mode) {
       case 'write':
-        userPrompt = this.buildWritePrompt(context, maxChars, profile.languagePreference)
+        userPrompt = this.buildWritePrompt(context, maxChars, profile.languagePreference, suggestionCount)
         break
       case 'improve':
         userPrompt = this.buildImprovePrompt(
           context,
           maxChars,
           profile.languagePreference,
-          this.computeImproveMinChars(context.currentDraft || '', maxChars)
+          this.computeImproveMinChars(context.currentDraft || '', maxChars),
+          suggestionCount
         )
         break
       case 'humanize':
         userPrompt = this.buildHumanizePrompt(
           context,
           maxChars,
-          profile.languagePreference
+          profile.languagePreference,
+          suggestionCount
         )
         break
       case 'translate':
-        userPrompt = this.buildTranslatePrompt(context)
+        userPrompt = this.buildTranslatePrompt(context, suggestionCount)
         break
       default:
         throw new Error(`Invalid mode: ${mode}`)
     }
 
     const fullPrompt = `${systemContext}\n\n---\n\n${userPrompt}`
+    
+    const suggestionSchema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        suggestions: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      },
+      required: ["suggestions"]
+    }
+
     const resultText = await this.generate(fullPrompt, {
       isTranslation: mode === 'translate',
-      usePro: isProUser || mode === 'improve' || mode === 'humanize' // Force Pro for advanced rewrites
+      usePro: isProUser,
+      expectJson: true,
+      responseSchema: suggestionSchema
     })
-    // Translations can expand beyond maxChars — don't discard them
-    const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
-    let suggestions = this.parseSuggestions(resultText, parseLimit)
 
-    if (mode === 'improve' && context.currentDraft) {
+    const parseLimit = mode === 'translate' ? Math.max(maxChars, 10000) : maxChars
+    let parsed: { suggestions?: string[] }
+    try {
+      parsed = JSON.parse(resultText)
+    } catch (e) {
+      throw new Error('Invalid AI response: not a valid JSON string')
+    }
+
+    if (!parsed || !Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+      throw new Error('Invalid AI response: expected a non-empty suggestions array')
+    }
+
+    let suggestions = parsed.suggestions
+      .filter((s): s is string => typeof s === 'string')
+      .map(s => s.trim().replace(/^["']|["']$/g, ''))
+      .filter(s => s.length > 0 && s.length <= parseLimit)
+      .slice(0, suggestionCount)
+
+    if (suggestions.length === 0) {
+      throw new Error('Invalid AI response: no valid suggestions matched criteria')
+    }
+
+    if (mode === 'improve' && context.currentDraft && isProUser) {
       const minChars = this.computeImproveMinChars(context.currentDraft, maxChars)
       if (this.shouldRetryImproveForLength(suggestions, context.currentDraft.length, minChars)) {
         const retryPrompt = `${fullPrompt}
@@ -384,8 +460,22 @@ LENGTH RETRY (MANDATORY):
         const retryText = await this.generate(retryPrompt, {
           isTranslation: false,
           usePro: true,
+          expectJson: true,
+          responseSchema: suggestionSchema
         })
-        suggestions = this.parseSuggestions(retryText, parseLimit)
+        
+        try {
+          const retryParsed = JSON.parse(retryText)
+          if (retryParsed && Array.isArray(retryParsed.suggestions)) {
+            suggestions = retryParsed.suggestions
+              .filter((s): s is string => typeof s === 'string')
+              .map((s: string) => s.trim().replace(/^["']|["']$/g, ''))
+              .filter((s: string) => s.length > 0 && s.length <= parseLimit)
+              .slice(0, suggestionCount)
+          }
+        } catch (e) {
+          // ignore retry parse error and fallback to initial suggestions
+        }
       }
     }
 
@@ -399,51 +489,8 @@ LENGTH RETRY (MANDATORY):
     const lang = assertSupportedTargetLanguage(targetLanguage)
     const langName = toEnglishLanguageName(lang)
     const sanitize = (value: string) => value.trim().replace(/^["']|["']$/g, '')
-    const wordCount = (value: string) => value.trim().split(/\s+/).filter(Boolean).length
-    const sentenceCount = (value: string) =>
-      value
-        .split(/(?<=[.!?。！？])\s+/)
-        .map((part) => part.trim())
-        .filter(Boolean).length
 
-    const endsWithSentencePunctuation = (value: string) => /[.!?。！？]$/.test(value.trim())
-    const looksAbruptlyCut = (source: string, translated: string) => {
-      const cleaned = translated.trim()
-      if (!cleaned) return true
-      if (cleaned.endsWith('...') || cleaned.endsWith('…')) return true
-
-      const sourceWords = Math.max(1, wordCount(source))
-      const translatedWords = wordCount(cleaned)
-      if (translatedWords < Math.ceil(sourceWords * 0.65)) return true
-
-      const sourceSentences = sentenceCount(source)
-      if (sourceSentences >= 2) {
-        const translatedSentences = sentenceCount(cleaned)
-        if (translatedSentences < Math.ceil(sourceSentences * 0.6)) return true
-      }
-
-      if (source.length > 280 && !endsWithSentencePunctuation(cleaned) && endsWithSentencePunctuation(source)) {
-        return true
-      }
-
-      return false
-    }
-
-    const splitSentences = (value: string): string[] =>
-      value
-        .split(/(?<=[.!?。！？])(\s+)/)
-        .reduce<string[]>((acc, part) => {
-          if (!part) return acc
-          if (/^\s+$/.test(part) && acc.length > 0) {
-            acc[acc.length - 1] += part
-            return acc
-          }
-          acc.push(part)
-          return acc
-        }, [])
-        .filter((part) => part.trim().length > 0)
-
-    const translateChunk = async (chunk: string, maxOutputTokens: number): Promise<string> => {
+    const translateChunk = async (chunk: string): Promise<string> => {
       const prompt = `Translate all content inside <SOURCE_TEXT> to ${langName}.
 Do NOT summarize, shorten, omit, or reorder information.
 Preserve formatting, punctuation, line breaks, URLs, hashtags, cashtags, and mentions exactly as in the source.
@@ -452,138 +499,88 @@ Preserve formatting, punctuation, line breaks, URLs, hashtags, cashtags, and men
 ${chunk}
 </SOURCE_TEXT>`
 
-      const result = await generateGeminiText({
-        modelId: AI_CONFIG.translationModel,
-        fallbackModelId: GEMINI_MODELS.fallback,
-        prompt,
-        generationConfig: {
-          temperature: 0.1,
-          topP: 0.9,
-          maxOutputTokens,
-          responseMimeType: 'text/plain',
+      const translationSchema: Schema = {
+        type: Type.OBJECT,
+        properties: {
+          translation: { type: Type.STRING }
         },
-        systemInstruction:
-          'You are a professional translator engine. Return only the full translation of the provided source text.',
-      })
+        required: ["translation"]
+      }
 
-      return sanitize(result)
+      try {
+        const result = await generateGeminiText({
+          modelId: AI_CONFIG.translationModel,
+          fallbackModelId: GEMINI_MODELS.fallback,
+          prompt,
+          generationConfig: {
+            temperature: 0.1,
+            topP: 0.9,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json',
+            responseSchema: translationSchema,
+          },
+          systemInstruction:
+            'You are a professional translator engine. Return valid JSON containing the translation exactly matching the requested format.',
+        })
+
+        const parsed = JSON.parse(result)
+        return sanitize(parsed.translation || '')
+      } catch (error) {
+        console.error('[AI Translate] Error translating chunk:', error)
+        // Re-throw Rate Limit errors so they can be handled upstream appropriately
+        if (error instanceof Error && (error.message.includes('429') || error.message.includes('quota'))) {
+          throw error
+        }
+        throw new Error('Failed to translate text')
+      }
     }
 
-    const translateSentence = async (sentence: string): Promise<string> => {
-      const prompt = `Translate this text to ${langName} exactly as written.
-Do NOT summarize, shorten, omit, or reorder.
-
-<SOURCE_TEXT>
-${sentence}
-</SOURCE_TEXT>`
-
-      const result = await generateGeminiText({
-        modelId: AI_CONFIG.translationModel,
-        fallbackModelId: GEMINI_MODELS.fallback,
-        prompt,
-        generationConfig: {
-          temperature: 0.1,
-          topP: 0.9,
-          maxOutputTokens: 1024,
-          responseMimeType: 'text/plain',
-        },
-        systemInstruction:
-          'You are a professional translator engine. Return only the full translation of the provided source text.',
-      })
-
-      return sanitize(result)
-    }
-
-    const splitIntoChunks = (source: string, maxChars = 1200): string[] => {
-      const paragraphs = source.split('\n')
+    const splitIntoParagraphs = (source: string, maxChars = 5000): string[] => {
+      const paragraphs = source.split('\n\n')
       const chunks: string[] = []
       let current = ''
 
-      const pushCurrent = () => {
-        if (current.trim()) chunks.push(current.trim())
-        current = ''
-      }
-
       for (const paragraph of paragraphs) {
-        const line = paragraph.trim()
-        if (!line) {
-          if (current.length + 1 > maxChars) pushCurrent()
-          current += '\n'
-          continue
-        }
-
-        if (line.length > maxChars) {
-          pushCurrent()
-          const sentences = line.split(/(?<=[.!?。！？])\s+/).filter(Boolean)
-          let sentenceBucket = ''
-          for (const sentence of sentences) {
-            if ((sentenceBucket + ' ' + sentence).trim().length > maxChars) {
-              if (sentenceBucket.trim()) chunks.push(sentenceBucket.trim())
-              sentenceBucket = sentence
-            } else {
-              sentenceBucket = sentenceBucket ? `${sentenceBucket} ${sentence}` : sentence
-            }
-          }
-          if (sentenceBucket.trim()) chunks.push(sentenceBucket.trim())
-          continue
-        }
-
-        const candidate = current ? `${current}\n${line}` : line
-        if (candidate.length > maxChars) {
-          pushCurrent()
-          current = line
+        const candidate = current ? `${current}\n\n${paragraph}` : paragraph
+        if (candidate.length > maxChars && current) {
+          chunks.push(current)
+          current = paragraph
         } else {
           current = candidate
         }
       }
 
-      pushCurrent()
+      if (current) {
+        chunks.push(current)
+      }
+
       return chunks.length > 0 ? chunks : [source]
     }
 
-    const estimatedTokens = Math.ceil(text.length / 4)
-    const maxOutputTokens = Math.min(8192, Math.max(1024, Math.ceil(estimatedTokens * 2.2)))
-
-    const firstPass = await translateChunk(text, maxOutputTokens)
-    if (!looksAbruptlyCut(text, firstPass)) {
-      return firstPass
+    // Para la inmensa mayoría de posts de redes sociales (< 5000 chars), se envía en una sola llamada
+    if (text.length <= 5000) {
+      return await translateChunk(text)
     }
 
-    console.warn('[AI Translate] First pass looked truncated, retrying with chunk strategy', {
-      sourceLength: text.length,
-      firstPassLength: firstPass.length,
-      language: lang,
-    })
-
-    const chunks = splitIntoChunks(text)
+    // Si es un texto masivo, lo dividimos solo por bloques grandes de párrafos
+    console.warn(`[AI Translate] Text length ${text.length} exceeds fast-path threshold, chunking by paragraphs`)
+    const chunks = splitIntoParagraphs(text)
+    
     if (chunks.length <= 1) {
-      return firstPass
+      return await translateChunk(text)
     }
 
     const translatedChunks: string[] = []
     for (const chunk of chunks) {
-      const chunkTokens = Math.ceil(chunk.length / 4)
-      const chunkMaxOutputTokens = Math.min(4096, Math.max(768, Math.ceil(chunkTokens * 2.2)))
-      let translatedChunk = await translateChunk(chunk, chunkMaxOutputTokens)
-
-      if (looksAbruptlyCut(chunk, translatedChunk)) {
-        const sentences = splitSentences(chunk)
-        const translatedSentences: string[] = []
-
-        for (const sentence of sentences) {
-          const translatedSentence = await translateSentence(sentence)
-          translatedSentences.push(
-            looksAbruptlyCut(sentence, translatedSentence) ? sentence : translatedSentence
-          )
-        }
-
-        translatedChunk = translatedSentences.join('')
+      if (!chunk.trim()) {
+        translatedChunks.push('')
+        continue
       }
-
-      translatedChunks.push(looksAbruptlyCut(chunk, translatedChunk) ? chunk : translatedChunk)
+      const translatedChunk = await translateChunk(chunk)
+      translatedChunks.push(translatedChunk)
     }
 
-    return translatedChunks.join('\n')
+    return translatedChunks.join('\n\n')
   }
 
   // === Private helpers ===
@@ -638,7 +635,7 @@ ${sortedInsights.map(i => `- ${i.topic} (Engagement Score: ${i.avgScore})`).join
     }
 
     context += `\n\nEXAMPLES OF HOW THE USER WRITES:
-${profile.sampleCasts.slice(0, 5).map((cast, i) => `${i + 1}. "${cast}"`).join('\n')}
+${profile.sampleCasts.slice(0, 2).map((cast, i) => `${i + 1}. "${cast}"`).join('\n')}
 
 RULES:
 - Maximum ${maxChars} characters per suggestion
@@ -655,7 +652,8 @@ RULES:
   private buildWritePrompt(
     context: SuggestionContext,
     maxChars: number,
-    profileLanguagePreference: StyleProfile['languagePreference']
+    profileLanguagePreference: StyleProfile['languagePreference'],
+    suggestionCount: number
   ): string {
     const targetLang = resolveWritingLanguage(context.targetLanguage, profileLanguagePreference)
     let prompt = `Write in ${toEnglishLanguageName(targetLang)}.\n\n`
@@ -676,12 +674,7 @@ RULES:
       prompt += `Desired tone: ${context.targetTone}\n\n`
     }
 
-    prompt += `Generate exactly 3 different options (max ${maxChars} characters each).
-
-Return ONLY valid JSON (no markdown, no extra text):
-{
-  "suggestions": ["option 1", "option 2", "option 3"]
-}`
+    prompt += `Generate exactly ${suggestionCount} different options (max ${maxChars} characters each).`
 
     return prompt
   }
@@ -690,7 +683,8 @@ Return ONLY valid JSON (no markdown, no extra text):
     context: SuggestionContext,
     maxChars: number,
     profileLanguagePreference: StyleProfile['languagePreference'],
-    minCharsTarget: number
+    minCharsTarget: number,
+    suggestionCount: number
   ): string {
     if (!context.currentDraft) {
       throw new Error('Draft is required for improve mode')
@@ -718,12 +712,7 @@ Return ONLY valid JSON (no markdown, no extra text):
 You can expand the text with stronger framing, clearer arguments, and better flow when helpful.
 Prioritize substantial outputs: target roughly ${minCharsTarget}-${maxChars} characters when possible (never exceed ${maxChars}).
 Each version should feel clearly more developed and materially longer than the original draft.
-Provide exactly 3 improved versions (max ${maxChars} characters each).
-
-Return ONLY valid JSON (no markdown, no extra text):
-{
-  "suggestions": ["version 1", "version 2", "version 3"]
-}`
+Provide exactly ${suggestionCount} improved versions (max ${maxChars} characters each).`
 
     return prompt
   }
@@ -759,7 +748,7 @@ Return ONLY valid JSON (no markdown, no extra text):
     return meetsMinTarget === 0 && clearlyLonger < 2
   }
 
-  private buildTranslatePrompt(context: SuggestionContext): string {
+  private buildTranslatePrompt(context: SuggestionContext, suggestionCount: number): string {
     if (!context.currentDraft) {
       throw new Error('Text is required for translate mode')
     }
@@ -772,23 +761,18 @@ Return ONLY valid JSON (no markdown, no extra text):
 
 "${context.currentDraft}"
 
-Provide 3 translation versions:
+Provide ${suggestionCount} translation versions:
 1. Literal — preserve exact meaning, sentence structure, and length
 2. Natural — slightly adapted for fluency in ${langName}
-3. Concise — same meaning, tighter phrasing
 
-IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version must translate the COMPLETE text faithfully.
-
-Return ONLY valid JSON (no markdown, no extra text):
-{
-  "suggestions": ["translation 1", "translation 2", "translation 3"]
-}`
+IMPORTANT: Do NOT summarize, shorten, or omit any part of the text. Each version must translate the COMPLETE text faithfully.`
   }
 
   private buildHumanizePrompt(
     context: SuggestionContext,
     maxChars: number,
-    profileLanguagePreference: StyleProfile['languagePreference']
+    profileLanguagePreference: StyleProfile['languagePreference'],
+    suggestionCount: number
   ): string {
     if (!context.currentDraft) {
       throw new Error('Draft is required for humanize mode')
@@ -820,56 +804,9 @@ Return ONLY valid JSON (no markdown, no extra text):
 - Vary sentence rhythm and improve flow
 - Keep similar length where possible
 
-Provide exactly 3 humanized versions (max ${maxChars} characters each).
-
-Return ONLY valid JSON (no markdown, no extra text):
-{
-  "suggestions": ["version 1", "version 2", "version 3"]
-}`
+Provide exactly ${suggestionCount} humanized versions (max ${maxChars} characters each).`
 
     return prompt
-  }
-
-  private parseSuggestions(text: string, maxChars: number): string[] {
-    const cleaned = text
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim()
-
-    const parsed = this.safeParseJson(cleaned)
-    const suggestionsRaw = parsed?.suggestions
-
-    if (!Array.isArray(suggestionsRaw)) {
-      throw new Error('Invalid AI response: expected suggestions array')
-    }
-
-    const suggestions = suggestionsRaw
-      .filter((s): s is string => typeof s === 'string')
-      .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-      .filter((s) => s.length > 0)
-      .filter((s) => s.length <= maxChars)
-      .slice(0, 3)
-
-    if (suggestions.length === 0) {
-      throw new Error('Invalid AI response: no valid suggestions')
-    }
-
-    return suggestions
-  }
-
-  private safeParseJson(input: string): { suggestions?: unknown } | null {
-    try {
-      return JSON.parse(input) as { suggestions?: unknown }
-    } catch {
-      // Attempt to extract the first JSON object from the response
-      const match = input.match(/\{[\s\S]*\}/)
-      if (!match) return null
-      try {
-        return JSON.parse(match[0]) as { suggestions?: unknown }
-      } catch {
-        return null
-      }
-    }
   }
 
   private createDefaultProfile(userId: string, fid: number): StyleProfile {

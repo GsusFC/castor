@@ -47,6 +47,43 @@ type AISuggestion = {
   length: number
 }
 
+const AI_MODE_UI: Record<Exclude<AIMode, null>, {
+  tabLabel: string
+  tabShortLabel: string
+  actionLabel: string
+  title: string
+  description: string
+}> = {
+  propose: {
+    tabLabel: 'Draft',
+    tabShortLabel: 'Draft',
+    actionLabel: 'Generate drafts',
+    title: 'Draft new options',
+    description: 'Use this when you have a topic and want 3 ready-to-post starting points.',
+  },
+  translate: {
+    tabLabel: 'Translate',
+    tabShortLabel: 'Trans',
+    actionLabel: 'Translate draft',
+    title: 'Translate your draft',
+    description: 'Keeps the same meaning in another language without changing intent.',
+  },
+  improve: {
+    tabLabel: 'Polish',
+    tabShortLabel: 'Polish',
+    actionLabel: 'Polish draft',
+    title: 'Polish for publishing',
+    description: 'Makes your draft tighter, clearer, and adapted to the selected network limit.',
+  },
+  humanize: {
+    tabLabel: 'Natural',
+    tabShortLabel: 'Natural',
+    actionLabel: 'Make natural',
+    title: 'Make it sound natural',
+    description: 'Softens robotic phrasing and improves flow while preserving your message.',
+  },
+}
+
 interface AITabsProps {
   onSelectText: (text: string) => void
   currentDraft: string
@@ -94,6 +131,7 @@ export function AITabs({
   const [targetLanguage, setTargetLanguage] = useState<SupportedTargetLanguage>('en')
   const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [streamStatus, setStreamStatus] = useState<string | null>(null)
   const [isBrandModeOn, setIsBrandModeOn] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -205,41 +243,110 @@ export function AITabs({
 
     setIsLoading(true)
     setError(null)
+    setStreamStatus(null)
     setSuggestions([])
+
+    const requestBase = {
+      mode: activeTab,
+      draft: currentDraft,
+      replyingTo,
+      quotingCast,
+      targetTone: selectedTone,
+      targetLanguage,
+      targetPlatform: activeTab === 'improve' || activeTab === 'humanize' ? improveTargetNetwork : undefined,
+      maxCharsOverride: activeTab === 'improve' || activeTab === 'humanize' ? getNetworkLimit(improveTargetNetwork) : undefined,
+      isPro,
+      accountId,
+      includeBrandValidation: false,
+    } as const
 
     try {
       const response = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildAssistantRequest({
-          mode: activeTab,
-          draft: currentDraft,
-          replyingTo,
-          quotingCast,
-          targetTone: selectedTone,
-          targetLanguage,
-          targetPlatform: activeTab === 'improve' || activeTab === 'humanize' ? improveTargetNetwork : undefined,
-          maxCharsOverride: activeTab === 'improve' || activeTab === 'humanize' ? getNetworkLimit(improveTargetNetwork) : undefined,
-          isPro,
-          accountId,
+          ...requestBase,
+          stream: true,
         })),
       })
-
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
 
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
         console.error('AI API error:', data)
-        throw new Error(getAssistantErrorMessage(data, 'Error generating suggestions'))
+        throw new Error(getAssistantErrorMessage(data, 'Hubo un problema de conexión al generar sugerencias. Por favor, reintenta.'))
       }
 
-      const nextSuggestions = (data?.suggestions as AISuggestion[] | undefined) ?? []
-      setSuggestions(nextSuggestions)
-      if (nextSuggestions.length === 0) {
-        setError('Could not generate suggestions. Try regenerating.')
+      if (!contentType.includes('application/x-ndjson') || !response.body) {
+        throw new Error('Hubo un problema en el servidor. Por favor, reintenta.')
+      } else {
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let receivedResult = false
+        const processLine = (rawLine: string) => {
+          const line = rawLine.trim()
+          if (!line) return
+
+          let chunk:
+            | { type: 'status'; status: string }
+            | { type: 'result'; suggestions?: AISuggestion[] }
+            | { type: 'error'; message?: string }
+            | null = null
+          try {
+            chunk = JSON.parse(line) as
+              | { type: 'status'; status: string }
+              | { type: 'result'; suggestions?: AISuggestion[] }
+              | { type: 'error'; message?: string }
+          } catch (parseError) {
+            console.warn('[AI stream] Invalid chunk:', parseError)
+            chunk = null
+          }
+
+          if (chunk?.type === 'status') {
+            setStreamStatus(chunk.status)
+          } else if (chunk?.type === 'result') {
+            receivedResult = true
+            const nextSuggestions = chunk.suggestions ?? []
+            setSuggestions(nextSuggestions)
+            setStreamStatus(null)
+            if (nextSuggestions.length === 0) {
+              setError('Could not generate suggestions. Try regenerating.')
+            }
+          } else if (chunk?.type === 'error') {
+            throw new Error(chunk.message || 'Generation error. Try again.')
+          }
+        }
+
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) {
+            buffer += decoder.decode()
+            break
+          }
+          buffer += decoder.decode(value, { stream: true })
+
+          let newlineIndex = buffer.indexOf('\n')
+          while (newlineIndex >= 0) {
+            const line = buffer.slice(0, newlineIndex)
+            buffer = buffer.slice(newlineIndex + 1)
+            processLine(line)
+
+            newlineIndex = buffer.indexOf('\n')
+          }
+        }
+
+        // Procesar un posible último chunk sin newline final.
+        processLine(buffer)
+
+        if (!receivedResult) {
+          throw new Error('Hubo un problema de red. Por favor, reintenta.')
+        }
       }
     } catch (err) {
       console.error('AI error:', err)
-      setError(err instanceof Error ? err.message : 'Generation error. Try again.')
+      setError(err instanceof Error ? err.message : 'Hubo un error inesperado. Por favor, reintenta.')
+      setStreamStatus(null)
     } finally {
       setIsLoading(false)
     }
@@ -252,6 +359,7 @@ export function AITabs({
   }
 
   const showContent = activeTab !== null
+  const activeModeMeta = activeTab ? AI_MODE_UI[activeTab] : null
 
   return (
     <div className="border-b border-border">
@@ -294,6 +402,7 @@ export function AITabs({
             role="tab"
             aria-selected={activeTab === 'propose'}
             onClick={() => handleTabClick('propose')}
+            aria-label="Draft new suggestions"
             className={cn(
               'flex-1',
               NAV.PILL_TABS.pill.base,
@@ -304,8 +413,8 @@ export function AITabs({
             )}
           >
             <FileEdit className={NAV.PILL_TABS.iconSize} />
-            <span className="hidden sm:inline">Propose</span>
-            <span className="sm:hidden">Prop</span>
+            <span className="hidden sm:inline">{AI_MODE_UI.propose.tabLabel}</span>
+            <span className="sm:hidden">{AI_MODE_UI.propose.tabShortLabel}</span>
           </button>
 
           <button
@@ -313,6 +422,7 @@ export function AITabs({
             role="tab"
             aria-selected={activeTab === 'translate'}
             onClick={() => handleTabClick('translate')}
+            aria-label="Translate current draft"
             className={cn(
               'flex-1',
               NAV.PILL_TABS.pill.base,
@@ -323,8 +433,8 @@ export function AITabs({
             )}
           >
             <Languages className={NAV.PILL_TABS.iconSize} />
-            <span className="hidden sm:inline">Translate</span>
-            <span className="sm:hidden">Trans</span>
+            <span className="hidden sm:inline">{AI_MODE_UI.translate.tabLabel}</span>
+            <span className="sm:hidden">{AI_MODE_UI.translate.tabShortLabel}</span>
           </button>
 
           <button
@@ -332,6 +442,7 @@ export function AITabs({
             role="tab"
             aria-selected={activeTab === 'improve'}
             onClick={() => handleTabClick('improve')}
+            aria-label="Polish current draft"
             className={cn(
               'flex-1',
               NAV.PILL_TABS.pill.base,
@@ -342,8 +453,8 @@ export function AITabs({
             )}
           >
             <Wand2 className={NAV.PILL_TABS.iconSize} />
-            <span className="hidden sm:inline">Improve</span>
-            <span className="sm:hidden">Impr</span>
+            <span className="hidden sm:inline">{AI_MODE_UI.improve.tabLabel}</span>
+            <span className="sm:hidden">{AI_MODE_UI.improve.tabShortLabel}</span>
           </button>
 
           <button
@@ -351,6 +462,7 @@ export function AITabs({
             role="tab"
             aria-selected={activeTab === 'humanize'}
             onClick={() => handleTabClick('humanize')}
+            aria-label="Make draft sound natural"
             className={cn(
               'flex-1',
               NAV.PILL_TABS.pill.base,
@@ -361,8 +473,8 @@ export function AITabs({
             )}
           >
             <Sparkles className={NAV.PILL_TABS.iconSize} />
-            <span className="hidden sm:inline">Humanize</span>
-            <span className="sm:hidden">Hum</span>
+            <span className="hidden sm:inline">{AI_MODE_UI.humanize.tabLabel}</span>
+            <span className="sm:hidden">{AI_MODE_UI.humanize.tabShortLabel}</span>
           </button>
         </div>
       </div>
@@ -370,6 +482,13 @@ export function AITabs({
       {/* Content panel */}
       {showContent && (
         <div className="p-3 bg-muted/20 space-y-3">
+          {activeModeMeta && (
+            <div className="rounded-lg border border-border/60 bg-background/80 p-2.5">
+              <p className="text-sm font-medium text-foreground">{activeModeMeta.title}</p>
+              <p className="text-xs text-muted-foreground">{activeModeMeta.description}</p>
+            </div>
+          )}
+
           {/* Reply/Quote context */}
           {(replyingTo || quotingCast) && (
             <div className="flex items-start gap-3 p-2 bg-background rounded-lg border">
@@ -478,7 +597,7 @@ export function AITabs({
               size="sm"
               className={cn(
                 "h-8 gap-1.5",
-                (isPro || activeTab === 'improve' || activeTab === 'humanize') && "bg-gradient-to-r from-primary to-primary/80 border-none shadow-sm"
+                (isPro || activeTab === 'improve' || activeTab === 'humanize') && "border-none shadow-sm"
               )}
             >
               {isLoading ? (
@@ -502,13 +621,7 @@ export function AITabs({
                     </>
                   )}
                   <span className="flex items-center gap-1.5">
-                    {activeTab === 'translate'
-                      ? 'Translate'
-                      : activeTab === 'propose'
-                        ? 'Propose'
-                        : activeTab === 'humanize'
-                          ? 'Humanize'
-                          : 'Improve'}
+                    {activeModeMeta?.actionLabel ?? 'Generate'}
                     {(isPro || activeTab === 'improve' || activeTab === 'humanize') && (
                       <span className="text-[10px] font-bold px-1 bg-white/20 rounded uppercase tracking-tighter">Pro</span>
                     )}
@@ -531,6 +644,10 @@ export function AITabs({
                 Retry
               </Button>
             </div>
+          )}
+
+          {isLoading && streamStatus && !error && (
+            <p className="text-xs text-muted-foreground">{streamStatus}</p>
           )}
 
           {suggestions.length > 0 && (

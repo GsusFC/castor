@@ -145,257 +145,170 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const buildAssistantPayload = async (
-      onStatus?: (status: string) => void
-    ): Promise<{
-      suggestions: Array<{
-        id: string
-        text: string
-        length: number
-        mode: AIMode
-        targetTone: string | null
-        targetLanguage: string | null
-        brandValidation?: Awaited<ReturnType<typeof brandValidator.validate>>
-      }>
-      profile: { tone: string; avgLength: number; languagePreference: string }
-      hasBrandMode: boolean
-      voiceMode: 'brand' | 'personal'
-    }> => {
-      onStatus?.('Loading your voice profile...')
+    let profile
+    try {
+      profile = await castorAI.getOrCreateProfile(session.userId, session.fid)
+    } catch (profileError) {
+      console.error('[AI Assistant] Profile error, using default:', profileError)
+      profile = {
+        id: 'default',
+        userId: session.userId,
+        fid: session.fid,
+        tone: 'casual' as const,
+        avgLength: 150,
+        commonPhrases: [],
+        topics: [],
+        emojiUsage: 'light' as const,
+        languagePreference: 'en' as const,
+        sampleCasts: [],
+        analyzedAt: new Date(),
+      }
+    }
 
-      let profile
-      try {
-        profile = await castorAI.getOrCreateProfile(session.userId, session.fid)
-      } catch (profileError) {
-        console.error('[AI Assistant] Profile error, using default:', profileError)
-        profile = {
-          id: 'default',
-          userId: session.userId,
-          fid: session.fid,
-          tone: 'casual' as const,
-          avgLength: 150,
-          commonPhrases: [],
-          topics: [],
-          emojiUsage: 'light' as const,
-          languagePreference: 'en' as const,
-          sampleCasts: [],
-          analyzedAt: new Date(),
-        }
+    let accountContext: SuggestionContext['accountContext']
+    let isProValidated = isPro
+    let effectiveVoiceMode: 'brand' | 'personal' = 'personal'
+
+    if (accountId) {
+      const account = await db.query.accounts.findFirst({
+        where: eq(accounts.id, accountId),
+        columns: {
+          ownerId: true,
+          isPremium: true,
+          type: true,
+          voiceMode: true,
+        },
+      })
+
+      if (!account) {
+        return NextResponse.json({ error: 'Account not found' }, { status: 404 })
       }
 
-      let accountContext: SuggestionContext['accountContext']
-      let isProValidated = isPro
-      let effectiveVoiceMode: 'brand' | 'personal' = 'personal'
-
-      if (accountId) {
-        onStatus?.('Loading account context...')
-        const account = await db.query.accounts.findFirst({
-          where: eq(accounts.id, accountId),
-          columns: {
-            ownerId: true,
-            isPremium: true,
-            type: true,
-            voiceMode: true,
-          },
-        })
-
-        if (!account) {
-          throw new Error('ACCOUNT_NOT_FOUND')
-        }
-
-        isProValidated = account.isPremium
-        effectiveVoiceMode = resolveVoiceMode(
-          account.type as 'personal' | 'business',
-          (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
-        )
-
-        const membership = await db.query.accountMembers.findFirst({
-          where: and(
-            eq(accountMembers.accountId, accountId),
-            eq(accountMembers.userId, session.userId)
-          ),
-          columns: { id: true },
-        })
-
-        if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
-          throw new Error('FORBIDDEN')
-        }
-
-        const ctx = await castorAI.getAccountContext(accountId)
-        if (ctx) {
-          accountContext =
-            effectiveVoiceMode === 'brand'
-              ? ctx
-              : {
-                  ...ctx,
-                  brandVoice: undefined,
-                  alwaysDo: undefined,
-                  neverDo: undefined,
-                  hashtags: undefined,
-                }
-        }
-      }
-
-      const maxChars = maxCharsOverride
-        ? Math.max(80, Math.min(10000, Math.floor(maxCharsOverride)))
-        : getMaxChars(isProValidated)
-
-      const context: SuggestionContext = {
-        currentDraft: draft,
-        replyingTo,
-        quotingCast,
-        topic,
-        targetTone,
-        targetLanguage,
-        targetPlatform,
-        accountContext,
-      }
-
-      onStatus?.('Generating suggestions...')
-      let suggestions
-      try {
-        suggestions = await castorAI.generateSuggestions(mode, profile, context, maxChars, isProValidated)
-      } catch (genError) {
-        if (isRateLimitError(genError)) throw new Error('AI_RATE_LIMIT')
-        if (isInvalidAIResponseError(genError)) throw new Error('AI_BAD_RESPONSE')
-        throw new Error('AI_GENERATION_FAILED')
-      }
-
-      const validationCache = new Map<string, Awaited<ReturnType<typeof brandValidator.validate>>>()
-      const shouldValidateBrand =
-        includeBrandValidation &&
-        effectiveVoiceMode === 'brand' &&
-        Boolean(accountContext?.brandVoice)
-      if (shouldValidateBrand) onStatus?.('Validating brand consistency...')
-
-      const suggestionObjects = await Promise.all(
-        suggestions.map(async (text: string) => {
-          let brandValidation = undefined
-
-          if (shouldValidateBrand) {
-            try {
-              const cached = validationCache.get(text)
-              if (cached) {
-                brandValidation = cached
-              } else {
-                const validated = await withTimeout(
-                  brandValidator.validate(text, profile, accountContext),
-                  BRAND_VALIDATION_TIMEOUT_MS
-                )
-                if (validated) {
-                  brandValidation = validated
-                  validationCache.set(text, validated)
-                }
-              }
-            } catch (validationError) {
-              console.warn('[AI Assistant] Brand validation error, skipping:', validationError)
-            }
-          }
-
-          return {
-            id: nanoid(),
-            text,
-            length: text.length,
-            mode,
-            targetTone: targetTone ?? null,
-            targetLanguage: targetLanguage ?? null,
-            brandValidation,
-          }
-        })
+      isProValidated = account.isPremium
+      effectiveVoiceMode = resolveVoiceMode(
+        account.type as 'personal' | 'business',
+        (account.voiceMode ?? 'auto') as 'auto' | 'brand' | 'personal'
       )
 
-      return {
-        suggestions: suggestionObjects,
-        profile: {
-          tone: profile.tone,
-          avgLength: profile.avgLength,
-          languagePreference: profile.languagePreference,
-        },
-        hasBrandMode: !!accountContext?.brandVoice,
-        voiceMode: effectiveVoiceMode,
+      const membership = await db.query.accountMembers.findFirst({
+        where: and(
+          eq(accountMembers.accountId, accountId),
+          eq(accountMembers.userId, session.userId)
+        ),
+        columns: { id: true },
+      })
+
+      if (!canAccess(session, { ownerId: account.ownerId, isMember: !!membership })) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const ctx = await castorAI.getAccountContext(accountId)
+      if (ctx) {
+        accountContext =
+          effectiveVoiceMode === 'brand'
+            ? ctx
+            : {
+                ...ctx,
+                brandVoice: undefined,
+                alwaysDo: undefined,
+                neverDo: undefined,
+                hashtags: undefined,
+              }
       }
     }
 
-    if (!stream) {
-      try {
-        const payload = await buildAssistantPayload()
-        return NextResponse.json(payload)
-      } catch (error) {
-        if (error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND') {
-          return NextResponse.json({ error: 'Account not found' }, { status: 404 })
-        }
-        if (error instanceof Error && error.message === 'FORBIDDEN') {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-        if (error instanceof Error && error.message.includes('Invalid AI response')) {
-          return NextResponse.json(
-            {
-              error: 'AI_BAD_RESPONSE',
-              code: 'AI_BAD_RESPONSE',
-              message: 'La IA devolvió una respuesta inválida. Prueba a regenerar.',
-              suggestions: [],
-            },
-            { status: 502 }
-          )
-        }
-        if (error instanceof Error && error.message === 'AI_GENERATION_FAILED') {
-          return NextResponse.json(
-            {
-              error: 'AI_GENERATION_FAILED',
-              code: 'AI_GENERATION_FAILED',
-              message: 'No se pudieron generar sugerencias. Inténtalo de nuevo.',
-              suggestions: [],
-            },
-            { status: 500 }
-          )
-        }
-        throw error
+    const maxChars = maxCharsOverride
+      ? Math.max(80, Math.min(10000, Math.floor(maxCharsOverride)))
+      : getMaxChars(isProValidated)
+
+    const context: SuggestionContext = {
+      currentDraft: draft,
+      replyingTo,
+      quotingCast,
+      topic,
+      targetTone,
+      targetLanguage,
+      targetPlatform,
+      accountContext,
+    }
+
+    let suggestions
+    try {
+      suggestions = await castorAI.generateSuggestions(mode, profile, context, maxChars, isProValidated)
+    } catch (genError) {
+      if (isRateLimitError(genError)) {
+        return NextResponse.json(
+          { error: 'AI_RATE_LIMIT', message: 'Mucho tráfico de peticiones. Por favor, espera unos segundos e inténtalo de nuevo.', suggestions: [] },
+          { status: 429 }
+        )
       }
+      if (isInvalidAIResponseError(genError)) {
+        return NextResponse.json(
+          { error: 'AI_BAD_RESPONSE', message: 'La IA devolvió una respuesta inválida. Prueba a regenerar.', suggestions: [] },
+          { status: 502 }
+        )
+      }
+      console.error('[AI Assistant] Generation failed:', genError)
+      return NextResponse.json(
+        { error: 'AI_GENERATION_FAILED', message: 'No se pudieron generar sugerencias. Inténtalo de nuevo.', suggestions: [] },
+        { status: 500 }
+      )
     }
 
-    const encoder = new TextEncoder()
-    const sendChunk = (controller: ReadableStreamDefaultController, data: unknown) => {
-      controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`))
-    }
+    const validationCache = new Map<string, Awaited<ReturnType<typeof brandValidator.validate>>>()
+    const shouldValidateBrand =
+      includeBrandValidation &&
+      effectiveVoiceMode === 'brand' &&
+      Boolean(accountContext?.brandVoice)
 
-    const resultStream = new ReadableStream({
-      start(controller) {
-        const run = async () => {
+    const suggestionObjects = await Promise.all(
+      suggestions.map(async (text: string) => {
+        let brandValidation = undefined
+
+        if (shouldValidateBrand) {
           try {
-            const payload = await buildAssistantPayload((status) => {
-              sendChunk(controller, { type: 'status', status })
-            })
-            sendChunk(controller, { type: 'result', ...payload })
-          } catch (error) {
-            const message =
-              error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND'
-                ? 'Account not found'
-                : error instanceof Error && error.message === 'FORBIDDEN'
-                  ? 'Forbidden'
-                  : error instanceof Error && error.message === 'AI_BAD_RESPONSE'
-                    ? 'La IA devolvió una respuesta inválida. Prueba a regenerar.'
-                    : error instanceof Error && error.message === 'AI_RATE_LIMIT'
-                      ? 'Mucho tráfico de peticiones. Por favor, espera unos segundos e inténtalo de nuevo.'
-                      : 'No se pudieron generar sugerencias. Inténtalo de nuevo.'
-            sendChunk(controller, { type: 'error', message })
-          } finally {
-            controller.close()
+            const cached = validationCache.get(text)
+            if (cached) {
+              brandValidation = cached
+            } else {
+              const validated = await withTimeout(
+                brandValidator.validate(text, profile, accountContext),
+                BRAND_VALIDATION_TIMEOUT_MS
+              )
+              if (validated) {
+                brandValidation = validated
+                validationCache.set(text, validated)
+              }
+            }
+          } catch (validationError) {
+            console.warn('[AI Assistant] Brand validation error, skipping:', validationError)
           }
         }
-        void run()
+
+        return {
+          id: nanoid(),
+          text,
+          length: text.length,
+          mode,
+          targetTone: targetTone ?? null,
+          targetLanguage: targetLanguage ?? null,
+          brandValidation,
+        }
+      })
+    )
+
+    return NextResponse.json({
+      type: 'result',
+      suggestions: suggestionObjects,
+      profile: {
+        tone: profile.tone,
+        avgLength: profile.avgLength,
+        languagePreference: profile.languagePreference,
       },
-      cancel() {
-        // no-op
-      },
+      hasBrandMode: !!accountContext?.brandVoice,
+      voiceMode: effectiveVoiceMode,
     })
 
-    return new Response(resultStream, {
-      headers: {
-        'Content-Type': 'application/x-ndjson',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
-      },
-    })
   } catch (error) {
     console.error('[AI Assistant] Error:', error)
     return NextResponse.json(

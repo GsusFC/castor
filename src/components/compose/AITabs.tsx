@@ -243,7 +243,7 @@ export function AITabs({
 
     setIsLoading(true)
     setError(null)
-    setStreamStatus(null)
+    setStreamStatus('Generando sugerencias con IA...')
     setSuggestions([])
 
     try {
@@ -262,83 +262,29 @@ export function AITabs({
           isPro,
           accountId,
           includeBrandValidation: false,
-          stream: true,
+          stream: false,
         })),
       })
-      const contentType = response.headers.get('content-type') || ''
+      
+      const data = await response.json().catch(() => null)
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
         console.error('AI API error:', data)
         throw new Error(getAssistantErrorMessage(data, 'Hubo un problema de conexión al generar sugerencias. Por favor, reintenta.'))
       }
 
-      if (!contentType.includes('application/x-ndjson') || !response.body) {
-        throw new Error('Hubo un problema en el servidor. Por favor, reintenta.')
-      } else {
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        let receivedResult = false
-        const processLine = (rawLine: string) => {
-          const line = rawLine.trim()
-          if (!line) return
-
-          let chunk:
-            | { type: 'status'; status: string }
-            | { type: 'result'; suggestions?: AISuggestion[] }
-            | { type: 'error'; message?: string }
-            | null = null
-          try {
-            chunk = JSON.parse(line) as
-              | { type: 'status'; status: string }
-              | { type: 'result'; suggestions?: AISuggestion[] }
-              | { type: 'error'; message?: string }
-          } catch (parseError) {
-            console.warn('[AI stream] Invalid chunk:', parseError)
-            chunk = null
-          }
-
-          if (chunk?.type === 'status') {
-            setStreamStatus(chunk.status)
-          } else if (chunk?.type === 'result') {
-            receivedResult = true
-            const nextSuggestions = chunk.suggestions ?? []
-            setSuggestions(nextSuggestions)
-            setStreamStatus(null)
-            if (nextSuggestions.length === 0) {
-              setError('Could not generate suggestions. Try regenerating.')
-            }
-          } else if (chunk?.type === 'error') {
-            throw new Error(chunk.message || 'Generation error. Try again.')
-          }
-        }
-
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) {
-            buffer += decoder.decode()
-            break
-          }
-          buffer += decoder.decode(value, { stream: true })
-
-          let newlineIndex = buffer.indexOf('\n')
-          while (newlineIndex >= 0) {
-            const line = buffer.slice(0, newlineIndex)
-            buffer = buffer.slice(newlineIndex + 1)
-            processLine(line)
-
-            newlineIndex = buffer.indexOf('\n')
-          }
-        }
-
-        // Procesar un posible último chunk sin newline final.
-        processLine(buffer)
-
-        if (!receivedResult) {
-          throw new Error('Hubo un problema de red. Por favor, reintenta.')
-        }
+      if (!data || !Array.isArray(data.suggestions)) {
+        throw new Error('El servidor devolvió datos inválidos. Por favor, reintenta.')
       }
+      
+      const nextSuggestions = data.suggestions as AISuggestion[]
+      setSuggestions(nextSuggestions)
+      setStreamStatus(null)
+      
+      if (nextSuggestions.length === 0) {
+        setError('No se pudieron generar sugerencias. Intenta cambiar el texto o regenerar.')
+      }
+
     } catch (err) {
       console.error('AI error:', err)
       setError(err instanceof Error ? err.message : 'Hubo un error inesperado. Por favor, reintenta.')

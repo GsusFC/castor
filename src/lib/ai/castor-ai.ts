@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Schema, Type } from '@google/generative-ai'
+import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai'
 import { neynar } from '@/lib/farcaster/client'
 import { db, userStyleProfiles, accountKnowledgeBase } from '@/lib/db'
 import { eq } from 'drizzle-orm'
@@ -238,16 +238,16 @@ ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number)
 `
 
       const profileSchema: Schema = {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          tone: { type: Type.STRING, description: "Must be: casual, formal, technical, humorous, or mixed" },
-          avgLength: { type: Type.INTEGER, description: "Average length of casts in characters" },
-          commonPhrases: { type: Type.ARRAY, items: { type: Type.STRING } },
-          topics: { type: Type.ARRAY, items: { type: Type.STRING } },
-          emojiUsage: { type: Type.STRING, description: "Must be: none, light, or heavy" },
-          languagePreference: { type: Type.STRING, description: "Must be: en, es, or mixed" },
-          powerPhrases: { type: Type.ARRAY, items: { type: Type.STRING } },
-          contentPatterns: { type: Type.STRING, description: "Description of dominant content patterns" },
+          tone: { type: SchemaType.STRING, description: "Must be: casual, formal, technical, humorous, or mixed" },
+          avgLength: { type: SchemaType.INTEGER, description: "Average length of casts in characters" },
+          commonPhrases: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          topics: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          emojiUsage: { type: SchemaType.STRING, description: "Must be: none, light, or heavy" },
+          languagePreference: { type: SchemaType.STRING, description: "Must be: en, es, or mixed" },
+          powerPhrases: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          contentPatterns: { type: SchemaType.STRING, description: "Description of dominant content patterns" },
         },
         required: ["tone", "avgLength", "commonPhrases", "topics", "emojiUsage", "languagePreference"]
       }
@@ -407,11 +407,11 @@ ${castTexts.slice(0, AI_CONFIG.analysisPromptSize).map((text: string, i: number)
     const fullPrompt = `${systemContext}\n\n---\n\n${userPrompt}`
     
     const suggestionSchema: Schema = {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
         suggestions: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING }
         }
       },
       required: ["suggestions"]
@@ -500,9 +500,9 @@ ${chunk}
 </SOURCE_TEXT>`
 
       const translationSchema: Schema = {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          translation: { type: Type.STRING }
+          translation: { type: SchemaType.STRING }
         },
         required: ["translation"]
       }

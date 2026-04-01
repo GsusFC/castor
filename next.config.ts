@@ -9,8 +9,23 @@ const nextConfig: NextConfig = {
     },
     proxyClientMaxBodySize: '100mb',
   },
+  turbopack: {
+    resolveAlias: {
+      '@libsql/client': '@libsql/client/http',
+    },
+  },
   // Evitar bundling de pino (causa errores con thread-stream)
   serverExternalPackages: ['pino', 'pino-pretty'],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.resolve = config.resolve || {}
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        '@libsql/client': '@libsql/client/http',
+      }
+    }
+    return config
+  },
   // Security headers
   async headers() {
     return [

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Typefully API"
+  short_description: "Operate Typefully drafts and publishing via API"
+  default_prompt: "Use $typefully-api to create, schedule, or publish content through the Typefully API with validated responses."

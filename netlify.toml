@@ -1,6 +1,9 @@
 [build]
-  command = "npm run build"
+  command = "npm install --no-save --os=linux --cpu=x64 @libsql/linux-x64-gnu@0.5.10 || true; npm run build"
   publish = ".next"
+
+[functions]
+  external_node_modules = ["@libsql/client", "libsql", "@libsql/linux-x64-gnu", "@libsql/linux-x64-musl"]
 
 [functions."analyze-cast-performance"]
   schedule = "@hourly"

@@ -1,0 +1,31 @@
+(
+  set -euo pipefail
+
+  MYSQL_DATABASE_URL="mysql://brnd_migrator:brndcntr%2A@shinkansen.proxy.rlwy.net:12838/railway" \
+  MYSQL_SHADOW_DATABASE_URL="mysql://brnd_migrator:brndcntr%2A@shinkansen.proxy.rlwy.net:12838/brnd_cntr_shadow" \
+  npx prisma migrate dev --name init --create-only
+)
+
+
+./node_modules/.bin/prisma db execute --stdin --url "mysql://root:dwpQyakHjcAVMLdsDSzrbqHzeSPIJNgD@shinkansen.proxy.rlwy.net:12838/railway" <<'SQL'
+GRANT REFERENCES ON railway.* TO 'brnd_migrator'@'%';
+GRANT REFERENCES ON brnd_cntr_shadow.* TO 'brnd_migrator'@'%';
+FLUSH PRIVILEGES;
+SQL
+
+./node_modules/.bin/prisma db execute --stdin --url "mysql://root:brndcntr%2A@shinkansen.proxy.rlwy.net:12838/railway" <<'SQL'
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS
+  `notification_queue`,
+  `farcaster_channel_cache`,
+  `farcaster_user_cache`,
+  `user_daily_actions`,
+  `user_brand_votes`,
+  `brand_tags`,
+  `tags`,
+  `brands`,
+  `categories`,
+  `users`,
+  `_prisma_migrations`;
+SET FOREIGN_KEY_CHECKS = 1;
+SQL

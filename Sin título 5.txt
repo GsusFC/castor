@@ -1,0 +1,1 @@
+curl -i -H "Authorization: Bearer <TU_CRON_SECRET>" https://castorapp.xyz/api/cron/publish

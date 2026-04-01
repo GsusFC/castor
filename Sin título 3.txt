@@ -1,0 +1,33 @@
+./node_modules/.bin/prisma db execute --stdin --url "mysql://root:dwpQyakHjcAVMLdsDSzrbqHzeSPIJNgD@shinkansen.proxy.rlwy.net:12838/railway" <<'SQL'
+SELECT 1;
+SQL
+
+
+export MYSQL_ADMIN_URL='mysql://root:dwpQyakHjcAVMLdsDSzrbqHzeSPIJNgD@shinkansen.proxy.rlwy.net:12838/railway'
+export BRND_MIGRATOR_PASSWORD='brndcntr%2A'
+export BRND_RUNTIME_PASSWORD='brndcntr%2A'
+
+
+
+./node_modules/.bin/prisma db execute --stdin --url "$MYSQL_ADMIN_URL" <<SQL
+CREATE DATABASE IF NOT EXISTS brnd_cntr_shadow;
+
+CREATE USER IF NOT EXISTS 'brnd_migrator'@'%' IDENTIFIED BY '${brndcntr}';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP
+ON railway.* TO 'brnd_migrator'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP
+ON brnd_cntr_shadow.* TO 'brnd_migrator'@'%';
+
+CREATE USER IF NOT EXISTS 'brnd_runtime'@'%' IDENTIFIED BY '${brndcntr}';
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON railway.* TO 'brnd_runtime'@'%';
+
+FLUSH PRIVILEGES;
+
+SHOW DATABASES LIKE 'brnd_cntr_shadow';
+SHOW GRANTS FOR 'brnd_migrator'@'%';
+SHOW GRANTS FOR 'brnd_runtime'@'%';
+SQL
+
+
+export MYSQL_ADMIN_URL='mysql://root:dwpQyakHjcAVMLdsDSzrbqHzeSPIJNgD@shinkansen.proxy.rlwy.net:12838/railway'

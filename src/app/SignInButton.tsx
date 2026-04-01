@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo } from 'react'
 import {
   AuthKitProvider,
   SignInButton as FarcasterSignIn,
-  useProfile,
   useSignInMessage,
 } from '@farcaster/auth-kit'
 import '@farcaster/auth-kit/styles.css'
@@ -27,16 +26,9 @@ export function SignInButton() {
 }
 
 function SignInButtonInner() {
-  const { isAuthenticated, profile } = useProfile()
   const { message, signature } = useSignInMessage()
 
   const handleAuth = useCallback(async () => {
-    if (!isAuthenticated) {
-      return
-    }
-    if (!profile?.fid) {
-      return
-    }
     if (!message) {
       return
     }
@@ -60,13 +52,13 @@ function SignInButtonInner() {
     } catch (err) {
       console.error('[SignInButton] Auth error:', err)
     }
-  }, [isAuthenticated, message, profile?.fid, signature])
+  }, [message, signature])
 
   useEffect(() => {
-    if (isAuthenticated && profile?.fid && message && signature) {
+    if (message && signature) {
       handleAuth()
     }
-  }, [handleAuth, isAuthenticated, message, profile?.fid, signature])
+  }, [handleAuth, message, signature])
 
   return <FarcasterSignIn />
 }

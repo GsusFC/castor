@@ -1,0 +1,19 @@
+Prueba así:
+
+  # 1) Ejecuta un shell limpio (sin rc) y confirma que no hay warning
+  zsh -f -i -c 'exit'
+
+  # 2) Ahora ejecuta zsh con trazas y guarda log
+  zsh -xlic 'exit' 2>~/zsh-debug.log
+
+  # 3) Busca “node” en el log
+  rg -n "node|punycode|openclaw|env" ~/zsh-debug.log
+
+  Pásame la salida de ese rg y te digo la línea exacta que dispara el warning.
+
+  ### Si quieres test rápido ahora
+
+  Comenta temporalmente solo estas dos líneas y abre un terminal nuevo:
+
+  # source <(openclaw completion --shell zsh)
+  # . "$HOME/.local/bin/env"

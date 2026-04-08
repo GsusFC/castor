@@ -94,6 +94,22 @@ describe('hasPendingVideos', () => {
     ]
     expect(hasPendingVideos(casts)).toBe(true)
   })
+
+  it('should return true for processing videos', () => {
+    const casts = [
+      createCast({
+        media: [
+          {
+            preview: 'blob:1',
+            url: 'https://vid.com/1.mp4',
+            type: 'video',
+            videoStatus: 'processing',
+          },
+        ],
+      }),
+    ]
+    expect(hasPendingVideos(casts)).toBe(true)
+  })
 })
 
 describe('validateMediaReady', () => {
@@ -115,6 +131,15 @@ describe('validateMediaReady', () => {
     expect(validateMediaReady(casts)).toBe(
       'Please wait for uploads to finish or remove failed files'
     )
+  })
+
+  it('should return error message when video is still processing', () => {
+    const casts = [
+      createCast({
+        media: [{ preview: 'blob:1', url: 'https://vid.com/1.mp4', type: 'video', videoStatus: 'pending' }],
+      }),
+    ]
+    expect(validateMediaReady(casts)).toBe('Please wait for video processing to finish')
   })
 })
 

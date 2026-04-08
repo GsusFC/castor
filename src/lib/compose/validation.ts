@@ -18,7 +18,9 @@ export function hasMediaIssues(casts: CastItem[]): boolean {
  */
 export function hasPendingVideos(casts: CastItem[]): boolean {
   return casts.some((c) =>
-    c.media.some((m) => m.type === 'video' && m.videoStatus === 'pending')
+    c.media.some((m) =>
+      m.type === 'video' && (m.videoStatus === 'pending' || m.videoStatus === 'processing')
+    )
   )
 }
 
@@ -29,6 +31,9 @@ export function hasPendingVideos(casts: CastItem[]): boolean {
 export function validateMediaReady(casts: CastItem[]): string | null {
   if (hasMediaIssues(casts)) {
     return 'Please wait for uploads to finish or remove failed files'
+  }
+  if (hasPendingVideos(casts)) {
+    return 'Please wait for video processing to finish'
   }
   return null
 }

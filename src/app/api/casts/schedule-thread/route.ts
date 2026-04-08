@@ -10,6 +10,16 @@ import { calculateTextLength } from '@/lib/url-utils'
 import { withLock } from '@/lib/lock'
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/idempotency'
 
+const hasUnreadyVideoEmbeds = (
+  casts: Array<{ embeds?: Array<{ type?: 'image' | 'video'; videoStatus?: 'pending' | 'processing' | 'ready' | 'error' }> }>
+) => {
+  return casts.some((cast) =>
+    cast.embeds?.some((embed) =>
+      embed.type === 'video' && (embed.videoStatus === 'pending' || embed.videoStatus === 'processing')
+    )
+  )
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
@@ -25,6 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { accountId, channelId, scheduledAt, casts, idempotencyKey } = validation.data
+
+    if (hasUnreadyVideoEmbeds(casts)) {
+      return ApiErrors.validationFailed([
+        { field: 'casts', message: 'Please wait for video processing to finish before scheduling' },
+      ])
+    }
 
     const idemKey = idempotencyKey
       ? `schedule-thread:${session.userId}:${accountId}:${idempotencyKey}`

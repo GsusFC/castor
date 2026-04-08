@@ -250,7 +250,7 @@ export function ComposeFooter({
 
   // Verificar si hay media subiendo o videos pendientes
   const hasMediaIssues = casts.some(c =>
-    c.media.some(m => m.uploading || m.error || m.videoStatus === 'pending')
+    c.media.some(m => m.uploading || m.error || m.videoStatus === 'pending' || m.videoStatus === 'processing')
   )
 
   const canPublishNow =

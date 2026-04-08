@@ -23,6 +23,16 @@ type CloudflareVideoRef = {
 
 type CastMediaUpdate = Partial<typeof castMedia.$inferInsert>
 
+const hasUnreadyVideoEmbeds = (
+  embeds: Array<{ type?: 'image' | 'video'; videoStatus?: 'pending' | 'processing' | 'ready' | 'error' }> | undefined
+) => {
+  return Boolean(
+    embeds?.some((embed) =>
+      embed.type === 'video' && (embed.videoStatus === 'pending' || embed.videoStatus === 'processing')
+    )
+  )
+}
+
 const bestEffortNormalizeCloudflareVideos = async (videos: CloudflareVideoRef[]) => {
   if (videos.length === 0) return
   if (!CF_ACCOUNT_ID || !CF_IMAGES_TOKEN) return
@@ -109,6 +119,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { accountId, content, scheduledAt, channelId, embeds, isDraft, parentHash, idempotencyKey } = validation.data
+
+    if (!isDraft && hasUnreadyVideoEmbeds(embeds)) {
+      return ApiErrors.validationFailed([
+        { field: 'embeds', message: 'Please wait for video processing to finish before scheduling' },
+      ])
+    }
 
     const idemKey = idempotencyKey
       ? `schedule:${session.userId}:${accountId}:${idempotencyKey}`

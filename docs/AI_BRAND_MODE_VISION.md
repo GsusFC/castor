@@ -71,7 +71,7 @@ En cada surface de IA generativa (Studio/AITabs, AI Reply, Analytics):
 - **ON:** `brandVoice` presente.
 - **(Opcional) INCOMPLETE:** KB existe pero `brandVoice` vacío; mismo CTA.
 
-## “Translate con voz” (AIAssistant translate)
+## "Translate con voz" (asistente IA: AITabs / AIReplyDialog translate)
 ### Intención
 No es traducción literal; es **localización brand-aware**:
 - Mantener significado.
@@ -144,7 +144,6 @@ Este plan traduce las fases a PRs pequeños, revisables y fáciles de revertir.
   - Requests a `/api/ai/assistant` incluyen `accountId` desde la cuenta activa.
   - AI replies también pasan `accountId`.
 - **Archivos**:
-  - `src/components/ai/AIAssistant.tsx`
   - `src/components/compose/AITabs.tsx`
   - `src/components/feed/AIReplyDialog.tsx`
 - **Criterio de aceptación**:
@@ -164,11 +163,11 @@ Este plan traduce las fases a PRs pequeños, revisables y fáciles de revertir.
 - **Objetivo**: que no se mezcle la traducción literal gratis con la IA.
 - **Scope**:
   - Confirmar que `/api/ai/translate` permanece literal y sin `accountId`.
-  - Ajustar labels/copy del AIAssistant para que `translate` se entienda como “con voz”.
+  - Ajustar labels/copy del AITabs para que `translate` se entienda como "con voz".
 - **Archivos**:
   - `src/app/api/ai/translate/route.ts`
   - `src/components/feed/CastCard.tsx`
-  - `src/components/ai/AIAssistant.tsx`
+  - `src/components/compose/AITabs.tsx`
 - **Criterio de aceptación**:
   - Translate del cast funciona igual que antes.
   - Translate del asistente aplica BrandVoice (cuando existe).
@@ -216,7 +215,7 @@ Archivos a revisar/tocar:
 - `src/components/compose/AITabs.tsx`
   - Mostrar el banner cuando Brand Mode esté OFF.
   - Asegurar que las acciones de IA usan la cuenta activa.
-- `src/components/ai/AIAssistant.tsx`
+- `src/components/compose/AITabs.tsx`
   - Ajustar copy/labels si hace falta para diferenciar:
     - translate literal (no aquí)
     - `translate` del asistente = “traducir con voz”.
@@ -226,7 +225,6 @@ Objetivo: que **assistant, replies y analytics** llamen a la IA generativa con `
 
 Archivos típicos:
 - Composer/assistant:
-  - `src/components/ai/AIAssistant.tsx`
   - `src/components/compose/AITabs.tsx`
 - Replies:
   - `src/components/feed/AIReplyDialog.tsx`
@@ -258,7 +256,7 @@ Reglas de implementación:
 - **Translate literal del cast**:
   - No debe depender de `accountId`.
   - No debe aplicar `brandVoice`.
-- **Translate del AIAssistant (“con voz”)**:
+- **Translate del asistente IA (AITabs/AIReplyDialog, "con voz")**:
   - Debe aplicar `brandVoice` (y `alwaysDo/neverDo` si existen).
 
 Archivos a revisar/tocar:

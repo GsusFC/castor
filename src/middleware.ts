@@ -2,6 +2,29 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
+function generateNonce(): string {
+  return Buffer.from(crypto.randomUUID()).toString('base64')
+}
+
+function cspValue(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'strict-dynamic' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https:",
+    "frame-src 'self' https://relay.farcaster.xyz https://warpcast.com",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join('; ')
+}
+
+function withCSP(response: NextResponse, nonce: string): NextResponse {
+  response.headers.set('Content-Security-Policy', cspValue(nonce))
+  return response
+}
+
 const AUTH_COOKIE = 'castor_session'
 const NODE_ENV = process.env.NODE_ENV ?? 'development'
 
@@ -52,6 +75,8 @@ function getSecretKey() {
 }
 
 export async function middleware(request: NextRequest) {
+  const nonce = generateNonce()
+
   const { pathname } = request.nextUrl
   const method = request.method
   const token = request.cookies.get(AUTH_COOKIE)?.value
@@ -60,7 +85,7 @@ export async function middleware(request: NextRequest) {
 
   // Si el usuario NO tiene sesión y accede a /, redirigir a landing
   if (pathname === '/' && !token) {
-    return NextResponse.rewrite(new URL('/landing', request.url))
+    return withCSP(NextResponse.rewrite(new URL('/landing', request.url)), nonce)
   }
 
   // Si el usuario tiene sesión y accede a /, redirigir a v2 si tiene cookie
@@ -69,75 +94,64 @@ export async function middleware(request: NextRequest) {
       await jwtVerify(token, getSecretKey())
       const versionPref = request.cookies.get('castor_studio_version')?.value
       if (versionPref === 'v2') {
-        return NextResponse.redirect(new URL('/v2/studio', request.url))
+        return withCSP(NextResponse.redirect(new URL('/v2/studio', request.url)), nonce)
       }
       if (versionPref === 'v1') {
-        return NextResponse.redirect(new URL('/studio', request.url))
+        return withCSP(NextResponse.redirect(new URL('/studio', request.url)), nonce)
       }
-      // Sin preferencia o valor inválido → volver al selector de versión
-      return NextResponse.redirect(new URL('/landing', request.url))
+      return withCSP(NextResponse.redirect(new URL('/landing', request.url)), nonce)
     } catch {
-      // Token inválido, fall through a la verificación normal
+      // Token inválido, fall through
     }
   }
 
   // Permitir rutas completamente públicas
   if (publicPaths.includes(pathname)) {
-    return NextResponse.next()
+    return withCSP(NextResponse.next(), nonce)
   }
 
   // Permitir prefijos públicos
   if (publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
-    return NextResponse.next()
+    return withCSP(NextResponse.next(), nonce)
   }
 
   // APIs de solo lectura: permitir GET sin auth
   if (readOnlyPublicApis.some(api => pathname.startsWith(api)) && method === 'GET') {
-    return NextResponse.next()
+    return withCSP(NextResponse.next(), nonce)
   }
 
-  // APIs que permiten POST con auth (verificar auth en el endpoint)
+  // APIs que permiten POST con auth
   if (authPostApis.some(api => pathname.startsWith(api))) {
-    return NextResponse.next()
+    return withCSP(NextResponse.next(), nonce)
   }
 
   // Verificar JWT para rutas protegidas
   if (!token) {
-    // Para APIs, devolver 401
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
+      return withCSP(NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
-      )
+      ), nonce)
     }
-    // Para páginas, redirigir a landing
-    return NextResponse.redirect(new URL('/landing', request.url))
+    return withCSP(NextResponse.redirect(new URL('/landing', request.url)), nonce)
   }
 
   try {
     await jwtVerify(token, getSecretKey())
-    return NextResponse.next()
+    return withCSP(NextResponse.next(), nonce)
   } catch {
-    // Token inválido
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
+      return withCSP(NextResponse.json(
         { error: 'Invalid session', code: 'AUTH_REQUIRED' },
         { status: 401 }
-      )
+      ), nonce)
     }
-    return NextResponse.redirect(new URL('/landing', request.url))
+    return withCSP(NextResponse.redirect(new URL('/landing', request.url)), nonce)
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
 }

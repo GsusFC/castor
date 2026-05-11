@@ -23,5 +23,6 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https://relay.farcaster.xyz https://warpcast.com; frame-ancestors 'none'; upgrade-insecure-requests;"
-# TODO: Migrate to strict-dynamic with nonces for script-src (requires Next.js middleware CSP + custom _document)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https://relay.farcaster.xyz https://warpcast.com; frame-ancestors 'none'; upgrade-insecure-requests;"
+# CSP managed dynamically by middleware with per-request nonces.
+# Netlify headers serve as fallback for static assets and edge cases.

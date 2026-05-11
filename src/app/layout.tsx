@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
@@ -58,8 +59,11 @@ export default function RootLayout({
     throw new Error('Global error boundary test (root layout)')
   }
 
+  const headersList = await headers()
+  const nonce = headersList.get('x-nonce') ?? ''
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" nonce={nonce} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#AE997A" />

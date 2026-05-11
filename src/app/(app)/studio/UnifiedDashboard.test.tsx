@@ -55,6 +55,7 @@ describe('UnifiedDashboard', () => {
         isPremium: false,
         ownerId: null,
         owner: null,
+        hasBrandVoice: false,
       },
     ]
 
@@ -65,6 +66,7 @@ describe('UnifiedDashboard', () => {
           casts={[]}
           templates={[]}
           currentUserId="user-1"
+          userFid={1}
           isAdmin={false}
         />
         <TestProbe />

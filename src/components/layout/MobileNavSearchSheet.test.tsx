@@ -37,7 +37,7 @@ describe('MobileNavSearchSheet', () => {
         }}
         isSearching={false}
         favorites={[]}
-        toggleFavorite={async () => null}
+        toggleFavorite={async () => {}}
         onSelectUser={() => null}
         onSelectChannel={() => null}
         onSelectCast={onSelectCast}
@@ -62,7 +62,7 @@ describe('MobileNavSearchSheet', () => {
         searchResults={{ users: [], channels: [], casts: [{ hash: '0x1', text: 'cast', author: { username: 'u' } }] }}
         isSearching={false}
         favorites={[]}
-        toggleFavorite={async () => null}
+        toggleFavorite={async () => {}}
         onSelectUser={() => null}
         onSelectChannel={() => null}
         onSelectCast={() => null}

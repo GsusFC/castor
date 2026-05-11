@@ -42,6 +42,9 @@ next-env.d.ts
 
 .netlify/
 
+# Worktrees
+.worktrees/
+
 # Playwright
 test-results/
 playwright-report/

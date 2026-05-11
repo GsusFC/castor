@@ -45,6 +45,10 @@ next-env.d.ts
 # Worktrees
 .worktrees/
 
+# AI agent artifacts (prevent accidental commits)
+Sin título*.txt
+Untitled*.txt
+
 # Playwright
 test-results/
 playwright-report/

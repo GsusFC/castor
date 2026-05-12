@@ -41,12 +41,16 @@ export async function GET() {
       .map(a => a.fid)
       .filter((fid): fid is number => typeof fid === 'number' && Number.isFinite(fid))
 
+    // Usar datos de la DB (refrescados) en vez de la sesión (JWT stale)
+    const pfpUrl = account?.pfpUrl || session.pfpUrl
+    const displayName = account?.displayName || session.displayName
+
     return NextResponse.json({
       fid: session.fid,
       userId: session.userId,
       username: session.username,
-      displayName: session.displayName,
-      pfpUrl: session.pfpUrl,
+      displayName,
+      pfpUrl,
       accountId: account?.id || null,
       signerUuid: account?.signerUuid || null,
       isPro: account?.isPremium || false,

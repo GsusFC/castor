@@ -54,6 +54,7 @@ async function fetchFeedService(params: FeedParams) {
     const response = await callNeynar('neynar:feed:for-you', () =>
       neynar.fetchFeedForYou({
         fid,
+        viewerFid: fid,
         limit,
         cursor,
       })

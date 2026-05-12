@@ -6,16 +6,15 @@ function generateNonce(): string {
   return Buffer.from(crypto.randomUUID()).toString('base64')
 }
 
-function cspValue(nonce: string): string {
+function cspValue(_nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'strict-dynamic' 'nonce-${nonce}'`,
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
     "connect-src 'self' https:",
     "frame-src 'self' https://relay.farcaster.xyz https://warpcast.com",
-    "frame-ancestors 'none'",
     "upgrade-insecure-requests",
   ].join('; ')
 }

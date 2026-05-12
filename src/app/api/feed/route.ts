@@ -68,17 +68,24 @@ async function fetchFeedService(params: FeedParams) {
           neynar.fetchTrendingFeed({ limit: 10 })
         )
         const trendingCasts = (trendingResponse.casts || [])
-        // Merge deduplicando por hash
         const existingHashes = new Set(casts.map((c: any) => c.hash))
         const extra = trendingCasts.filter((c: any) => !existingHashes.has(c.hash))
         casts = [...casts, ...extra].slice(0, limit)
-        // Ordenar por timestamp (más recientes primero)
-        casts.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         console.log(`[Feed home] Merged ${extra.length} trending casts (total: ${casts.length})`)
       } catch {
         // Si trending falla, usamos lo que tengamos
       }
     }
+
+    // Ordenar siempre por timestamp (más reciente primero), inválidos al final
+    casts.sort((a: any, b: any) => {
+      const ta = new Date(a.timestamp).getTime()
+      const tb = new Date(b.timestamp).getTime()
+      if (isNaN(ta) && isNaN(tb)) return 0
+      if (isNaN(ta)) return 1
+      if (isNaN(tb)) return -1
+      return tb - ta
+    })
 
     result = {
       casts,

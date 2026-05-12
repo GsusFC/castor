@@ -87,6 +87,14 @@ async function fetchFeedService(params: FeedParams) {
       return tb - ta
     })
 
+    // Filtrar casts con timestamps corruptos (anteriores al lanzamiento de Farcaster)
+    const FARCASTER_LAUNCH = new Date('2022-10-01').getTime()
+    const before = casts.length
+    casts = casts.filter((c: any) => new Date(c.timestamp).getTime() > FARCASTER_LAUNCH)
+    if (casts.length < before) {
+      console.log(`[Feed home] Removed ${before - casts.length} casts with invalid timestamps`)
+    }
+
     result = {
       casts,
       next: { cursor: normalizeCursor(response.next?.cursor) },

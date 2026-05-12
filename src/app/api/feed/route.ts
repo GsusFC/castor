@@ -242,13 +242,13 @@ function filterSpam(casts: any[]): any[] {
     if (!author) return false
 
     const followerCount = author.follower_count ?? 0
-    const isPro = author.pro?.status === 'subscribed'
+    const qualityScore = author.experimental?.neynar_user_score ?? 0
 
     // 1. Power badge = siempre visible
     if (author.power_badge) return true
 
-    // 2. Usuarios Pro = siempre visible
-    if (isPro) return true
+    // 2. Usuarios de alta calidad (neynar_user_score > 0.8) = siempre visible
+    if (qualityScore > 0.8) return true
 
     // 3. Filtrar cuentas sin username o con username inválido
     if (!author.username || author.username.startsWith('!')) {
@@ -284,7 +284,7 @@ function sanitizeCast(cast: any): any {
       display_name: cast.author?.display_name,
       pfp_url: cast.author?.pfp_url,
       power_badge: cast.author?.power_badge,
-      pro: cast.author?.pro,
+      neynar_user_score: cast.author?.experimental?.neynar_user_score,
     },
     reactions: {
       likes_count: cast.reactions?.likes_count || 0,

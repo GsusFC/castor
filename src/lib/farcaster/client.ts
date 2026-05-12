@@ -180,8 +180,8 @@ export async function getUserByFid(fid: number) {
       }
     }
 
-    // Detectar si es Pro (suscripción activa)
-    const isPro = (user as { pro?: { status?: string } }).pro?.status === 'subscribed'
+    // Detectar calidad del usuario (neynar_user_score: probabilidad de no ser spam, 0-1)
+    const qualityScore = (user as { experimental?: { neynar_user_score?: number } }).experimental?.neynar_user_score ?? 0
     
     return {
       success: true as const,
@@ -190,7 +190,7 @@ export async function getUserByFid(fid: number) {
         username: user.username,
         displayName: user.display_name,
         pfpUrl: user.pfp_url,
-        isPremium: isPro,
+        isPremium: qualityScore > 0.8,
       },
     }
   } catch (error) {

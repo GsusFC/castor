@@ -72,6 +72,8 @@ async function fetchFeedService(params: FeedParams) {
         const existingHashes = new Set(casts.map((c: any) => c.hash))
         const extra = trendingCasts.filter((c: any) => !existingHashes.has(c.hash))
         casts = [...casts, ...extra].slice(0, limit)
+        // Ordenar por timestamp (más recientes primero)
+        casts.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         console.log(`[Feed home] Merged ${extra.length} trending casts (total: ${casts.length})`)
       } catch {
         // Si trending falla, usamos lo que tengamos

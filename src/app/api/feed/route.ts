@@ -55,6 +55,7 @@ async function fetchFeedService(params: FeedParams) {
       neynar.fetchFeedForYou({
         fid,
         viewerFid: fid,
+        provider: 'openrank',
         limit,
         cursor,
       })

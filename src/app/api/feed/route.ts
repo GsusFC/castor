@@ -55,13 +55,31 @@ async function fetchFeedService(params: FeedParams) {
       neynar.fetchFeedForYou({
         fid,
         viewerFid: fid,
-        provider: 'openrank',
         limit,
         cursor,
       })
     )
+    let casts = (response.casts || [])
+
+    // Fallback: si For You devuelve pocos resultados, rellenar con trending
+    if (casts.length < 5 && !cursor) {
+      try {
+        const trendingResponse = await callNeynar('neynar:feed:trending', () =>
+          neynar.fetchTrendingFeed({ limit: 10 })
+        )
+        const trendingCasts = (trendingResponse.casts || [])
+        // Merge deduplicando por hash
+        const existingHashes = new Set(casts.map((c: any) => c.hash))
+        const extra = trendingCasts.filter((c: any) => !existingHashes.has(c.hash))
+        casts = [...casts, ...extra].slice(0, limit)
+        console.log(`[Feed home] Merged ${extra.length} trending casts (total: ${casts.length})`)
+      } catch {
+        // Si trending falla, usamos lo que tengamos
+      }
+    }
+
     result = {
-      casts: response.casts || [],
+      casts,
       next: { cursor: normalizeCursor(response.next?.cursor) },
     }
   } else if (type === 'following') {

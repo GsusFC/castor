@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth'
 import { neynar } from '@/lib/farcaster/client'
 import { eq, or, inArray } from 'drizzle-orm'
 
-const PROFILE_REFRESH_MS = 3600_000 // 1 hora
+const PROFILE_REFRESH_MS = 300_000 // 5 minutos
 
 async function refreshAccountFromNeynar(account: typeof accounts.$inferSelect) {
   try {

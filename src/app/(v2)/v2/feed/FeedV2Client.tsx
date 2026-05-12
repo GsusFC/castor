@@ -238,6 +238,11 @@ function FeedV2Inner({ user }: FeedV2ClientProps) {
   const filteredCasts = deduped.filter((cast: Cast) => {
     const fid = cast?.author?.fid
     if (!Number.isFinite(fid)) return true
+
+    // Filtrar casts con timestamps corruptos (Neynar data bug)
+    const ts = new Date(cast?.timestamp || '').getTime()
+    if (isNaN(ts) || ts < new Date('2024-01-01').getTime()) return false
+
     return !moderationState.blockedFids.has(fid) && !moderationState.mutedFids.has(fid)
   })
 

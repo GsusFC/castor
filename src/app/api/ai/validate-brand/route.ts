@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, canAccess } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { db, accounts, accountMembers } from '@/lib/db'
 import { and, eq } from 'drizzle-orm'
 import { castorAI } from '@/lib/ai/castor-ai'
@@ -16,6 +17,14 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rateLimit = await checkRateLimit(session.userId, 'expensive')
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.' },
+        { status: 429 }
+      )
     }
 
     const body = await request.json()

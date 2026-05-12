@@ -47,11 +47,21 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Validar que accountIdFilter pertenece a cuentas del usuario
+    if (accountIdFilter && !accountIds.includes(accountIdFilter)) {
+      return NextResponse.json({
+        totals: { casts: 0, likes: 0, recasts: 0, replies: 0 },
+        topCasts: [],
+        accounts: [],
+        period: { days },
+      })
+    }
+
     // Filtrar por fecha
     const dateFrom = new Date()
     dateFrom.setDate(dateFrom.getDate() - days)
 
-    // Construir filtro
+    // Construir filtro (accountIdFilter ya validado)
     const baseFilter = accountIdFilter
       ? and(eq(castAnalytics.accountId, accountIdFilter), gte(castAnalytics.publishedAt, dateFrom))
       : and(inArray(castAnalytics.accountId, accountIds), gte(castAnalytics.publishedAt, dateFrom))

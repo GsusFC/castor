@@ -36,16 +36,21 @@ export async function acquireLock(
 
   if (redis) {
     // Redis-based lock using SET NX EX
-    const acquired = await redis.set(lockKey, lockId, {
-      nx: true,
-      ex: ttlSeconds,
-    })
-    
-    if (acquired) {
-      logger.debug({ key, lockId, ttlSeconds }, 'Lock acquired (Redis)')
-      return lockId
+    try {
+      const acquired = await redis.set(lockKey, lockId, {
+        nx: true,
+        ex: ttlSeconds,
+      })
+      
+      if (acquired) {
+        logger.debug({ key, lockId, ttlSeconds }, 'Lock acquired (Redis)')
+        return lockId
+      }
+      return null
+    } catch (err) {
+      logger.warn({ key, err }, 'Redis lock acquire failed, falling back to memory lock')
+      // Fall through to memory-based lock below
     }
-    return null
   }
 
   // Memory-based fallback
@@ -76,20 +81,25 @@ export async function releaseLock(key: string, lockId: string): Promise<boolean>
 
   if (redis) {
     // Only delete if we own the lock
-    const script = `
+    try {
+      const script = `
       if redis.call("get", KEYS[1]) == ARGV[1] then
         return redis.call("del", KEYS[1])
       else
         return 0
       end
     `
-    const result = await redis.eval(script, [lockKey], [lockId])
-    const released = result === 1
-    
-    if (released) {
-      logger.debug({ key, lockId }, 'Lock released (Redis)')
+      const result = await redis.eval(script, [lockKey], [lockId])
+      const released = result === 1
+      
+      if (released) {
+        logger.debug({ key, lockId }, 'Lock released (Redis)')
+      }
+      return released
+    } catch (err) {
+      logger.warn({ key, lockId, err }, 'Redis lock release failed, falling back to memory')
+      // Fall through to memory-based release below
     }
-    return released
   }
 
   // Memory-based fallback

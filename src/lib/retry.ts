@@ -205,8 +205,8 @@ export interface CircuitBreakerOptions {
 }
 
 const DEFAULT_CIRCUIT_OPTIONS: Required<CircuitBreakerOptions> = {
-  failureThreshold: 5,
-  resetTimeoutMs: 30000,
+  failureThreshold: 3,   // Conservative: 3 failures on cold start vs 5
+  resetTimeoutMs: 60000, // 60s cooldown (was 30s)
 }
 
 /**

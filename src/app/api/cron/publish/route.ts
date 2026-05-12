@@ -111,11 +111,21 @@ export async function GET(request: NextRequest) {
     const lockResult = await withLock(
       CRON_LOCK_KEY,
       async () => {
-        return await publishDueCasts({
+        // Timeout de 10s para la query inicial de Turso
+        // Si la DB no responde, el cron falla rápido en lugar de colgarse
+        const DB_QUERY_TIMEOUT_MS = 10_000
+        const publishPromise = publishDueCasts({
           maxCasts: 5,
           maxDurationMs: 20_000,
           publishCastTimeoutMs: 18_000,
         })
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Initial Turso query timed out after 10s')),
+            DB_QUERY_TIMEOUT_MS
+          )
+        )
+        return await Promise.race([publishPromise, timeoutPromise])
       },
       { ttlSeconds: CRON_LOCK_TTL }
     )

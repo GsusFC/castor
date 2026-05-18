@@ -11,7 +11,7 @@ function cspValue(_nonce: string): string {
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
     "connect-src 'self' https:",
     "frame-src 'self' https://relay.farcaster.xyz https://warpcast.com",
